@@ -37,11 +37,22 @@ def lpDualGurobi(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstr
 
   x = m.addVars(len(S), len(A), lb=0, name='x')
 
-  # flow conservation constraints
-  for sp in Sr:
-    # x (x(s) - \gamma * T) = \sigma
-    m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
-  
+  # flow conservation constraints. for each s',
+  # \sum_{s, a} x(s, a) (1_{s = s'} - \gamma * T(s, a, s')) = \alpha(s')
+  # if invertT is computed for deterministic domains, this can be much more efficient
+  if mdp.invertT != None:
+    for sp in Sr:
+      # supports of 1_{s = s'}
+      identityItems = [(sp, a) for a in Ar]
+      # supports of \gamma * T(s, a, s')
+      invertedTransitItems = map(lambda _: (S.index(_[0]), A.index(_[1])), mdp.invertT[S[sp]])
+      # kill duplicates
+      supports = tuple(set(identityItems).union(invertedTransitItems))
+      m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for (s, a) in supports) == alpha(S[sp]))
+  else:
+    for sp in Sr:
+      m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
+
   # == constraints
   if len(zeroConstraints) > 0:
     m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints) == 0)
@@ -73,7 +84,6 @@ def lpDualCPLEX(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstra
   Note that this is a lower level function that does not consider feature extraction.
   r should be a reward function, not a reward parameter.
   """
-
   S = mdp.S
   A = mdp.A
   T = mdp.T

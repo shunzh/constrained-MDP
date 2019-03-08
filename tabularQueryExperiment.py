@@ -15,7 +15,7 @@ from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigation, squareWorld, toySokobanWorld, sokobanWorld, carpetsAndWallsDomain
 
 
-def experiment(spec, k, constrainHuman, dry, rnd, pf=0, pfStep=1):
+def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
@@ -26,7 +26,7 @@ def experiment(spec, k, constrainHuman, dry, rnd, pf=0, pfStep=1):
   pf: only for Bayesian setting. ["prob that ith unknown feature is free" for i in range(self.numOfCons)]
     If None (by default), set randomly
   """
-  mdp, consStates = officeNavigation(spec)
+  mdp, consStates = officeNavigation(spec, gamma)
 
   numOfCons = len(consStates)
   consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
@@ -307,7 +307,8 @@ if __name__ == '__main__':
   else:
     #spec = carpetsAndWallsDomain()
     #spec = squareWorld(size, numOfCarpets, avoidBorder=False)
-    spec = toySokobanWorld()
-    #spec = sokobanWorld()
+    #spec = squareWorld(size, numOfCarpets, avoidBorder=True)
 
-    experiment(spec, k, constrainHuman, dry, rnd, pf, pfStep)
+    #spec = toySokobanWorld()
+    spec = sokobanWorld()
+    experiment(spec, k, constrainHuman, dry, rnd, pf=pf, pfStep=pfStep, gamma=0.9)

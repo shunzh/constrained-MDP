@@ -162,14 +162,11 @@ def parameterizedSokobanWorld(size, numOfBoxes):
   return Spec(width, height, robot, switch, walls, doors, boxes, carpets, horizon)
 
 
-def officeNavigation(spec):
+def officeNavigation(spec, gamma):
   """
   spec: specification of the factored mdp
-
+  gamma: discounting factor
   """
-  # need to flatten the state representation to a vector.
-  # (robot's location, doors, boxes, switch, time)
-  
   # robot's location
   lIndex = 0
   
@@ -191,11 +188,12 @@ def officeNavigation(spec):
   tIndex = sIndex + 1
 
   directionalActs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-  #directionalActs = [(1, 0), (0, 1)]
+  #directionalActs = [(1, 0), (0, 1), (1, 1)]
   aSets = directionalActs + [TURNOFFSWITCH]
  
   # check whether the world looks as expected
   for y in range(spec.height):
+    print '%3d' % y,
     for x in range(spec.width):
       if (x, y) in spec.walls: print '[ W]',
       elif spec.carpets.count((x, y)) == 1: print '[%2d]' % spec.carpets.index((x, y)),
@@ -205,6 +203,10 @@ def officeNavigation(spec):
       elif (x, y) == spec.robot: print '[ R]',
       else: print '[  ]',
     print
+  print '  ',
+  for x in range(spec.width):
+    print '%4d' % x,
+  print
 
   def boxMovable(idx, s, a):
     """
@@ -358,9 +360,10 @@ def officeNavigation(spec):
   rFunc = oldReward
   # only give reward of 1 if the switch is turned off and the boxes are in their initial locations
   #rFunc = goalConstrainedReward(lambda s: s[sIndex] == OFF and all(s[bIdx] == s0[bIdx] for bIdx in bIndices))
-  gamma = 0.9
 
   mdp = domainConstructors.constructDeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma, terminal)
+
+  print 'state space', len(mdp.S)
 
   # implement the set of constrained states based on feature representation
   # consStates is [[states that violate the i-th constraint] for i in all constraints]

@@ -96,7 +96,7 @@ class ConsQueryAgent():
 
       # find the subset with the smallest size
       activeCons = min(subsetsToConsider, key=lambda _: len(_))
-      #if config.DEBUG: print 'activeCons', activeCons
+      if config.DEBUG: print 'activeCons', activeCons
       subsetsConsidered.append(activeCons)
 
       skipThisCons = False
@@ -104,6 +104,7 @@ class ConsQueryAgent():
         if enf.issubset(activeCons) and len(relax.intersection(activeCons)) == 0:
           # this subset can be ignored
           skipThisCons = True
+          if config.DEBUG: print 'dominated'
           break
       if skipThisCons:
         continue
@@ -120,7 +121,7 @@ class ConsQueryAgent():
         # check violated constraints
         violatedCons = self.findViolatedConstraints(x)
 
-        if config.DEBUG: print 'x violates', violatedCons
+        if config.DEBUG: print 'this policy violates', violatedCons
       else:
         # infeasible
         violatedCons = ()

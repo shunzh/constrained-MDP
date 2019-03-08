@@ -1,7 +1,3 @@
-import random
-import numpy as np
-import itertools
-import copy
 
 class SimpleMDP:
   """
@@ -16,6 +12,9 @@ class SimpleMDP:
     self.terminal = terminal
     self.gamma = gamma
     self.psi = psi
+
+    # the invert transition function. don't compute this by default
+    self.invertT = None
   
   def resetInitialState(self, initS):
     """
@@ -38,8 +37,6 @@ def constructDeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma=1, t
   # the i-th component of s' is determined by tFunc[i]
   transit = lambda state, action: tuple([t(state, action) for t in tFunc])
   # transFunc(s, a, sp) -> prob
-  # transFunc(s, a) -> s'
-  #FIXME is this overriding used?
   def transFunc(state, action, sp=None):
     if sp == None:
       return transit(state, action)
@@ -68,5 +65,16 @@ def constructDeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma=1, t
           if not sp in mdp.S and not sp in newBuffer:
             newBuffer.append(sp)
     buffer = newBuffer
+
+  # in the flow conservation constraints in lp, we need to find out what s, a can reach sp
+  # so we precompute the inverted transition function here to save time in solving lp
+  mdp.invertT = {}
+  for s in mdp.S:
+    mdp.invertT[s] = []
+  for s in mdp.S:
+    if not terminal(s):
+      for a in mdp.A:
+        sp = transit(s, a)
+        mdp.invertT[sp].append((s, a))
 
   return mdp
