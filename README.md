@@ -1,6 +1,6 @@
 # Constrained MDP
 
-![Robot navigation domain](https://lh4.googleusercontent.com/vgSdn7OHV3E0VHmnVgUVrfBMtj8ybfIO5wQShNt61C3-V2KfajgtKYTZCJKIOGf60FdgwNDU90xwcu4fEeaYDbmsGMnpRDZ72moO-CXbSVcqkiaGaQ=w371)
+![Robot navigation domain](https://lh5.googleusercontent.com/hfTF00U3ArJTAsC2XFmcyQW2f_uG4UZIGnHV7OR4qoepqa6P0F1eDuGotAUm3FZKPNIa3YESRd0b0wVhQwzOhcFdtYlZIsxUQ-tWwJHacbu6aHarEg=w371)
 
 This codebase contains the following.
 
