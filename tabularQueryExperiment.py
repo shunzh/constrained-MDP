@@ -1,15 +1,34 @@
+import getopt
+import os
+import pickle
 import random
+import sys
+import time
 
 import numpy
 import scipy
 
-def experiment(mdp, k, constrainHuman, dry, rnd, pf=0, pfStep=1):
+from algorithms.consQueryAgents import ConsQueryAgent, EXIST, NOTEXIST
+from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyAgent, \
+  MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent
+from algorithms.safeImprovementAgent import SafeImproveAgent
+from domains.officeNavigation import officeNavigation, squareWorld, toySokobanWorld, sokobanWorld, carpetsAndWallsDomain
+
+
+def experiment(spec, k, constrainHuman, dry, rnd, pf=0, pfStep=1):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
+
+  k: number of queries (in batch querying setting
+  constrainHuman: a flag controls MR vs MR_k
+  dry: no output to file if True
+  rnd: random seed
+  pf: only for Bayesian setting. ["prob that ith unknown feature is free" for i in range(self.numOfCons)]
+    If None (by default), set randomly
   """
+  mdp, consStates = officeNavigation(spec)
 
   numOfCons = len(consStates)
-
   consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
 
   print 'consProbs', zip(range(numOfCons), consProbs)
@@ -23,7 +42,6 @@ def experiment(mdp, k, constrainHuman, dry, rnd, pf=0, pfStep=1):
   #trueFreeFeatures = agent.findViolatedConstraints(random.choice(domPis))
   # or hand designed
   print 'true free features', trueFreeFeatures
-
 
   if not agent.initialSafePolicyExists():
     # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
@@ -120,6 +138,8 @@ def experiment(mdp, k, constrainHuman, dry, rnd, pf=0, pfStep=1):
   else:
     # when initial safe policies exist, we want to improve such a safe policy using batch queries
     print 'initial policy exists'
+
+    agent = SafeImproveAgent(mdp, consStates, constrainHuman=constrainHuman)
 
     # we bookkeep the dominating policies for all domains. check whether if we have already computed them.
     # if so we do not need to compute them again.
@@ -282,13 +302,12 @@ if __name__ == '__main__':
             # reset random seed in each iteration
             setRandomSeed(rnd)
 
-            classicOfficeNav(squareWorld(size, numOfCarpets, avoidBorder=False), k, constrainHuman, dry, rnd, pf=pf, pfStep=pfStep)
+            spec = squareWorld(size, numOfCarpets, avoidBorder=False)
+            experiment(spec, k, constrainHuman, dry, rnd, pf, pfStep)
   else:
-    # single experiments
+    #spec = carpetsAndWallsDomain()
+    #spec = squareWorld(size, numOfCarpets, avoidBorder=False)
+    spec = toySokobanWorld()
+    #spec = sokobanWorld()
 
-    #classicOfficeNav(squareWorld(size, numOfCarpets, avoidBorder=False), k, constrainHuman, dry, rnd, pf=pf, pfStep=pfStep)
-
-    # good for testing need-to-be-reverted features
-    classicOfficeNav(toySokobanWorld(), k, constrainHuman, dry, rnd)
-    #classicOfficeNav(sokobanWorld(), k, constrainHuman, dry, rnd)
-    #classicOfficeNav(parameterizedSokobanWorld(size, numOfBoxes), k, constrainHuman, dry, rnd)
+    experiment(spec, k, constrainHuman, dry, rnd, pf, pfStep)

@@ -4,6 +4,7 @@ import numpy
 
 import domainConstructors
 
+# constants for objects in the environment
 R = 'R'
 _ = '_'
 W = 'W'
@@ -164,12 +165,7 @@ def parameterizedSokobanWorld(size, numOfBoxes):
 def officeNavigation(spec):
   """
   spec: specification of the factored mdp
-  k: number of queries (in batch querying setting
-  constrainHuman: a flag controls MR vs MR_k
-  dry: no output to file if True
-  rnd: random seed
-  pf: only for Bayesian setting. ["prob that ith unknown feature is free" for i in range(self.numOfCons)]
-    If None (by default), set randomly
+
   """
   # need to flatten the state representation to a vector.
   # (robot's location, doors, boxes, switch, time)
@@ -307,8 +303,10 @@ def officeNavigation(spec):
   print 'init state', s0
 
   # terminal conditions
-  assert spec.horizon != None; terminal = lambda s: s[tIndex] == spec.horizon
-  #terminal = lambda s: s[lIndex] == spec.switch
+  if spec.horizon != None:
+    terminal = lambda s: s[tIndex] == spec.horizon
+  else:
+    terminal = lambda s: s[lIndex] == spec.switch
 
   # a list of possible reward functions
 

@@ -367,3 +367,4 @@ def computeValue(pi, r, S, A):
     for s in S:
       for a in A:
         sum += pi[s, a] * r(s, a)
+    return sum
