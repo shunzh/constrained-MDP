@@ -47,7 +47,7 @@ def checkPolicyConsistency(states, a, b):
 
     Args:
       states: the set of states that we want to compare the policies
-      a, b: two agents that we want to compare their policies
+      a, b: two algorithms that we want to compare their policies
     Return:
       Portion of consistent policies
   """

@@ -8,7 +8,7 @@ try:
 except ImportError:
   print "can't import pycpx"
 
-import easyDomains
+from domains import domainConstructors
 import config
 import util
 
@@ -341,6 +341,9 @@ def rewardUncertainMILP(S, A, R, T, s0, terminal, k, optV, gamma=1):
   
   return obj, m[I]
 
+"""
+Utility functions to compute values, uncertain objectives, etc.
+"""
 def computeObj(q, psi, S, A, R):
   rLen = len(R)
   obj = 0
@@ -361,16 +364,3 @@ def computeValue(pi, r, S, A):
     for s in S:
       for a in A:
         sum += pi[s, a] * r(s, a)
-    return sum
-
-def toyDomain():
-  args = easyDomains.getChainDomain(10)
-  args['maxV'] = [0]
-  milp(**args)
-
-
-if __name__ == '__main__':
-  config.VERBOSE = True
-
-  #rockDomain()
-  toyDomain()
