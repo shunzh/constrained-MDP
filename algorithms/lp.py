@@ -1,46 +1,16 @@
-try:
-  from gurobipy import *
-except ImportError:
-  print "can't import gurobipy"
+USECPLEX = False
+USEGUROBI = True
 
-try:
+# no need to catch exceptions here if import fails. should abort anyway.
+if USEGUROBI:
+  from gurobipy import *
+
+if USECPLEX:
   from pycpx import CPlexModel, CPlexException, CPlexNoSolution
-except ImportError:
-  print "can't import pycpx"
 
 from domains import domainConstructors
 import config
 import util
-
-def lp(S, A, r, T, s0):
-  """
-  Solve the LP problem to find out the optimal occupancy
-  
-  Args:
-    S: state set
-    A: action set
-    r: reward
-    T: transition function
-    s0: init state
-  """
-  m = CPlexModel()
-  if not config.VERBOSE or config.DEBUG: m.setVerbosity(0)
-
-  # useful constants
-  Sr = range(len(S))
- 
-  v = m.new(len(S), name='v')
-
-  for s in Sr:
-    for a in A:
-      m.constrain(v[s] >= r(S[s], a) + sum(v[sp] * T(S[s], a, S[sp]) for sp in Sr))
-  
-  # obj
-  obj = m.minimize(v[s0])
-  ret = util.Counter()
-  for s in Sr:
-    ret[S[s]] = m[v][s]
-  return ret
 
 def lpDualGurobi(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstraintsOcc=1):
   """
@@ -95,7 +65,6 @@ def lpDualGurobi(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstr
   else:
     raise Exception('error status: %d' % m.status)
 
-
 def lpDualCPLEX(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstraintsOcc=1):
   """
   Solve the dual problem of lp, maybe with some constraints
@@ -145,9 +114,41 @@ def lpDualCPLEX(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstra
   return {'feasible': True, 'obj': obj, 'pi': {(S[s], A[a]): m[x][s, a] for s in Sr for a in Ar}}
 
 
+"""
+TODO the following only uses CPLEX.
+"""
+def lp(S, A, r, T, s0):
+  """
+  Solve the LP problem to find out the optimal occupancy
+
+  Args:
+    S: state set
+    A: action set
+    r: reward
+    T: transition function
+    s0: init state
+  """
+  m = CPlexModel()
+  if not config.VERBOSE or config.DEBUG: m.setVerbosity(0)
+
+  # useful constants
+  Sr = range(len(S))
+
+  v = m.new(len(S), name='v')
+
+  for s in Sr:
+    for a in A:
+      m.constrain(v[s] >= r(S[s], a) + sum(v[sp] * T(S[s], a, S[sp]) for sp in Sr))
+
+  # obj
+  obj = m.minimize(v[s0])
+  ret = util.Counter()
+  for s in Sr:
+    ret[S[s]] = m[v][s]
+  return ret
+
 def decomposePiLP(S, A, T, s0, terminal, rawX, x, gamma=1):
   """
-  DEPRECATED.
   This tries to decouple a policy into the optimal policy (following no constraints) and another policy \pi'.
   \pi' may be a dominating policy.
   Described in Eq. 2 on Aug.29, 2017.
@@ -238,6 +239,7 @@ def milp(S, A, R, T, s0, psi, maxV):
       res[S[s], A[a]] = m[x][s, a] 
   return res
 
+
 def domPiMilp(S, A, r, T, s0, terminal, domPis, consIdx, gamma=1):
   """
   Finding dominating policies by representing constraints as possible negative rewards.
@@ -293,7 +295,8 @@ def domPiMilp(S, A, r, T, s0, terminal, domPis, consIdx, gamma=1):
   print m[z]
   
   return obj, {(S[s], A[a]): m[x][s, a] for s in Sr for a in Ar}
-  
+
+
 def rewardUncertainMILP(S, A, R, T, s0, terminal, k, optV, gamma=1):
   """
   The algorithm adapted from

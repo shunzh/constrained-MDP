@@ -59,8 +59,6 @@ class ConsQueryAgent():
       return lpDualGurobi(mdp, zeroConstraints=zeroConstraints)
     elif config.METHOD == 'cplex':
       return lpDualCPLEX(mdp, zeroConstraints=zeroConstraints)
-    elif config.METHOD == 'mcts':
-      return MCTS(**mdp)
     else:
       raise Exception('unknown method')
 
