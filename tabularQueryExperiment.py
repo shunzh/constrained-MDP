@@ -108,10 +108,10 @@ def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
       end = time.time()
 
       # the alg must return an answer
-      assert thisAnswer != None
+      assert thisAnswer is not None
 
       # make sure all the algorithms give the same answer. otherwise imp error
-      if answer == None:
+      if answer is None:
         answer = thisAnswer
       else:
         assert answer == thisAnswer, {'other methods say': answer, method + ' says': thisAnswer}
@@ -132,7 +132,7 @@ def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
     else:
       lb = pf; ub = pf + pfStep
       # write to file
-      pickle.dump({'q': queries, 't': times, 'iiss': iiss, 'relFeats': relFeats, 'solvable': answer == 'exist'},\
+      pickle.dump({'q': queries, 't': times, 'iiss': iiss, 'relFeats': relFeats, 'solvable': answer == 'exist'},
                   open(str(spec.width) + '_' + str(spec.height) + '_' + str(len(spec.carpets)) + '_' +\
                        str(lb) + '_' + str(ub) + '_' + str(rnd) + '.pkl', 'wb'))
   else:
@@ -226,11 +226,7 @@ def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
         saveToFileForSafePiImprove(method, k, numOfCarpets, constrainHuman, q, mrk, runTime, regret)
 
 def saveToFileForSafePiImprove(method, k, numOfCarpets, constrainHuman, q, mrk, runTime, regret):
-  ret = {}
-  ret['mrk'] = mrk
-  ret['regret'] = regret
-  ret['time'] = runTime
-  ret['q'] = q
+  ret = {'mrk': mrk, 'regret': regret, 'time': runTime, 'q': q}
 
   postfix = 'mrk' if constrainHuman else 'mr'
 

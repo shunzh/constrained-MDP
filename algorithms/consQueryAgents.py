@@ -61,9 +61,9 @@ class ConsQueryAgent():
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
     # function as an interface. does nothing by default
-    if newFreeCon != None:
+    if newFreeCon is not None:
       self.knownFreeCons.append(newFreeCon)
-    if newLockedCon != None:
+    if newLockedCon is not None:
       self.knownLockedCons.append(newLockedCon)
 
   """
@@ -162,7 +162,7 @@ class ConsQueryAgent():
 
     return regret
 
-  def findMRAdvPi(self, q, relFeats, domPis, k, consHuman=None, tolerated=[]):
+  def findMRAdvPi(self, q, relFeats, domPis, k, consHuman=None, tolerated=()):
     """
     Find the adversarial policy given q and domPis
     
@@ -171,7 +171,7 @@ class ConsQueryAgent():
     
     Now searching over all dominating policies, maybe take some time.. can use MILP instead?
     """
-    if consHuman == None: consHuman = self.constrainHuman
+    if consHuman is None: consHuman = self.constrainHuman
 
     maxRegret = 0
     advPi = None
@@ -202,16 +202,16 @@ class ConsQueryAgent():
 
       regret = humanValue - robotValue
       
-      assert robotPi != None
+      assert robotPi is not None
       # ignore numerical issues
       assert regret >= -0.00001, 'human %f, robot %f' % (humanValue, robotValue)
 
-      if regret > maxRegret or (regret == maxRegret and advPi == None):
+      if regret > maxRegret or (regret == maxRegret and advPi is None):
         maxRegret = regret
         advPi = pi
   
     # even with constrainHuman, the non-constraint-violating policy is in \Gamma
-    assert advPi != None
+    assert advPi is not None
     return maxRegret, advPi
 
   def constructConstraints(self, cons, mdp):
@@ -247,7 +247,7 @@ class ConsQueryAgent():
   """
   def safePolicyExist(self, freeCons=None):
     # some dom pi's relevant features are all free
-    if freeCons == None:
+    if freeCons is None:
       freeCons = self.knownFreeCons
 
     if hasattr(self, 'piRelFeats'):
@@ -261,7 +261,7 @@ class ConsQueryAgent():
   
   def safePolicyNotExist(self, lockedCons=None):
     # there are some locked features in all dom pis
-    if lockedCons == None:
+    if lockedCons is None:
       lockedCons = self.knownLockedCons
     if hasattr(self, 'piRelFeats'):
       return all(len(set(relFeats).intersection(lockedCons)) > 0 for relFeats in self.piRelFeats)
@@ -351,23 +351,6 @@ class ConsQueryAgent():
         iiss.append(cons)
 
     self.iiss = iiss
-
-  def statesWithDifferentFeats(self, idx, mdp):
-    return filter(lambda s: s[idx] != mdp.s0[idx], mdp.S)
-
-  # FIXME remove or not? only used by depreciated methods
-  """
-  def statesTransitToDifferentFeatures(self, idx, value):
-    ret = []
-    for s in self.mdp['S']:
-      if s[idx] == value:
-        for a in self.mdp['A']:
-          for sp in self.mdp['S']:
-            if self.mdp['T'](s, a, sp) > 0 and sp[idx] != value:
-              ret.append((s, a))
-              break
-    return ret
-  """
 
 
 def printOccSA(x):
