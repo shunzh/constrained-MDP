@@ -102,11 +102,17 @@ def carpetsAndWallsDomain():
 
 # some toy domains for need-to-be-reverted features (boxes)
 def toySokobanWorld():
+  # the robot should go straight ahead to turn off the switch (while pushing the box away)
+  # then detour to the other side of the box to push it back
   map = [[_, _, _, _, _],
          [R, B, S, _, _]]
   return toyWorldConstructor(map, horizon=10)
 
 def sokobanWorld():
+  # when only one the box is reversible, the robot should push both boxes away and detour them to reach the switch
+  # and then push the reversible boxes back. the performance is the same regardless which box needs to be reverted.
+  # when both boxes need to be reverted, the performance is the worst since the robot needs to push box 1 back before
+  # reaching the switch.
   map = [[_, W, _, _, _, W, W, _, _, _],
          [R, B, _, _, _, B, _, _, _, S]]
   return toyWorldConstructor(map, horizon=25)
