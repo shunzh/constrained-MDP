@@ -1,16 +1,10 @@
-USECPLEX = False
-USEGUROBI = True
-
-# no need to catch exceptions here if import fails. should abort anyway.
-if USEGUROBI:
-  from gurobipy import *
-
-if USECPLEX:
-  from pycpx import CPlexModel, CPlexException, CPlexNoSolution
-
-from domains import domainConstructors
 import config
 import util
+
+if config.METHOD == 'gurobi':
+  from gurobipy import *
+elif config.METHOD == 'cplex':
+  from pycpx import CPlexModel, CPlexException, CPlexNoSolution
 
 def lpDualGurobi(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstraintsOcc=1):
   """
@@ -39,8 +33,8 @@ def lpDualGurobi(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstr
 
   # flow conservation constraints. for each s',
   # \sum_{s, a} x(s, a) (1_{s = s'} - \gamma * T(s, a, s')) = \alpha(s')
-  # if invertT is computed for deterministic domains, this can be much more efficient
-  if mdp.invertT != None:
+  if mdp.invertT is not None:
+    # if invertT is computed for deterministic domains, this can be much more efficient
     for sp in Sr:
       # supports of 1_{s = s'}
       identityItems = [(sp, a) for a in Ar]
@@ -50,6 +44,8 @@ def lpDualGurobi(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstr
       supports = tuple(set(identityItems).union(invertedTransitItems))
       m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for (s, a) in supports) == alpha(S[sp]))
   else:
+    # the normal way, exactly as specified in the formula
+    # note that we need to iterate overall state, action pairs for each s' \in S
     for sp in Sr:
       m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
 
@@ -78,6 +74,8 @@ def lpDualGurobi(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstr
 
 def lpDualCPLEX(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstraintsOcc=1):
   """
+  DEPRECATED since we moved to gurobi. but leave the function here for sanity check
+
   Solve the dual problem of lp, maybe with some constraints
   Same arguments
 
@@ -124,9 +122,8 @@ def lpDualCPLEX(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstra
   return {'feasible': True, 'obj': obj, 'pi': {(S[s], A[a]): m[x][s, a] for s in Sr for a in Ar}}
 
 
-"""
-TODO the following only uses CPLEX.
-"""
+#TODO the following functions still use CPLEX.
+
 def lp(S, A, r, T, s0):
   """
   Solve the LP problem to find out the optimal occupancy

@@ -50,7 +50,7 @@ class ConsQueryAgent():
   def findConstrainedOptPi(self, activeCons):
     mdp = copy.copy(self.mdp)
 
-    zeroConstraints = self.constructConstraints(activeCons, mdp)
+    zeroConstraints = self.constructConstraints(activeCons)
 
     if config.METHOD == 'gurobi':
       return lpDualGurobi(mdp, zeroConstraints=zeroConstraints)
@@ -214,10 +214,11 @@ class ConsQueryAgent():
     assert advPi is not None
     return maxRegret, advPi
 
-  def constructConstraints(self, cons, mdp):
+  def constructConstraints(self, cons):
     """
     The set of state, action pairs that should not be visited when cons are active constraints.
     """
+    mdp = self.mdp
     return [(s, a) for a in mdp.A for con in cons for s in self.consStates[con]]
 
   def computeValue(self, x):
