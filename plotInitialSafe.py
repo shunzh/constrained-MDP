@@ -1,3 +1,4 @@
+import collections
 import pickle
 
 import matplotlib
@@ -5,7 +6,6 @@ import pylab
 from matplotlib.ticker import FormatStrFormatter
 from numpy import mean
 
-import util
 from util import standardErr
 
 rndSeeds = 1000
@@ -13,6 +13,7 @@ rndSeeds = 1000
 width = height = 5
 
 lensOfQ = {}
+lensOfQRelPhi = {}
 times = {}
 
 #proportionRange = [0.01] + [0.1 * proportionInt for proportionInt in range(10)] + [0.99]
@@ -30,24 +31,33 @@ markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisOnly': 'bs--', 'relpiOnly': '
 names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCover', 'iisOnly': 'SetCover (IIS)', 'relpiOnly': 'SetCover (rel. feat.)', 'maxProb': 'Greed. Prob.',\
          'piHeu': 'Most-Likely', 'random': 'Descending'}
 
-def addFreq(elem, counter): counter[elem] += 1
-
 # output the diffierence of two vectors
 vectorDiff = lambda v1, v2: map(lambda e1, e2: e1 - e2, v1, v2)
 
 # for output as latex table
 outputFormat = lambda d: '$' + str(round(mean(d), 4)) + ' \pm ' + str(round(standardErr(d), 4)) + '$'
 
-def plot(x, y, yci, methods, xlabel, ylabel, filename):
+def plot(x, y, methods, xlabel, ylabel, filename):
   """
-  general script for plotting using pylab
+  plot data.
+
+  :param x: x axis
+  :param y: y(method, x_elem) is a vector that contains raw data
+  :param methods: methods to plot, each has a legend
+  :param xlabel: name of xlabel
+  :param ylabel: name of ylabel
+  :param filename: output to filename.pdf
+  :return:
   """
+  yMean = lambda method: [mean(y(method, xElem)) for xElem in x]
+  yCI = lambda method: [standardErr(y(method, xElem)) for xElem in x]
+
   fig = pylab.figure()
 
   ax = pylab.gca()
   for method in methods:
-    print method, y(method), yci(method)
-    lines = ax.errorbar(x, y(method), yci(method), fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
+    print method, yMean(method), yCI(method)
+    ax.errorbar(x, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
@@ -55,9 +65,25 @@ def plot(x, y, yci, methods, xlabel, ylabel, filename):
   ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
-  
+
   pylab.close()
 
+def scatter(x, y, xlabel, ylabel, filename):
+  fig = pylab.figure()
+
+  for method in methods:
+    # weirdly scatter doesn't have a fmt parameter. setting marker and color separately
+    pylab.scatter(x, y(method), c=markers[method][0], marker=markers[method][1])
+
+  ax = pylab.gca()
+  pylab.xlabel(xlabel)
+  pylab.ylabel(ylabel)
+  pylab.legend()
+  ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+
+  fig.savefig(filename + ".pdf", dpi=300, format="pdf")
+
+  pylab.close()
 
 def plotNumVsProportion(pfRange, pfStep):
   """
@@ -112,10 +138,9 @@ def plotNumVsProportion(pfRange, pfStep):
 
   # plot figure
   x = pfRange
-  y = lambda method: [mean(vectorDiff(lensOfQ[method, pf], lensOfQ[methods[0], pf])) for pf in pfRange]
-  yci = lambda method: [standardErr(vectorDiff(lensOfQ[method, pf], lensOfQ[methods[0], pf])) for pf in pfRange]
+  y = lambda method, pfRange: vectorDiff(lensOfQ[method, pf], lensOfQ[methods[0], pf])
 
-  plot(x, y, yci, methods, '$p_f$', '# of Queried Features (' + names[methods[0]] + ' as baseline)', 'lensOfQPf' + str(int(pfStep * 10)))
+  plot(x, y, methods, '$p_f$', '# of Queried Features (' + names[methods[0]] + ' as baseline)', 'lensOfQPf' + str(int(pfStep * 10)))
 
 
 def plotNumVsCarpets():
@@ -127,23 +152,24 @@ def plotNumVsCarpets():
       lensOfQ[method, carpetNum] = []
       times[method, carpetNum] = []
 
-  iisSizes = {}
-  iisSizesVec = {}
+    for carpetNum in range(max(carpetNums) + 1):
+      # relevant features is going to be at most the number of unknown features anyway
+      lensOfQRelPhi[method, carpetNum] = []
 
-  domPiSizes = {}
-  domPiSizesVec = {}
+  iiss = {}
+  domPis = {}
 
-  solveableIns = {}
+  # a trial is valid (and its data should be counted) when no initial safe policy exists
   validInstances = {}
+  # trials where the robot is able to find a safe policy after querying
+  # (instead of claiming that ho safe policies exist)
+  solvableIns = {}
+
+  # initialize dictionaries
   for carpetNum in carpetNums:
-    iisSizes[carpetNum] = util.Counter()
-    iisSizesVec[carpetNum] = []
-
-    domPiSizes[carpetNum] = util.Counter()
-    domPiSizesVec[carpetNum] = []
-
-    solveableIns[carpetNum] = util.Counter()
-
+    iiss[carpetNum] = []
+    domPis[carpetNum] = []
+    solvableIns[carpetNum] = []
     validInstances[carpetNum] = []
 
   for rnd in range(rndSeeds):
@@ -155,44 +181,47 @@ def plotNumVsCarpets():
         print filename, 'not exist'
         continue
 
-      # number of features queried
+      # see which features appear in relevant features of any dominating policy
+      relFeats = len(filter(lambda _: any(_ in relFeats for relFeats in data['relFeats']), range(carpetNum)))
+      # get stats
       for method in methods:
         lensOfQ[method, carpetNum].append(len(data['q'][method]))
+        lensOfQRelPhi[method, relFeats].append(len(data['q'][method]))
         times[method, carpetNum].append(data['t'][method])
 
-      validInstances[carpetNum].append(rnd)
+      iiss[carpetNum].append(len(data['iiss']))
+      domPis[carpetNum].append(len(data['relFeats']))
+      # num of relevant features
 
-      # print the case where ouralg is suboptimal
+      validInstances[carpetNum].append(rnd)
+      if data['solvable']: solvableIns[carpetNum].append(rnd)
+
+      # print the case where ouralg is suboptimal for analysis
       if 'opt' in methods and len(data['q']['opt']) < len(data['q']['iisAndRelpi']):
         print 'rnd', rnd, 'carpetNum', carpetNum, 'opt', data['q']['opt'], 'iisAndRelpi', data['q']['iisAndRelpi']
 
-      addFreq(len(data['iiss']), iisSizes[carpetNum])
-      iisSizesVec[carpetNum].append(len(data['iiss']))
+  #print 'iiss', [round(mean(iiss[carpetNum]), 2) for carpetNum in carpetNums]
+  #print 'relFeats', [round(mean(domPis[carpetNum]), 2) for carpetNum in carpetNums]
 
-      addFreq(len(data['relFeats']), domPiSizes[carpetNum])
-      domPiSizesVec[carpetNum].append(len(data['relFeats']))
-
-      addFreq(data['solvable'], solveableIns[carpetNum])
-
-
-  print 'iiss', [round(mean(iisSizesVec[carpetNum]), 2) for carpetNum in carpetNums]
-  print 'relFeats', [round(mean(domPiSizesVec[carpetNum]), 2) for carpetNum in carpetNums]
-
-  print 'validins', [len(validInstances[carpetNum]) for carpetNum in carpetNums]
-  print 'solvable', [round(1.0 * solveableIns[carpetNum][True] / len(validInstances[carpetNum]), 2) for carpetNum in carpetNums]
+  print 'valid instances', [len(validInstances[carpetNum]) for carpetNum in carpetNums]
+  print 'solvable instances ratio', [round(1.0 * len(solvableIns[carpetNum]) / len(validInstances[carpetNum]), 2) for carpetNum in carpetNums]
 
   print '# of queries'
   x = carpetNums
   # use the first method as baseline, a bit hacky here.
-  y = lambda method: [mean(vectorDiff(lensOfQ[method, carpetNum], lensOfQ[methods[0], carpetNum])) for carpetNum in carpetNums]
-  yci = lambda method: [standardErr(vectorDiff(lensOfQ[method, carpetNum], lensOfQ[methods[0], carpetNum])) for carpetNum in carpetNums]
-  plot(x, y, yci, methods, '# of Carpets', '# of Queried Features (' + names[methods[0]] + ' as baseline)', 'lensOfQCarpets')
+  y = lambda method, carpetNum: vectorDiff(lensOfQ[method, carpetNum], lensOfQ[methods[0], carpetNum])
+  plot(x, y, methods, '# of Carpets', '# of Queried Features (' + names[methods[0]] + ' as baseline)', 'lensOfQCarpets')
 
   print 'compute time'
   x = carpetNums
-  y = lambda method: [mean(times[method, carpetNum]) for carpetNum in carpetNums]
-  yci = lambda method: [standardErr(times[method, carpetNum]) for carpetNum in carpetNums]
-  plot(x, y, yci, methods, '# of Carpets', 'Computation Time (sec.)', 'timesCarpets')
+  y = lambda method, carpetNum: times[method, carpetNum]
+  plot(x, y, methods, '# of Carpets', 'Computation Time (sec.)', 'timesCarpets')
+
+  # plot num of features queried based on the num of dom pis
+  x = range(max(carpetNums))
+  y = lambda method, relFeat: vectorDiff(lensOfQRelPhi[method, relFeat], lensOfQRelPhi[methods[0], relFeat])
+  plot(x, y, methods, "# of Relevant Features", "# of Queried Features (" + names[methods[0]] + " as baseline)", 'lensOfQCarpets_relphis')
+
 
 font = {'size': 13}
 matplotlib.rc('font', **font)
@@ -202,7 +231,7 @@ pfCandidates = [(0.2, [0, 0.2, 0.4, 0.6, 0.8]),\
                 (0.5, [0, 0.25, 0.5])]
 
 # exp 1: varying num of carpets
-#plotNumVsCarpets()
+plotNumVsCarpets()
 
 # exp 2: varying pfs
-for (pfStep, pfRange) in pfCandidates: plotNumVsProportion(pfRange, pfStep)
+#for (pfStep, pfRange) in pfCandidates: plotNumVsProportion(pfRange, pfStep)

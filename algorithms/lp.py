@@ -5,6 +5,9 @@ if config.METHOD == 'gurobi':
   from gurobipy import *
 elif config.METHOD == 'cplex':
   from pycpx import CPlexModel, CPlexException, CPlexNoSolution
+else:
+  raise Exception('dont know what optimization package to use.')
+
 
 def lpDualGurobi(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstraintsOcc=1):
   """
