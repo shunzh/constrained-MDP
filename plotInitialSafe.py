@@ -31,8 +31,10 @@ markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisOnly': 'bs--', 'relpiOnly': '
 names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCover', 'iisOnly': 'SetCover (IIS)', 'relpiOnly': 'SetCover (rel. feat.)', 'maxProb': 'Greed. Prob.',\
          'piHeu': 'Most-Likely', 'random': 'Descending'}
 
-# output the diffierence of two vectors
+# output the difference of two vectors
 vectorDiff = lambda v1, v2: map(lambda e1, e2: e1 - e2, v1, v2)
+# output the ratio of two vectors. 1 if e2 == 0
+vectorRatio = lambda v1, v2: map(lambda e1, e2: e1 / e2 if e2 != 0 else 1, v1, v2)
 
 # for output as latex table
 outputFormat = lambda d: '$' + str(round(mean(d), 4)) + ' \pm ' + str(round(standardErr(d), 4)) + '$'
@@ -209,7 +211,8 @@ def plotNumVsCarpets():
   print '# of queries'
   x = carpetNums
   # use the first method as baseline, a bit hacky here.
-  y = lambda method, carpetNum: vectorDiff(lensOfQ[method, carpetNum], lensOfQ[methods[0], carpetNum])
+  #y = lambda method, carpetNum: vectorDiff(lensOfQ[method, carpetNum], lensOfQ[methods[0], carpetNum])
+  y = lambda method, carpetNum: vectorRatio(lensOfQ[method, carpetNum], lensOfQ[methods[0], carpetNum])
   plot(x, y, methods, '# of Carpets', '# of Queried Features (' + names[methods[0]] + ' as baseline)', 'lensOfQCarpets')
 
   print 'compute time'
