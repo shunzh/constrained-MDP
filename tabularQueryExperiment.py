@@ -64,7 +64,7 @@ def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
       queries[method] = []
       times[method] = []
 
-      # ======== timed session ========
+      # ======== timed session starts ========
       start = time.time()
 
       if method == 'opt':
@@ -103,7 +103,6 @@ def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
           agent.updateFeats(newLockedCon=query)
 
         queries[method].append(query)
-
       # ======== timed session ends ========
       end = time.time()
 

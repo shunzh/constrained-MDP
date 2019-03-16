@@ -34,7 +34,7 @@ names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCover', 'iisOnly': 'SetCover (IIS)
 # output the difference of two vectors
 vectorDiff = lambda v1, v2: map(lambda e1, e2: e1 - e2, v1, v2)
 # output the ratio of two vectors. 1 if e2 == 0
-vectorRatio = lambda v1, v2: map(lambda e1, e2: e1 / e2 if e2 != 0 else 1, v1, v2)
+vectorDivide = lambda v1, v2: map(lambda e1, e2: e1 / e2, v1, v2)
 
 # for output as latex table
 outputFormat = lambda d: '$' + str(round(mean(d), 4)) + ' \pm ' + str(round(standardErr(d), 4)) + '$'
@@ -60,6 +60,58 @@ def plot(x, y, methods, xlabel, ylabel, filename):
   for method in methods:
     print method, yMean(method), yCI(method)
     ax.errorbar(x, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
+
+  pylab.xlabel(xlabel)
+  pylab.ylabel(ylabel)
+  pylab.legend()
+  ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+
+  fig.savefig(filename + ".pdf", dpi=300, format="pdf")
+
+  pylab.close()
+
+def plotRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename):
+  """
+  plot data with a specified baseline.
+
+  mean (value of this method / value of the baseline)
+  """
+  yMean = lambda method: [mean(vectorDivide(y(method, xElem), y(baseline, xElem))) for xElem in x]
+  yCI = lambda method: [standardErr(vectorDivide(y(method, xElem), y(baseline, xElem))) for xElem in x]
+
+  fig = pylab.figure()
+
+  ax = pylab.gca()
+  for method in methods:
+    print method, yMean(method), yCI(method)
+    ax.errorbar(x, yMean(method), yCI(method),
+                fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
+
+  pylab.xlabel(xlabel)
+  pylab.ylabel(ylabel)
+  pylab.legend()
+  ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+
+  fig.savefig(filename + ".pdf", dpi=300, format="pdf")
+
+  pylab.close()
+
+def plotRatioOfDiffWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename):
+  """
+  plot data with a specified baseline.
+
+  mean values of this method / mean values of the baseline
+  """
+  yMean = lambda method: [mean(y(method, xElem)) for xElem in x]
+  yCI = lambda method: [standardErr(vectorDiff(y(method, xElem), y(baseline, xElem))) for xElem in x]
+
+  fig = pylab.figure()
+
+  ax = pylab.gca()
+  for method in methods:
+    print method, yMean(method), yCI(method)
+    ax.errorbar(x, vectorDivide(yMean(method), yMean(baseline)), vectorDivide(yCI(method), yMean(baseline)),
+                fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
@@ -140,9 +192,9 @@ def plotNumVsProportion(pfRange, pfStep):
 
   # plot figure
   x = pfRange
-  y = lambda method, pfRange: vectorDiff(lensOfQ[method, pf], lensOfQ[methods[0], pf])
+  y = lambda method, pf: lensOfQ[method, pf]
 
-  plot(x, y, methods, '$p_f$', '# of Queried Features (' + names[methods[0]] + ' as baseline)', 'lensOfQPf' + str(int(pfStep * 10)))
+  plotRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features - Optimal', 'lensOfQPf' + str(int(pfStep * 10)))
 
 
 def plotNumVsCarpets():
@@ -210,10 +262,10 @@ def plotNumVsCarpets():
 
   print '# of queries'
   x = carpetNums
-  # use the first method as baseline, a bit hacky here.
-  #y = lambda method, carpetNum: vectorDiff(lensOfQ[method, carpetNum], lensOfQ[methods[0], carpetNum])
-  y = lambda method, carpetNum: vectorRatio(lensOfQ[method, carpetNum], lensOfQ[methods[0], carpetNum])
-  plot(x, y, methods, '# of Carpets', '# of Queried Features (' + names[methods[0]] + ' as baseline)', 'lensOfQCarpets')
+  # absolute number of queried features
+  y = lambda method, carpetNum: lensOfQ[method, carpetNum]
+  plotRatioOfDiffWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_diff')
+  plotRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_ratio')
 
   print 'compute time'
   x = carpetNums
@@ -222,9 +274,9 @@ def plotNumVsCarpets():
 
   # plot num of features queried based on the num of dom pis
   x = range(max(carpetNums))
-  y = lambda method, relFeat: vectorDiff(lensOfQRelPhi[method, relFeat], lensOfQRelPhi[methods[0], relFeat])
-  plot(x, y, methods, "# of Relevant Features", "# of Queried Features (" + names[methods[0]] + " as baseline)", 'lensOfQCarpets_relphis')
-
+  y = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
+  plotRatioOfDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_diff')
+  plotRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_ratio')
 
 font = {'size': 13}
 matplotlib.rc('font', **font)

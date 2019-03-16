@@ -1,4 +1,5 @@
 import copy
+import random
 
 import config
 from algorithms.consQueryAgents import ConsQueryAgent, NOTEXIST, EXIST
@@ -9,11 +10,13 @@ from util import powerset
 
 
 class GreedyForSafetyAgent(ConsQueryAgent):
-  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False, useIIS=True, useRelPi=True):
+  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False, useIIS=True, useRelPi=True, adversarial=False):
     ConsQueryAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
 
     self.useIIS = useIIS
     self.useRelPi = useRelPi
+    # assume the human's response is adversarial
+    self.adversarial = adversarial
 
     # find all IISs without knowing any locked or free cons
     if self.useRelPi:
@@ -65,7 +68,11 @@ class GreedyForSafetyAgent(ConsQueryAgent):
         # not useRelPi and not useIIS, can't be the case
         raise Exception('no idea what to do in this case')
 
-      expNumRemaingSets[con] = self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
+      if self.adversarial:
+        # not dependent on consProbs
+        expNumRemaingSets[con] = max(numWhenFree, numWhenLocked)
+      else:
+        expNumRemaingSets[con] = self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
 
     return min(expNumRemaingSets.iteritems(), key=lambda _: _[1])[0]
 
@@ -179,6 +186,15 @@ class DescendProbQueryForSafetyAgent(ConsQueryAgent):
 
     unknownCons = set(self.consIndices) - set(self.knownLockedCons) - set(self.knownFreeCons)
     return max(unknownCons, key=lambda con: self.consProbs[con])
+
+
+class RandomQueryAgent(ConsQueryAgent):
+  def findQuery(self):
+    answerFound = self.checkSafePolicyExists()
+    if answerFound != None: return answerFound
+
+    unknownCons = set(self.consIndices) - set(self.knownLockedCons) - set(self.knownFreeCons)
+    return random.choice(unknownCons)
 
 
 class OptQueryForSafetyAgent(ConsQueryAgent):
