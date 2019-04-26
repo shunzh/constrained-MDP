@@ -194,7 +194,8 @@ def plotNumVsProportion(pfRange, pfStep):
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
 
-  plotRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features - Optimal', 'lensOfQPf' + str(int(pfStep * 10)))
+  plotRatioOfDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_diff')
+  plotRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_ratio')
 
 
 def plotNumVsCarpets():
@@ -289,4 +290,4 @@ pfCandidates = [(0.2, [0, 0.2, 0.4, 0.6, 0.8]),\
 plotNumVsCarpets()
 
 # exp 2: varying pfs
-#for (pfStep, pfRange) in pfCandidates: plotNumVsProportion(pfRange, pfStep)
+for (pfStep, pfRange) in pfCandidates: plotNumVsProportion(pfRange, pfStep)

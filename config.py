@@ -1,6 +1,6 @@
 DEBUG = False
 
-VERBOSE = False
+VERBOSE = True
 
 TRAJECTORY_LENGTH = 10
 

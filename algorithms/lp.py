@@ -9,6 +9,28 @@ else:
   raise Exception('dont know what optimization package to use.')
 
 
+def linearRegression(A, b):
+  """
+  find min_x ||Ax - b||^2
+  """
+  m = Model()
+  m.setParam('OutputFlag', False)
+
+  n = len(A) # number of rows in A
+  d = len(A[0]) # number of columns in A
+  assert n == len(b) # make sure the shape of matrix is correct
+
+  # x is of size d
+  x = m.addVars(d, name='x')
+  # ** is not supported by gurobi!
+  square = lambda _: _ * _
+  # \sum_i (A[i] * x - b[i])^2
+  m.setObjective(sum(square(sum(A[i][j] * x[j] for j in xrange(d)) - b[i])
+                     for i in xrange(n)), GRB.MINIMIZE)
+  m.optimize()
+
+  return [x[_].X for _ in xrange(d)]
+
 def lpDualGurobi(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstraintsOcc=1):
   """
   Solve the dual problem of lp, maybe with some constraints

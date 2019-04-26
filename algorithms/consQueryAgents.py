@@ -15,6 +15,7 @@ NOTEXIST = 'notexist'
 class ConsQueryAgent():
   """
   Find queries in constraint-uncertain mdps.
+  FIXME some methods are only used by subclasses
   """
   def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
     """
@@ -138,7 +139,9 @@ class ConsQueryAgent():
     domPis = []
     for pi in dominatingPolicies.values():
       if pi not in domPis: domPis.append(pi)
-      
+
+    # make sure eturned values are lists
+    allCons = list(allCons)
     if config.DEBUG: print 'rel cons', allCons, 'num of domPis', len(domPis)
     return allCons, domPis
 
@@ -241,7 +244,7 @@ class ConsQueryAgent():
         if any(x[s, a] > 0 for a in self.mdp.A) and s in self.consStates[idx]:
           var.add(idx)
     
-    return set(var)
+    return list(var)
 
   """
   Methods for finding sets useful for safe policies.
@@ -291,15 +294,19 @@ class ConsQueryAgent():
 
     relFeats, domPis = self.findRelevantFeaturesAndDomPis()
     piRelFeats = []
+    piRelFeatsAndValues = {}
     
     for domPi in domPis:
-      piRelFeats.append(tuple(self.findViolatedConstraints(domPi)))
+      feats = self.findViolatedConstraints(domPi)
+      piRelFeats.append(feats)
+      # FIXME it may be easier to store the values when the dom pis are computed. this is just an easier way
+      piRelFeatsAndValues[tuple(feats)] = self.computeValue(domPi)
     
-    # just to remove supersets
-    piRelFeats = killSupersets(piRelFeats)
-
     self.piRelFeats = piRelFeats
+    self.piRelFeatsAndValues = piRelFeatsAndValues
     self.relFeats = relFeats # the union of rel feats of all dom pis
+    print 'piRelFeats', piRelFeats
+    print 'relFeats', relFeats
 
   def computeIISs(self):
     """

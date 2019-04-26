@@ -43,12 +43,13 @@ def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
   # or hand designed
   print 'true free features', trueFreeFeatures
 
+  #if not agent.initialSafePolicyExists():
   if not agent.initialSafePolicyExists():
     # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
     print 'initial safe policy does not exist'
 
-    methods = ['opt', 'iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
-    #methods = ['iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
+    #methods = ['opt', 'iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
+    methods = ['iisAndRelpi']
     queries = {}
     times = {}
     # these are assigned when ouralg is run
@@ -70,7 +71,7 @@ def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
       if method == 'opt':
         agent = OptQueryForSafetyAgent(mdp, consStates, consProbs=consProbs)
       elif method == 'iisAndRelpi':
-        agent = GreedyForSafetyAgent(mdp, consStates, consProbs=consProbs, useIIS=True, useRelPi=True)
+        agent = GreedyForSafetyAgent(mdp, consStates, consProbs=consProbs, useIIS=True, useRelPi=True, optimizeValue=True)
         # record this to get an idea how difficult these tasks are
         # (iisAndRelpi compute both sets anyway, so record here)
         iiss = agent.iiss
@@ -301,9 +302,10 @@ if __name__ == '__main__':
             experiment(spec, k, constrainHuman, dry, rnd, pf, pfStep)
   else:
     #spec = carpetsAndWallsDomain()
-    #spec = squareWorld(size, numOfCarpets, avoidBorder=False)
+    spec = squareWorld(size, numOfCarpets, avoidBorder=False)
     #spec = squareWorld(size, numOfCarpets, avoidBorder=True)
 
     #spec = toySokobanWorld()
-    spec = sokobanWorld()
-    experiment(spec, k, constrainHuman, dry, rnd, pf=pf, pfStep=pfStep, gamma=0.9)
+    #spec = sokobanWorld()
+
+    experiment(spec, k, constrainHuman, dry, rnd, pf=pf, pfStep=pfStep)

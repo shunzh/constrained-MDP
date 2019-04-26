@@ -2,6 +2,7 @@ import copy
 import random
 
 import config
+from algorithms import lp
 from algorithms.consQueryAgents import ConsQueryAgent, NOTEXIST, EXIST
 from algorithms.setcover import coverFeat, removeFeat, leastNumElemSets
 from operator import mul
@@ -10,19 +11,46 @@ from util import powerset
 
 
 class GreedyForSafetyAgent(ConsQueryAgent):
-  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False, useIIS=True, useRelPi=True, adversarial=False):
+  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False, useIIS=True, useRelPi=True, adversarial=False, optimizeValue=False):
     ConsQueryAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
 
     self.useIIS = useIIS
     self.useRelPi = useRelPi
-    # assume the human's response is adversarial
+
+    # assume the human's response is adversarial, used in the non-Bayesian case
     self.adversarial = adversarial
+    # set if the robot should also aim for finding a safe policy with higher value
+    self.optimizeValue = optimizeValue
 
     # find all IISs without knowing any locked or free cons
     if self.useRelPi:
       self.computePolicyRelFeats()
+
     if self.useIIS:
       self.computeIISs()
+
+    if self.optimizeValue:
+      self.computeFeatureValue()
+
+  def computeFeatureValue(self):
+    """
+    Compute how much each feature worth for finding a high-valued safe policy.
+    saves to self.featureVals
+    """
+    # otherwise cannot compute rel feat values
+    assert self.useRelPi
+
+    n = len(self.piRelFeats)
+    d = len(self.relFeats)
+
+    A = [[1 if self.relFeats[j] in self.piRelFeats[i] else 0 for j in xrange(d)] for i in xrange(n)]
+    b = [self.piRelFeatsAndValues[tuple(self.piRelFeats[i])] for i in xrange(n)]
+    print A, b
+    weights = lp.linearRegression(A, b)
+
+    self.featureVals = {}
+    for i in range(d): self.featureVals[self.relFeats[i]] = weights[i]
+    print 'feat vals', self.featureVals
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
     # this just add to the list of known free and locked features
@@ -52,7 +80,7 @@ class GreedyForSafetyAgent(ConsQueryAgent):
     unknownCons = set(self.consIndices) - set(self.knownFreeCons) - set(self.knownLockedCons)
 
     # find the maximum frequency constraint weighted by the probability
-    expNumRemaingSets = {}
+    score = {}
     for con in unknownCons:
       # prefer using iis
       if self.useIIS and self.useRelPi:
@@ -69,12 +97,17 @@ class GreedyForSafetyAgent(ConsQueryAgent):
         raise Exception('no idea what to do in this case')
 
       if self.adversarial:
-        # not dependent on consProbs
-        expNumRemaingSets[con] = max(numWhenFree, numWhenLocked)
+        # non-Bayesian
+        if not self.optimizeValue:
+          # not dependent on consProbs
+          score[con] = max(numWhenFree, numWhenLocked)
+        else:
+          assert self.useIIS
+          score[con] = self.featureVals[con] / len(filter(lambda _: con in _, self.iiss))
       else:
-        expNumRemaingSets[con] = self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
+        score[con] = self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
 
-    return min(expNumRemaingSets.iteritems(), key=lambda _: _[1])[0]
+    return min(score.iteritems(), key=lambda _: _[1])[0]
 
   def heuristic(self, con):
     raise Exception('need to be defined')
@@ -295,7 +328,7 @@ class OptQueryForSafetyAgent(ConsQueryAgent):
       self.setQueryAndValue(lockedCons, freeCons, min(minNums, key=lambda _: _[1]))
 
       # add neighbors that ready to evaluate to readToEvalSet
-      readyToEvalSet += filter(lambda (l, f): self.getQueryAndValue(l, f) == None and readyToEvaluate(l, f),\
+      readyToEvalSet += filter(lambda (l, f): self.getQueryAndValue(l, f) == None and readyToEvaluate(l, f),
                                [(set(lockedCons) - {cons}, freeCons) for cons in lockedCons] +\
                                [(lockedCons, set(freeCons) - {cons}) for cons in freeCons])
 
