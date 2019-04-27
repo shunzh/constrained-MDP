@@ -11,7 +11,10 @@ from operator import mul
 from util import powerset
 
 class InitialSafePolicyAgent(ConsQueryAgent):
-  def __init__(self, mdp, consStates, consProbs=None, costOfQuery=0):
+  def __init__(self, mdp, consStates, consProbs=None, costOfQuery=1):
+    """
+    :param costOfQuery: default cost of query is 1 unit
+    """
     ConsQueryAgent.__init__(self, mdp, consStates, consProbs)
 
     self.costOfQuery = costOfQuery
@@ -128,8 +131,16 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     self.iiss = iiss
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
-  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False, useIIS=True, useRelPi=True, adversarial=False, optimizeValue=False):
-    InitialSafePolicyAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
+  def __init__(self, mdp, consStates, consProbs=None, useIIS=True, useRelPi=True, adversarial=False, optimizeValue=False):
+    """
+    :param consStates: the set of states that should not be visited
+    :param consProbs: the probability that the corresponding constraint is free
+    :param useIIS: set cover on IIS. False by default and only enable it by explicitly setting true
+    :param useRelPi: set cover on relevant features
+    :param adversarial: True if no Bayesian prior
+    :param optimizeValue: True if hoping to find a safe policy
+    """
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, consProbs)
 
     self.useIIS = useIIS
     self.useRelPi = useRelPi

@@ -47,8 +47,8 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
     # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
     print 'initial safe policy does not exist'
 
-    #methods = ['opt', 'iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
-    methods = ['iisAndRelpi']
+    #methods = ['opt', 'ours', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
+    methods = ['oursWithValue']
     queries = {}
     times = {}
     # these are assigned when ouralg is run
@@ -69,12 +69,14 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
 
       if method == 'opt':
         agent = OptQueryForSafetyAgent(mdp, consStates, consProbs=consProbs)
-      elif method == 'iisAndRelpi':
-        agent = GreedyForSafetyAgent(mdp, consStates, consProbs=consProbs, useIIS=True, useRelPi=True, optimizeValue=True)
+      elif method == 'ours':
+        agent = GreedyForSafetyAgent(mdp, consStates, consProbs=consProbs, useIIS=True, useRelPi=True)
         # record this to get an idea how difficult these tasks are
         # (iisAndRelpi compute both sets anyway, so record here)
         iiss = agent.iiss
         relFeats = agent.piRelFeats
+      elif method == 'oursWithValue':
+        agent = GreedyForSafetyAgent(mdp, consStates, consProbs=consProbs, useIIS=True, useRelPi=True, optimizeValue=True)
       elif method == 'iisOnly':
         agent = GreedyForSafetyAgent(mdp, consStates, consProbs=consProbs, useIIS=True, useRelPi=False)
       elif method == 'relpiOnly':
