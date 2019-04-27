@@ -11,8 +11,10 @@ from operator import mul
 from util import powerset
 
 class InitialSafePolicyAgent(ConsQueryAgent):
-  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
-    ConsQueryAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
+  def __init__(self, mdp, consStates, consProbs=None, costOfQuery=0):
+    ConsQueryAgent.__init__(self, mdp, consStates, consProbs)
+
+    self.costOfQuery = costOfQuery
 
   def safePolicyExist(self, freeCons=None):
     # some dom pi's relevant features are all free
@@ -218,7 +220,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
           score[con] = max(numWhenFree, numWhenLocked)
         else:
           assert self.useIIS
-          score[con] = self.featureVals[con] / len(filter(lambda _: con in _, self.iiss))
+          score[con] = (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss))
       else:
         score[con] = self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
 
@@ -228,13 +230,13 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     raise Exception('need to be defined')
 
 
-class DomPiHeuForSafetyAgent(ConsQueryAgent):
+class DomPiHeuForSafetyAgent(InitialSafePolicyAgent):
   """
   This uses dominating policies. It first finds the dominating policy that has the largest probability being free.
   Then query about the most probable unknown feature in the relevant features of the policy.
   """
   def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
-    ConsQueryAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
 
     self.computePolicyRelFeats()
 
@@ -266,12 +268,12 @@ class DomPiHeuForSafetyAgent(ConsQueryAgent):
     return max(featsToConsider, key=lambda _: self.consProbs[_])
 
 
-class MaxProbSafePolicyExistAgent(ConsQueryAgent):
+class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
   """
   Find the feature that, after querying, the expected probability of finding a safe poicy / no safe policies exist is maximized.
   """
   def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
-    ConsQueryAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
 
     # need domPis for query
     self.computePolicyRelFeats()
@@ -324,7 +326,7 @@ class MaxProbSafePolicyExistAgent(ConsQueryAgent):
     return max(termProbs.iteritems(), key=lambda _: _[1])[0]
 
 
-class DescendProbQueryForSafetyAgent(ConsQueryAgent):
+class DescendProbQueryForSafetyAgent(InitialSafePolicyAgent):
   """
   Return the unknown feature that has the largest (or smallest) probability of being changeable.
   """
@@ -336,7 +338,7 @@ class DescendProbQueryForSafetyAgent(ConsQueryAgent):
     return max(unknownCons, key=lambda con: self.consProbs[con])
 
 
-class RandomQueryAgent(ConsQueryAgent):
+class RandomQueryAgent(InitialSafePolicyAgent):
   def findQuery(self):
     answerFound = self.checkSafePolicyExists()
     if answerFound != None: return answerFound
@@ -345,12 +347,12 @@ class RandomQueryAgent(ConsQueryAgent):
     return random.choice(unknownCons)
 
 
-class OptQueryForSafetyAgent(ConsQueryAgent):
+class OptQueryForSafetyAgent(InitialSafePolicyAgent):
   """
   Find the opt query by dynamic programming. Its O(2^|\Phi|).
   """
   def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
-    ConsQueryAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
 
     # need domPis for query
     self.computePolicyRelFeats()

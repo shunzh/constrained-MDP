@@ -15,12 +15,11 @@ from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigation, squareWorld, toySokobanWorld, sokobanWorld, carpetsAndWallsDomain
 
 
-def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
+def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
   k: number of queries (in batch querying setting
-  constrainHuman: a flag controls MR vs MR_k
   dry: no output to file if True
   rnd: random seed
   pf: only for Bayesian setting. ["prob that ith unknown feature is free" for i in range(self.numOfCons)]
@@ -33,7 +32,7 @@ def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
 
   print 'consProbs', zip(range(numOfCons), consProbs)
 
-  agent = ConsQueryAgent(mdp, consStates, consProbs=consProbs, constrainHuman=constrainHuman)
+  agent = ConsQueryAgent(mdp, consStates, consProbs=consProbs)
 
   # true free features, randomly generated
   trueFreeFeatures = filter(lambda idx: random.random() < consProbs[idx], range(numOfCons))
@@ -139,7 +138,7 @@ def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
     # when initial safe policies exist, we want to improve such a safe policy using batch queries
     print 'initial policy exists'
 
-    agent = SafeImproveAgent(mdp, consStates, constrainHuman=constrainHuman)
+    agent = SafeImproveAgent(mdp, consStates)
 
     # we bookkeep the dominating policies for all domains. check whether if we have already computed them.
     # if so we do not need to compute them again.
@@ -223,13 +222,12 @@ def experiment(spec, k, constrainHuman, dry, rnd, gamma=0.9, pf=0, pfStep=1):
       if dry:
         print 'dry run. no output'
       else:
-        saveToFileForSafePiImprove(method, k, numOfCarpets, constrainHuman, q, mrk, runTime, regret)
+        saveToFileForSafePiImprove(method, k, numOfCarpets, q, mrk, runTime, regret)
 
-def saveToFileForSafePiImprove(method, k, numOfCarpets, constrainHuman, q, mrk, runTime, regret):
+def saveToFileForSafePiImprove(method, k, numOfCarpets, q, mrk, runTime, regret):
   ret = {'mrk': mrk, 'regret': regret, 'time': runTime, 'q': q}
 
-  postfix = 'mrk' if constrainHuman else 'mr'
-
+  postfix = 'mr'
   # not distinguishing mr and mrk in filenames, so use a subdirectory
   pickle.dump(ret, open(method + '_' + postfix + '_' + str(k) + '_' + str(numOfCarpets) + '_' + str(rnd) + '.pkl', 'wb'))
 
@@ -243,7 +241,6 @@ if __name__ == '__main__':
   # default values
   method = None
   k = 1
-  constrainHuman = False
   dry = False # do not save to files if dry run
 
   numOfCarpets = 10
@@ -258,7 +255,7 @@ if __name__ == '__main__':
   batch = False # run batch experiments
 
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 's:k:n:cr:dp:b')
+    opts, args = getopt.getopt(sys.argv[1:], 's:k:n:r:dp:b')
   except getopt.GetoptError:
     raise Exception('Unknown flag')
   for opt, arg in opts:
@@ -268,8 +265,6 @@ if __name__ == '__main__':
       size = int(arg)
     elif opt == '-n':
       numOfCarpets = int(arg)
-    elif opt == '-c':
-      constrainHuman = True
     elif opt == '-d':
       # disable dry run if output to file
       dry = True
@@ -299,7 +294,7 @@ if __name__ == '__main__':
             setRandomSeed(rnd)
 
             spec = squareWorld(size, numOfCarpets, avoidBorder=False)
-            experiment(spec, k, constrainHuman, dry, rnd, pf, pfStep)
+            experiment(spec, k, dry, rnd, pf, pfStep)
   else:
     spec = carpetsAndWallsDomain()
     #spec = squareWorld(size, numOfCarpets, avoidBorder=False)
@@ -308,4 +303,4 @@ if __name__ == '__main__':
     #spec = toySokobanWorld()
     #spec = sokobanWorld()
 
-    experiment(spec, k, constrainHuman, dry, rnd, pf=pf, pfStep=pfStep)
+    experiment(spec, k, dry, rnd, pf=pf, pfStep=pfStep)

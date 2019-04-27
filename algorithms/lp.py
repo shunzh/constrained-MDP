@@ -31,7 +31,7 @@ def linearRegression(A, b):
 
   return [x[_].X for _ in xrange(d)]
 
-def lpDualGurobi(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstraintsOcc=1):
+def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstraintsOcc=1):
   """
   Solve the dual problem of lp, maybe with some constraints
   Same arguments

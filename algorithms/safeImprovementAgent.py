@@ -9,6 +9,13 @@ class SafeImproveAgent(ConsQueryAgent):
 
   FIXME inconsistency. algorithms are implemented as methods here but as classes in initialSafeAgent
   """
+  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=True):
+    ConsQueryAgent.__init__(self, mdp, consStates, consProbs)
+
+    # different definition of MR
+    #
+    self.constrainHuman = constrainHuman
+
   def findRegret(self, q, violableCons):
     """
     A utility function that finds regret given the true violable constraints

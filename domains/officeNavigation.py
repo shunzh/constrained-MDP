@@ -73,18 +73,24 @@ def toyWorldConstructor(map, horizon=None):
 
   for i in range(height):
     for j in range(width):
-      if map[i][j] == R:
-        robot = (j, i)
-      elif map[i][j] == S:
-        switch = (j, i)
-      elif map[i][j] == W:
-        walls.append((j, i))
-      elif map[i][j] == D:
-        doors.append((j, i))
-      elif map[i][j] == C:
-        carpets.append((j, i))
-      elif map[i][j] == B:
-        boxes.append((j, i))
+      if type(map[i][j]) == tuple:
+        elems = map[i][j]
+      else:
+        elems = (map[i][j],)
+
+      for elem in elems:
+        if elem == R:
+          robot = (j, i)
+        elif elem == S:
+          switch = (j, i)
+        elif elem == W:
+          walls.append((j, i))
+        elif elem == D:
+          doors.append((j, i))
+        elif elem == C:
+          carpets.append((j, i))
+        elif elem == B:
+          boxes.append((j, i))
 
   if robot == None: raise Exception('Robot location not specified!')
   if switch == None: raise Exception('Switch location not specified!')
@@ -95,9 +101,9 @@ def toyWorldConstructor(map, horizon=None):
 A list of toy domains.
 """
 def carpetsAndWallsDomain():
-  map = [[R, C, _, C, _],
-         [_, W, _, W, _],
-         [_, W, _, C, S]]
+  map = [[(R, C), _, _, C, _],
+         [_,      W, _, W, _],
+         [_,      W, _, C, S]]
   return toyWorldConstructor(map)
 
 # some toy domains for need-to-be-reverted features (boxes)
@@ -193,8 +199,7 @@ def officeNavigation(spec, gamma):
   # time is needed when there are horizon-dependent constraints
   tIndex = sIndex + 1
 
-  directionalActs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-  #directionalActs = [(1, 0), (0, 1), (1, 1)]
+  directionalActs = [(1, 0), (0, 1), (1, 1), (-1, 0), (0, -1)]
   aSets = directionalActs + [TURNOFFSWITCH]
  
   # check whether the world looks as expected

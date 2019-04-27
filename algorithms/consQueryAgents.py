@@ -13,7 +13,7 @@ class ConsQueryAgent():
   """
   Find queries in constraint-uncertain mdps.
   """
-  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
+  def __init__(self, mdp, consStates, consProbs=None):
     """
     can't think of a class it should inherit..
 
@@ -29,8 +29,6 @@ class ConsQueryAgent():
     
     self.consProbs = consProbs
     
-    # derive different definition of MR
-    self.constrainHuman = constrainHuman
 
     self.allCons = self.consIndices
     
