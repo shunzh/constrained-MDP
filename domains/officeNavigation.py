@@ -231,8 +231,10 @@ def officeNavigation(spec, gamma):
       return True
     else:
       return False
- 
-  # factored transition functions
+
+  """
+  factored transition functions
+  """
   def navigate(s, a):
     loc = s[lIndex]
     if a in directionalActs:
@@ -316,8 +318,9 @@ def officeNavigation(spec, gamma):
   else:
     terminal = lambda s: s[lIndex] == spec.switch
 
-  # a list of possible reward functions
-
+  """
+  possible reward functions
+  """
   # an intuitive one, give reward when and only when the switch is turned off
   # note that the robot does not have the action to turn the switch on
   def oldReward(s, a):
@@ -381,15 +384,6 @@ def officeNavigation(spec, gamma):
 
   # boxes are need-to-be-reverted features by default
   boxCons = [[s for s in mdp.S if terminal(s) and s[bIdx] != s0[bIdx]] for bIdx in bIndices]
-
-  # FIXME a way to specify a hard coded policy. put in a better place
-  """
-  hardCodedPi = [(1, 0), (1, 0), TURNOFFSWITCH, (0, -1), (1, 0), (1, 0), (0, 1), (-1, 0), (-1, 0)]
-  hardCodedConstraints = [(s, a) for timeStep in range(len(hardCodedPi)) for s in mdp.S for a in mdp.A if s[tIndex] == timeStep and a != hardCodedPi[timeStep]]
-  sol = lp.lpDualGurobi(mdp, zeroConstraints=hardCodedConstraints)
-  if sol['feasible']:
-    printOccSA(sol['pi'])
-  """
 
   consStates = carpetCons + boxCons
 

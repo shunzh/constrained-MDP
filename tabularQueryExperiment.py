@@ -301,8 +301,8 @@ if __name__ == '__main__':
             spec = squareWorld(size, numOfCarpets, avoidBorder=False)
             experiment(spec, k, constrainHuman, dry, rnd, pf, pfStep)
   else:
-    #spec = carpetsAndWallsDomain()
-    spec = squareWorld(size, numOfCarpets, avoidBorder=False)
+    spec = carpetsAndWallsDomain()
+    #spec = squareWorld(size, numOfCarpets, avoidBorder=False)
     #spec = squareWorld(size, numOfCarpets, avoidBorder=True)
 
     #spec = toySokobanWorld()

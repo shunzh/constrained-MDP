@@ -4,6 +4,82 @@ from algorithms.consQueryAgents import ConsQueryAgent
 import itertools
 
 class SafeImproveAgent(ConsQueryAgent):
+  """
+  functions for finding better policies than an initial safe policy
+
+  FIXME inconsistency. algorithms are implemented as methods here but as classes in initialSafeAgent
+  """
+  def findRegret(self, q, violableCons):
+    """
+    A utility function that finds regret given the true violable constraints
+    """
+    consRobotCanViolate = set(q).intersection(violableCons)
+    rInvarCons = set(self.allCons).difference(consRobotCanViolate)
+    robotPi = self.findConstrainedOptPi(rInvarCons)['pi']
+
+    hInvarCons = set(self.allCons).difference(violableCons)
+    humanPi = self.findConstrainedOptPi(hInvarCons)['pi']
+
+    hValue = self.computeValue(humanPi)
+    rValue = self.computeValue(robotPi)
+
+    regret = hValue - rValue
+    assert regret >= -0.00001, 'human %f, robot %f' % (hValue, rValue)
+
+    return regret
+
+  def findMRAdvPi(self, q, relFeats, domPis, k, consHuman=None, tolerated=()):
+    """
+    Find the adversarial policy given q and domPis
+
+    consHuman can be set to override self.constrainHuman
+    make sure that |humanViolated \ tolerated| <= k
+
+    Now searching over all dominating policies, maybe take some time.. can use MILP instead?
+    """
+    if consHuman is None: consHuman = self.constrainHuman
+
+    maxRegret = 0
+    advPi = None
+
+    for pi in domPis:
+      humanViolated = self.findViolatedConstraints(pi)
+      humanValue = self.computeValue(pi)
+
+      if consHuman and len(set(humanViolated).difference(tolerated)) > k:
+        # we do not consider the case where the human's optimal policy violates more than k constraints
+        # unfair to compare.
+        continue
+
+      # intersection of q and constraints violated by pi
+      consRobotCanViolate = set(q).intersection(humanViolated)
+
+      # the robot's optimal policy given the constraints above
+      invarFeats = set(relFeats).difference(consRobotCanViolate)
+
+      robotValue = -numpy.inf
+      robotPi = None
+      for rPi in domPis:
+        if self.piSatisfiesCons(rPi, invarFeats):
+          rValue = self.computeValue(rPi)
+          if rValue > robotValue:
+            robotValue = rValue
+            robotPi = rPi
+
+      regret = humanValue - robotValue
+
+      assert robotPi is not None
+      # ignore numerical issues
+      assert regret >= -0.00001, 'human %f, robot %f' % (humanValue, robotValue)
+
+      if regret > maxRegret or (regret == maxRegret and advPi is None):
+        maxRegret = regret
+        advPi = pi
+
+    # even with constrainHuman, the non-constraint-violating policy is in \Gamma
+    assert advPi is not None
+    return maxRegret, advPi
+
   def findMinimaxRegretConstraintQBruteForce(self, k, relFeats, domPis):
     mrs = {}
 

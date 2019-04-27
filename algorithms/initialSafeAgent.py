@@ -1,18 +1,133 @@
 import copy
 import random
+from itertools import combinations
 
 import config
 from algorithms import lp
 from algorithms.consQueryAgents import ConsQueryAgent, NOTEXIST, EXIST
-from algorithms.setcover import coverFeat, removeFeat, leastNumElemSets
+from algorithms.setcover import coverFeat, removeFeat, leastNumElemSets, killSupersets
 from operator import mul
 
 from util import powerset
 
-
-class GreedyForSafetyAgent(ConsQueryAgent):
-  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False, useIIS=True, useRelPi=True, adversarial=False, optimizeValue=False):
+class InitialSafePolicyAgent(ConsQueryAgent):
+  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
     ConsQueryAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
+
+  def safePolicyExist(self, freeCons=None):
+    # some dom pi's relevant features are all free
+    if freeCons is None:
+      freeCons = self.knownFreeCons
+
+    if hasattr(self, 'piRelFeats'):
+      # if we have rel featus, simply check whether we covered all rel feats of any dom pi
+      return any(len(set(relFeats) - set(freeCons)) == 0 for relFeats in self.piRelFeats)
+    else:
+      # for some simple heuristics, it's not fair to ask them to precompute dompis (need to run a lot of LP)
+      # so we try to solve the lp problem once here
+      # see whether the lp is feasible if we assume all other features are locked
+      return self.findConstrainedOptPi(set(self.allCons) - set(freeCons))['feasible']
+
+  def safePolicyNotExist(self, lockedCons=None):
+    # there are some locked features in all dom pis
+    if lockedCons is None:
+      lockedCons = self.knownLockedCons
+    if hasattr(self, 'piRelFeats'):
+      return all(len(set(relFeats).intersection(lockedCons)) > 0 for relFeats in self.piRelFeats)
+    else:
+      # by only imposing these constraints, see whether the lp problem is infeasible
+      return not self.findConstrainedOptPi(lockedCons)['feasible']
+
+  def checkSafePolicyExists(self):
+    """
+    None if can't claim, otherwise return exists or notExist
+    """
+    if self.safePolicyExist(): return EXIST
+    elif self.safePolicyNotExist(): return NOTEXIST
+    else: return None
+
+  def computePolicyRelFeats(self):
+    """
+    Compute relevant features of dominating policies.
+    If the relevant features of any dominating policy are all free, then safe policies exist.
+    Put in another way, if all dom pis has at least one locked relevant feature, then safe policies do not exist.
+
+    This can be O(2^|relevant features|), depending on the implementation of findDomPis
+    """
+    # check whether this is already computed
+    if hasattr(self, 'piRelFeats'): return
+
+    relFeats, domPis = self.findRelevantFeaturesAndDomPis()
+    piRelFeats = []
+    piRelFeatsAndValues = {}
+
+    for domPi in domPis:
+      feats = self.findViolatedConstraints(domPi)
+      piRelFeats.append(feats)
+      # FIXME it may be easier to store the values when the dom pis are computed. this is just an easier way
+      piRelFeatsAndValues[tuple(feats)] = self.computeValue(domPi)
+
+    self.piRelFeats = piRelFeats
+    self.piRelFeatsAndValues = piRelFeatsAndValues
+    self.relFeats = relFeats # the union of rel feats of all dom pis
+    print 'piRelFeats', piRelFeats
+    print 'relFeats', relFeats
+
+  def computeIISs(self):
+    """
+    Compute IISs by looking at relevant features of dominating policies.
+
+    eg. (1 and 2) or (3 and 4) --> (1 or 3) and (1 or 4) and (2 or 3) and (2 or 4)
+    """
+    # we first need relevant features
+    if not hasattr(self, 'piRelFeats'):
+      self.computePolicyRelFeats()
+
+    iiss = [set()]
+    for relFeats in self.piRelFeats:
+      iiss = [set(iis).union({relFeat}) for iis in iiss for relFeat in relFeats]
+      # kill duplicates in each set
+      iiss = killSupersets(iiss)
+
+    self.iiss = iiss
+
+  def computeIISsBruteForce(self):
+    """
+    DEPRECATED not an efficient way to compute IISs.
+
+    If all IIS contain at least one free feature, then safe policies exist.
+
+    a brute force way to find all iiss and return their indicies
+    can be O(2^|unknown features|)
+    """
+    unknownConsPowerset = powerset(self.allCons)
+    feasible = {}
+    iiss = []
+
+    for cons in unknownConsPowerset:
+      # if any subset is already infeasible, no need to check this set. it's definitely infeasible and not an iis
+      if len(cons) > 0 and any(not feasible[subset] for subset in combinations(cons, len(cons) - 1)):
+        feasible[cons] = False
+        continue
+
+      # find if the lp is feasible by posing cons
+      sol = self.findConstrainedOptPi(cons)
+      feasible[cons] = sol['feasible']
+
+      if len(cons) == 0 and not feasible[cons]:
+        # no iiss in this case. problem infeasible
+        return []
+
+      # if it is infeasible and all its subsets are feasible (only need to check the subsets with one less element)
+      # then it's an iis
+      if not feasible[cons] and all(feasible[subset] for subset in combinations(cons, len(cons) - 1)):
+        iiss.append(cons)
+
+    self.iiss = iiss
+
+class GreedyForSafetyAgent(InitialSafePolicyAgent):
+  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False, useIIS=True, useRelPi=True, adversarial=False, optimizeValue=False):
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
 
     self.useIIS = useIIS
     self.useRelPi = useRelPi
@@ -45,12 +160,12 @@ class GreedyForSafetyAgent(ConsQueryAgent):
 
     A = [[1 if self.relFeats[j] in self.piRelFeats[i] else 0 for j in xrange(d)] for i in xrange(n)]
     b = [self.piRelFeatsAndValues[tuple(self.piRelFeats[i])] for i in xrange(n)]
-    print A, b
+    #print A, b
     weights = lp.linearRegression(A, b)
 
     self.featureVals = {}
     for i in range(d): self.featureVals[self.relFeats[i]] = weights[i]
-    print 'feat vals', self.featureVals
+    print 'feat vals', filter(lambda _: _[1] > 1e-4, self.featureVals.items())
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
     # this just add to the list of known free and locked features

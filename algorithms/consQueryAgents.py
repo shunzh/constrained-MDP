@@ -3,10 +3,7 @@ import pprint
 from lp import lpDualGurobi, computeValue, lpDualCPLEX
 from util import powerset
 import copy
-import numpy
 import config
-from itertools import combinations
-from setcover import killSupersets
 
 # the querying return these consts that represent safe policies exist / not exist
 EXIST = 'exist'
@@ -15,7 +12,6 @@ NOTEXIST = 'notexist'
 class ConsQueryAgent():
   """
   Find queries in constraint-uncertain mdps.
-  FIXME some methods are only used by subclasses
   """
   def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
     """
@@ -68,7 +64,7 @@ class ConsQueryAgent():
       self.knownLockedCons.append(newLockedCon)
 
   """
-  Methods for safe policy improvement
+  Methods for finding dominating policies and relevant features
   """
   #FIXME what is this for?? just to check the computation time?
   def findRelevantFeaturesBruteForce(self):
@@ -140,82 +136,10 @@ class ConsQueryAgent():
     for pi in dominatingPolicies.values():
       if pi not in domPis: domPis.append(pi)
 
-    # make sure eturned values are lists
+    # make sure returned values are lists
     allCons = list(allCons)
     if config.DEBUG: print 'rel cons', allCons, 'num of domPis', len(domPis)
     return allCons, domPis
-
-
-  def findRegret(self, q, violableCons):
-    """
-    A utility function that finds regret given the true violable constraints
-    """
-    consRobotCanViolate = set(q).intersection(violableCons)
-    rInvarCons = set(self.allCons).difference(consRobotCanViolate)
-    robotPi = self.findConstrainedOptPi(rInvarCons)['pi']
-    
-    hInvarCons = set(self.allCons).difference(violableCons)
-    humanPi = self.findConstrainedOptPi(hInvarCons)['pi']
-    
-    hValue = self.computeValue(humanPi)
-    rValue = self.computeValue(robotPi)
-    
-    regret = hValue - rValue
-    assert regret >= -0.00001, 'human %f, robot %f' % (hValue, rValue)
-
-    return regret
-
-  def findMRAdvPi(self, q, relFeats, domPis, k, consHuman=None, tolerated=()):
-    """
-    Find the adversarial policy given q and domPis
-    
-    consHuman can be set to override self.constrainHuman
-    make sure that |humanViolated \ tolerated| <= k
-    
-    Now searching over all dominating policies, maybe take some time.. can use MILP instead?
-    """
-    if consHuman is None: consHuman = self.constrainHuman
-
-    maxRegret = 0
-    advPi = None
-
-    for pi in domPis:
-      humanViolated = self.findViolatedConstraints(pi)
-      humanValue = self.computeValue(pi)
-
-      if consHuman and len(set(humanViolated).difference(tolerated)) > k:
-        # we do not consider the case where the human's optimal policy violates more than k constraints
-        # unfair to compare.
-        continue
-
-      # intersection of q and constraints violated by pi
-      consRobotCanViolate = set(q).intersection(humanViolated)
-      
-      # the robot's optimal policy given the constraints above
-      invarFeats = set(relFeats).difference(consRobotCanViolate)
-      
-      robotValue = -numpy.inf
-      robotPi = None
-      for rPi in domPis:
-        if self.piSatisfiesCons(rPi, invarFeats):
-          rValue = self.computeValue(rPi)
-          if rValue > robotValue:
-            robotValue = rValue
-            robotPi = rPi
-
-      regret = humanValue - robotValue
-      
-      assert robotPi is not None
-      # ignore numerical issues
-      assert regret >= -0.00001, 'human %f, robot %f' % (humanValue, robotValue)
-
-      if regret > maxRegret or (regret == maxRegret and advPi is None):
-        maxRegret = regret
-        advPi = pi
-  
-    # even with constrainHuman, the non-constraint-violating policy is in \Gamma
-    assert advPi is not None
-    return maxRegret, advPi
 
   def constructConstraints(self, cons):
     """
@@ -246,119 +170,6 @@ class ConsQueryAgent():
     
     return list(var)
 
-  """
-  Methods for finding sets useful for safe policies.
-  """
-  def safePolicyExist(self, freeCons=None):
-    # some dom pi's relevant features are all free
-    if freeCons is None:
-      freeCons = self.knownFreeCons
-
-    if hasattr(self, 'piRelFeats'):
-      # if we have rel featus, simply check whether we covered all rel feats of any dom pi
-      return any(len(set(relFeats) - set(freeCons)) == 0 for relFeats in self.piRelFeats)
-    else:
-      # for some simple heuristics, it's not fair to ask them to precompute dompis (need to run a lot of LP)
-      # so we try to solve the lp problem once here
-      # see whether the lp is feasible if we assume all other features are locked
-      return self.findConstrainedOptPi(set(self.allCons) - set(freeCons))['feasible']
-  
-  def safePolicyNotExist(self, lockedCons=None):
-    # there are some locked features in all dom pis
-    if lockedCons is None:
-      lockedCons = self.knownLockedCons
-    if hasattr(self, 'piRelFeats'):
-      return all(len(set(relFeats).intersection(lockedCons)) > 0 for relFeats in self.piRelFeats)
-    else:
-      # by only imposing these constraints, see whether the lp problem is infeasible
-      return not self.findConstrainedOptPi(lockedCons)['feasible']
- 
-  def checkSafePolicyExists(self):
-    """
-    None if can't claim, otherwise return exists or notExist
-    """
-    if self.safePolicyExist(): return EXIST
-    elif self.safePolicyNotExist(): return NOTEXIST
-    else: return None
-
-  def computePolicyRelFeats(self):
-    """
-    Compute relevant features of dominating policies.
-    If the relevant features of any dominating policy are all free, then safe policies exist.
-    Put in another way, if all dom pis has at least one locked relevant feature, then safe policies do not exist.
-    
-    This can be O(2^|relevant features|), depending on the implementation of findDomPis
-    """
-    # check whether this is already computed
-    if hasattr(self, 'piRelFeats'): return
-
-    relFeats, domPis = self.findRelevantFeaturesAndDomPis()
-    piRelFeats = []
-    piRelFeatsAndValues = {}
-    
-    for domPi in domPis:
-      feats = self.findViolatedConstraints(domPi)
-      piRelFeats.append(feats)
-      # FIXME it may be easier to store the values when the dom pis are computed. this is just an easier way
-      piRelFeatsAndValues[tuple(feats)] = self.computeValue(domPi)
-    
-    self.piRelFeats = piRelFeats
-    self.piRelFeatsAndValues = piRelFeatsAndValues
-    self.relFeats = relFeats # the union of rel feats of all dom pis
-    print 'piRelFeats', piRelFeats
-    print 'relFeats', relFeats
-
-  def computeIISs(self):
-    """
-    Compute IISs by looking at relevant features of dominating policies.
-
-    eg. (1 and 2) or (3 and 4) --> (1 or 3) and (1 or 4) and (2 or 3) and (2 or 4) 
-    """
-    # we first need relevant features
-    if not hasattr(self, 'piRelFeats'):
-      self.computePolicyRelFeats()
-      
-    iiss = [set()]
-    for relFeats in self.piRelFeats:
-      iiss = [set(iis).union({relFeat}) for iis in iiss for relFeat in relFeats]
-      # kill duplicates in each set
-      iiss = killSupersets(iiss)
-    
-    self.iiss = iiss
-
-  def computeIISsBruteForce(self):
-    """
-    DEPRECATED not an efficient way to compute IISs. 
-
-    If all IIS contain at least one free feature, then safe policies exist.
-
-    a brute force way to find all iiss and return their indicies
-    can be O(2^|unknown features|)
-    """
-    unknownConsPowerset = powerset(self.allCons)
-    feasible = {}
-    iiss = []
-    
-    for cons in unknownConsPowerset:
-      # if any subset is already infeasible, no need to check this set. it's definitely infeasible and not an iis
-      if len(cons) > 0 and any(not feasible[subset] for subset in combinations(cons, len(cons) - 1)):
-        feasible[cons] = False
-        continue
-
-      # find if the lp is feasible by posing cons
-      sol = self.findConstrainedOptPi(cons)
-      feasible[cons] = sol['feasible']
-      
-      if len(cons) == 0 and not feasible[cons]:
-        # no iiss in this case. problem infeasible
-        return []
-      
-      # if it is infeasible and all its subsets are feasible (only need to check the subsets with one less element)
-      # then it's an iis
-      if not feasible[cons] and all(feasible[subset] for subset in combinations(cons, len(cons) - 1)):
-        iiss.append(cons)
-
-    self.iiss = iiss
 
 
 def printOccSA(x):
