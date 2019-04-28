@@ -25,14 +25,14 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
   pf: only for Bayesian setting. ["prob that ith unknown feature is free" for i in range(self.numOfCons)]
     If None (by default), set randomly
   """
-  mdp, consStates = officeNavigation(spec, gamma)
+  mdp, consStates, goalStates = officeNavigation(spec, gamma)
 
   numOfCons = len(consStates)
   consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
 
   print 'consProbs', zip(range(numOfCons), consProbs)
 
-  agent = ConsQueryAgent(mdp, consStates, consProbs=consProbs)
+  agent = ConsQueryAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
 
   # true free features, randomly generated
   trueFreeFeatures = filter(lambda idx: random.random() < consProbs[idx], range(numOfCons))
@@ -68,25 +68,25 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
       start = time.time()
 
       if method == 'opt':
-        agent = OptQueryForSafetyAgent(mdp, consStates, consProbs=consProbs)
+        agent = OptQueryForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       elif method == 'ours':
-        agent = GreedyForSafetyAgent(mdp, consStates, consProbs=consProbs, useIIS=True, useRelPi=True)
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True)
         # record this to get an idea how difficult these tasks are
         # (iisAndRelpi compute both sets anyway, so record here)
         iiss = agent.iiss
         relFeats = agent.piRelFeats
       elif method == 'oursWithValue':
-        agent = GreedyForSafetyAgent(mdp, consStates, consProbs=consProbs, useIIS=True, useRelPi=True, optimizeValue=True)
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True, optimizeValue=True)
       elif method == 'iisOnly':
-        agent = GreedyForSafetyAgent(mdp, consStates, consProbs=consProbs, useIIS=True, useRelPi=False)
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=False)
       elif method == 'relpiOnly':
-        agent = GreedyForSafetyAgent(mdp, consStates, consProbs=consProbs, useIIS=False, useRelPi=True)
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=False, useRelPi=True)
       elif method == 'maxProb':
-        agent = MaxProbSafePolicyExistAgent(mdp, consStates, consProbs=consProbs)
+        agent = MaxProbSafePolicyExistAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       elif method == 'piHeu':
-        agent = DomPiHeuForSafetyAgent(mdp, consStates, consProbs=consProbs)
+        agent = DomPiHeuForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       elif method == 'random':
-        agent = DescendProbQueryForSafetyAgent(mdp, consStates, consProbs=consProbs)
+        agent = DescendProbQueryForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       else:
         raise Exception('unknown method', method)
 

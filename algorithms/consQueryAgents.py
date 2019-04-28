@@ -13,7 +13,7 @@ class ConsQueryAgent():
   """
   Find queries in constraint-uncertain mdps.
   """
-  def __init__(self, mdp, consStates, consProbs=None):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
     """
     can't think of a class it should inherit..
 
@@ -26,12 +26,12 @@ class ConsQueryAgent():
     # indices of constraints
     self.consStates = consStates
     self.consIndices = range(len(consStates))
-    
     self.consProbs = consProbs
-    
 
-    self.allCons = self.consIndices
-    
+    self.allCons = self.consIndices # FIXME different subclasses call this differently!
+
+    self.goalCons = [(s, a) for a in mdp.A for s in goalStates]
+
     # used for iterative queries
     self.knownLockedCons = []
     self.knownFreeCons = []
@@ -48,9 +48,10 @@ class ConsQueryAgent():
     zeroConstraints = self.constructConstraints(activeCons)
 
     if config.METHOD == 'gurobi':
-      return lpDualGurobi(mdp, zeroConstraints=zeroConstraints)
+      return lpDualGurobi(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)
     elif config.METHOD == 'cplex':
-      return lpDualCPLEX(mdp, zeroConstraints=zeroConstraints)
+      # not using this. only for comparision
+      return lpDualCPLEX(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)
     else:
       raise Exception('unknown method')
 

@@ -321,7 +321,7 @@ def officeNavigation(spec, gamma):
   if spec.horizon != None:
     terminal = lambda s: s[tIndex] == spec.horizon
   else:
-    terminal = lambda s: s[lIndex] == spec.switch
+    terminal = lambda s: s[sIndex] == OFF
 
   """
   possible reward functions
@@ -386,10 +386,12 @@ def officeNavigation(spec, gamma):
 
   # carpets are locked features by default
   carpetCons = [[s for s in mdp.S if s[lIndex] == _] for _ in spec.carpets]
-
   # boxes are need-to-be-reverted features by default
   boxCons = [[s for s in mdp.S if terminal(s) and s[bIdx] != s0[bIdx]] for bIdx in bIndices]
-
   consStates = carpetCons + boxCons
 
-  return mdp, consStates
+  # goal states are that the switch needs to be turned off in the end
+  goalStates = [s for s in mdp.S if s[sIndex] == OFF]
+  print goalStates
+
+  return mdp, consStates, goalStates

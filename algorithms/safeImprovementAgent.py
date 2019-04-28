@@ -9,8 +9,8 @@ class SafeImproveAgent(ConsQueryAgent):
 
   FIXME inconsistency. algorithms are implemented as methods here but as classes in initialSafeAgent
   """
-  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=True):
-    ConsQueryAgent.__init__(self, mdp, consStates, consProbs)
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, constrainHuman=True):
+    ConsQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     # different definition of MR
     #

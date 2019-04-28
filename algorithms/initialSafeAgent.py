@@ -11,11 +11,11 @@ from operator import mul
 from util import powerset
 
 class InitialSafePolicyAgent(ConsQueryAgent):
-  def __init__(self, mdp, consStates, consProbs=None, costOfQuery=1):
+  def __init__(self, mdp, consStates, goalStates, consProbs=None, costOfQuery=1):
     """
     :param costOfQuery: default cost of query is 1 unit
     """
-    ConsQueryAgent.__init__(self, mdp, consStates, consProbs)
+    ConsQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     self.costOfQuery = costOfQuery
 
@@ -131,7 +131,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     self.iiss = iiss
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
-  def __init__(self, mdp, consStates, consProbs=None, useIIS=True, useRelPi=True, adversarial=False, optimizeValue=False):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True, adversarial=False, optimizeValue=False):
     """
     :param consStates: the set of states that should not be visited
     :param consProbs: the probability that the corresponding constraint is free
@@ -140,7 +140,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     :param adversarial: True if no Bayesian prior
     :param optimizeValue: True if hoping to find a safe policy
     """
-    InitialSafePolicyAgent.__init__(self, mdp, consStates, consProbs)
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     self.useIIS = useIIS
     self.useRelPi = useRelPi
@@ -246,8 +246,8 @@ class DomPiHeuForSafetyAgent(InitialSafePolicyAgent):
   This uses dominating policies. It first finds the dominating policy that has the largest probability being free.
   Then query about the most probable unknown feature in the relevant features of the policy.
   """
-  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
-    InitialSafePolicyAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, constrainHuman=False):
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs, constrainHuman)
 
     self.computePolicyRelFeats()
 
@@ -283,8 +283,8 @@ class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
   """
   Find the feature that, after querying, the expected probability of finding a safe poicy / no safe policies exist is maximized.
   """
-  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
-    InitialSafePolicyAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, constrainHuman=False):
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs, constrainHuman)
 
     # need domPis for query
     self.computePolicyRelFeats()
@@ -362,8 +362,8 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
   """
   Find the opt query by dynamic programming. Its O(2^|\Phi|).
   """
-  def __init__(self, mdp, consStates, consProbs=None, constrainHuman=False):
-    InitialSafePolicyAgent.__init__(self, mdp, consStates, consProbs, constrainHuman)
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, constrainHuman=False):
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs, constrainHuman)
 
     # need domPis for query
     self.computePolicyRelFeats()
