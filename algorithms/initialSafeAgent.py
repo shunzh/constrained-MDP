@@ -131,7 +131,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     self.iiss = iiss
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True, adversarial=False, optimizeValue=False):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True, optimizeValue=False):
     """
     :param consStates: the set of states that should not be visited
     :param consProbs: the probability that the corresponding constraint is free
@@ -145,8 +145,6 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     self.useIIS = useIIS
     self.useRelPi = useRelPi
 
-    # assume the human's response is adversarial, used in the non-Bayesian case
-    self.adversarial = adversarial
     # set if the robot should also aim for finding a safe policy with higher value
     self.optimizeValue = optimizeValue
 
@@ -226,12 +224,12 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
 
       if self.adversarial:
         # non-Bayesian
-        if not self.optimizeValue:
-          # not dependent on consProbs
-          score[con] = max(numWhenFree, numWhenLocked)
-        else:
+        if self.optimizeValue:
+          # we need IIS when trying to optimize the values of policies
           assert self.useIIS
           score[con] = (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss))
+        else:
+          score[con] = max(numWhenFree, numWhenLocked)
       else:
         score[con] = self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
 

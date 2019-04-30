@@ -48,7 +48,7 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
     print 'initial safe policy does not exist'
 
     #methods = ['opt', 'ours', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
-    methods = ['oursWithValue']
+    methods = ['ours', 'oursNonBayes']
     queries = {}
     times = {}
     # these are assigned when ouralg is run
@@ -75,6 +75,8 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
         # (iisAndRelpi compute both sets anyway, so record here)
         iiss = agent.iiss
         relFeats = agent.piRelFeats
+      elif method == 'oursNonBayes':
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=None, useIIS=True, useRelPi=True)
       elif method == 'oursWithValue':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True, optimizeValue=True)
       elif method == 'iisOnly':

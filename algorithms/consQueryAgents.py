@@ -26,7 +26,9 @@ class ConsQueryAgent():
     # indices of constraints
     self.consStates = consStates
     self.consIndices = range(len(consStates))
+
     self.consProbs = consProbs
+    self.adversarial = (consProbs is None)
 
     self.allCons = self.consIndices # FIXME different subclasses call this differently!
 
