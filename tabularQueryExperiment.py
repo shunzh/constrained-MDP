@@ -47,8 +47,7 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
     # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
     print 'initial safe policy does not exist'
 
-    #methods = ['opt', 'ours', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
-    methods = ['ours', 'oursNonBayes']
+    methods = ['opt', 'iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
     queries = {}
     times = {}
     # these are assigned when ouralg is run
@@ -69,15 +68,15 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
 
       if method == 'opt':
         agent = OptQueryForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
-      elif method == 'ours':
+      elif method == 'iisAndRelpi':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True)
         # record this to get an idea how difficult these tasks are
         # (iisAndRelpi compute both sets anyway, so record here)
         iiss = agent.iiss
         relFeats = agent.piRelFeats
-      elif method == 'oursNonBayes':
+      elif method == 'setcoverNonBayes':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=None, useIIS=True, useRelPi=True)
-      elif method == 'oursWithValue':
+      elif method == 'setcoverWithValue':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True, optimizeValue=True)
       elif method == 'iisOnly':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=False)
@@ -244,7 +243,7 @@ def setRandomSeed(rnd):
 if __name__ == '__main__':
   # default values
   method = None
-  k = 1
+  k = 1 # dummy for sequential queries?
   dry = False # do not save to files if dry run
 
   numOfCarpets = 10
@@ -285,12 +284,12 @@ if __name__ == '__main__':
 
   if batch:
     # elements are (num of carpets, pf, pfStep)
-    settingCandidates = [#([8, 9, 10, 11, 12], [0], 1),
-                         ([10], [0, 0.2, 0.4, 0.6, 0.8], 0.2),
-                         ([10], [0, 0.25, 0.5], 0.5),
+    settingCandidates = [([8, 9, 10, 11], [0], 1),
+                         #([10], [0, 0.2, 0.4, 0.6, 0.8], 0.2),
+                         #([10], [0, 0.25, 0.5], 0.5),
                         ]
 
-    for rnd in range(1000):
+    for rnd in range(1):
       for (carpetNums, pfRange, pfStep) in settingCandidates:
         for numOfCarpets in carpetNums:
           for pf in pfRange:
@@ -298,10 +297,10 @@ if __name__ == '__main__':
             setRandomSeed(rnd)
 
             spec = squareWorld(size, numOfCarpets, avoidBorder=False)
-            experiment(spec, k, dry, rnd, pf, pfStep)
+            experiment(spec, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
-    spec = carpetsAndWallsDomain()
-    #spec = squareWorld(size, numOfCarpets, avoidBorder=False)
+    #spec = carpetsAndWallsDomain()
+    spec = squareWorld(size, numOfCarpets, avoidBorder=False)
     #spec = squareWorld(size, numOfCarpets, avoidBorder=True)
 
     #spec = toySokobanWorld()

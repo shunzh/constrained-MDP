@@ -199,7 +199,7 @@ def officeNavigation(spec, gamma):
   # time is needed when there are horizon-dependent constraints
   tIndex = sIndex + 1
 
-  directionalActs = [(1, 0), (0, 1), (1, 1), (-1, 0), (0, -1)]
+  directionalActs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
   aSets = directionalActs + [TURNOFFSWITCH]
  
   # check whether the world looks as expected

@@ -16,8 +16,8 @@ lensOfQ = {}
 lensOfQRelPhi = {}
 times = {}
 
-#proportionRange = [0.01] + [0.1 * proportionInt for proportionInt in range(10)] + [0.99]
-carpetNums = [8, 9, 10, 11, 12]
+#carpetNums = [8, 9, 10, 11, 12]
+carpetNums = [8]
 
 # will check what methods are run from data
 includeOpt = True
@@ -233,7 +233,7 @@ def plotNumVsCarpets():
         filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_0_1_' +  str(rnd) + '.pkl'
         data = pickle.load(open(filename, 'rb'))
       except IOError:
-        print filename, 'not exist'
+        #print filename, 'not exist'
         continue
 
       # see which features appear in relevant features of any dominating policy
@@ -276,18 +276,20 @@ def plotNumVsCarpets():
   # plot num of features queried based on the num of dom pis
   x = range(max(carpetNums))
   y = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
-  plotRatioOfDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_diff')
+
+  #plotRatioOfDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_diff')
   plotRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_ratio')
 
-font = {'size': 13}
-matplotlib.rc('font', **font)
+if __name__ == '__main__':
+  font = {'size': 13}
+  matplotlib.rc('font', **font)
 
-pfCandidates = [(0.2, [0, 0.2, 0.4, 0.6, 0.8]),\
-#                (0.3, [0, 0.35, 0.7]),\
-                (0.5, [0, 0.25, 0.5])]
+  pfCandidates = [(0.2, [0, 0.2, 0.4, 0.6, 0.8]),
+  #                (0.3, [0, 0.35, 0.7]),
+                  (0.5, [0, 0.25, 0.5])]
 
-# exp 1: varying num of carpets
-plotNumVsCarpets()
+  # exp 1: varying num of carpets
+  plotNumVsCarpets()
 
-# exp 2: varying pfs
-for (pfStep, pfRange) in pfCandidates: plotNumVsProportion(pfRange, pfStep)
+  # exp 2: varying pfs
+  #for (pfStep, pfRange) in pfCandidates: plotNumVsProportion(pfRange, pfStep)
