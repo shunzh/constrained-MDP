@@ -75,8 +75,6 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     self.piRelFeats = piRelFeats
     self.piRelFeatsAndValues = piRelFeatsAndValues
     self.relFeats = relFeats # the union of rel feats of all dom pis
-    print 'piRelFeats', piRelFeats
-    print 'relFeats', relFeats
 
   def computeIISs(self):
     """

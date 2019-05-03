@@ -16,8 +16,7 @@ lensOfQ = {}
 lensOfQRelPhi = {}
 times = {}
 
-#carpetNums = [8, 9, 10, 11, 12]
-carpetNums = [8]
+carpetNums = [8, 9, 10, 11]
 
 # will check what methods are run from data
 includeOpt = True
@@ -70,7 +69,7 @@ def plot(x, y, methods, xlabel, ylabel, filename):
 
   pylab.close()
 
-def plotRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename):
+def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename):
   """
   plot data with a specified baseline.
 
@@ -96,7 +95,7 @@ def plotRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename):
 
   pylab.close()
 
-def plotRatioOfDiffWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename):
+def plotRatioOfMeanDiffWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename):
   """
   plot data with a specified baseline.
 
@@ -194,9 +193,8 @@ def plotNumVsProportion(pfRange, pfStep):
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
 
-  plotRatioOfDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_diff')
-  plotRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_ratio')
-
+  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_diff')
+  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_ratio')
 
 def plotNumVsCarpets():
   """
@@ -207,9 +205,10 @@ def plotNumVsCarpets():
       lensOfQ[method, carpetNum] = []
       times[method, carpetNum] = []
 
-    for carpetNum in range(max(carpetNums) + 1):
+    for relFeatNum in range(max(carpetNums) + 1):
       # relevant features is going to be at most the number of unknown features anyway
-      lensOfQRelPhi[method, carpetNum] = []
+      # num of queries asked using method when relFeatNum
+      lensOfQRelPhi[method, relFeatNum] = []
 
   iiss = {}
   domPis = {}
@@ -265,8 +264,8 @@ def plotNumVsCarpets():
   x = carpetNums
   # absolute number of queried features
   y = lambda method, carpetNum: lensOfQ[method, carpetNum]
-  plotRatioOfDiffWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_diff')
-  plotRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_ratio')
+  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_ratioOfMean')
+  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_meanOfRatio')
 
   print 'compute time'
   x = carpetNums
@@ -277,16 +276,17 @@ def plotNumVsCarpets():
   x = range(max(carpetNums))
   y = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
 
-  #plotRatioOfDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_diff')
-  plotRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_ratio')
+  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_ratioOfMean')
+  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_meanOfRatio')
 
 if __name__ == '__main__':
   font = {'size': 13}
   matplotlib.rc('font', **font)
 
   pfCandidates = [(0.2, [0, 0.2, 0.4, 0.6, 0.8]),
-  #                (0.3, [0, 0.35, 0.7]),
-                  (0.5, [0, 0.25, 0.5])]
+                  #(0.3, [0, 0.35, 0.7]),
+                  #(0.5, [0, 0.25, 0.5])
+                 ]
 
   # exp 1: varying num of carpets
   plotNumVsCarpets()
