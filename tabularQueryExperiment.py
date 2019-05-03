@@ -248,7 +248,7 @@ if __name__ == '__main__':
 
   numOfCarpets = 10
   numOfBoxes = 0
-  size = 6
+  size = 5
 
   rnd = 0 # set a dummy random seed if no -r argument
 
@@ -284,7 +284,8 @@ if __name__ == '__main__':
 
   if batch:
     # elements are (num of carpets, pf, pfStep)
-    settingCandidates = [([8, 9, 10, 11, 12], [0], 1),
+    settingCandidates = [#([8, 9, 10, 11], [0], 1),
+                         ([12], [0], 1),
                          #([10], [0, 0.2, 0.4, 0.6, 0.8], 0.2),
                          #([10], [0, 0.25, 0.5], 0.5),
                         ]

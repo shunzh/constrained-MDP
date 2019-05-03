@@ -6,6 +6,6 @@ This codebase contains the following.
 * Linear programming methods to find constrained-optimal policies in MDPs (using Gurobi or CPLEX).
 * Query selection algorithms in my research.
 
-This is mostly for my own research use. See more details in my homepage below.
+This is mostly for my own research use. See more details on my homepage below.
 
 https://sites.google.com/a/umich.edu/shunzh/research
