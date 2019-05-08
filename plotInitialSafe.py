@@ -16,18 +16,16 @@ lensOfQ = {}
 lensOfQRelPhi = {}
 times = {}
 
-carpetNums = [8, 9, 10, 11]
+carpetNums = [8, 9, 10, 11, 12]
 
-# will check what methods are run from data
-includeOpt = True
-includeRandom = False
+includeOpt = True # if opt is run
+includeRandom = False # random may be out of scope
 
 methods = (['opt'] if includeOpt else []) \
           + ['iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu'] \
           + (['random'] if includeRandom else [])
-
 markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisOnly': 'bs--', 'relpiOnly': 'bd-.', 'maxProb': 'g^-', 'piHeu': 'm+-', 'random': 'c.-'}
-names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCover', 'iisOnly': 'SetCover (IIS)', 'relpiOnly': 'SetCover (rel. feat.)', 'maxProb': 'Greed. Prob.',\
+names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCoverQuery', 'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)', 'maxProb': 'Greed. Prob.',\
          'piHeu': 'Most-Likely', 'random': 'Descending'}
 
 # output the difference of two vectors
@@ -35,8 +33,6 @@ vectorDiff = lambda v1, v2: map(lambda e1, e2: e1 - e2, v1, v2)
 # output the ratio of two vectors. 1 if e2 == 0
 vectorDivide = lambda v1, v2: map(lambda e1, e2: e1 / e2, v1, v2)
 
-# for output as latex table
-outputFormat = lambda d: '$' + str(round(mean(d), 4)) + ' \pm ' + str(round(standardErr(d), 4)) + '$'
 
 def plot(x, y, methods, xlabel, ylabel, filename):
   """
@@ -57,17 +53,26 @@ def plot(x, y, methods, xlabel, ylabel, filename):
 
   ax = pylab.gca()
   for method in methods:
-    print method, yMean(method), yCI(method)
+    #print method, yMean(method), yCI(method)
     ax.errorbar(x, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
-  pylab.legend()
-  ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
 
   pylab.close()
+
+def printTex(head, data):
+  print head,
+  for d in data: print ' & ', d,
+  print '\\\\'
+
+def plotLegend():
+  ax = pylab.gca()
+  figLegend = pylab.figure(figsize=(3.2, 2))
+  pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
+  figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
 def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename):
   """
@@ -82,16 +87,16 @@ def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename
 
   ax = pylab.gca()
   for method in methods:
-    print method, yMean(method), yCI(method)
+    #print method, yMean(method), yCI(method)
     ax.errorbar(x, yMean(method), yCI(method),
                 fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
-  pylab.legend()
-  ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
+
+  plotLegend() # make sure legend is plotted somewhere
 
   pylab.close()
 
@@ -108,14 +113,12 @@ def plotRatioOfMeanDiffWrtBaseline(x, y, methods, baseline, xlabel, ylabel, file
 
   ax = pylab.gca()
   for method in methods:
-    print method, yMean(method), yCI(method)
+    #print method, yMean(method), yCI(method)
     ax.errorbar(x, vectorDivide(yMean(method), yMean(baseline)), vectorDivide(yCI(method), yMean(baseline)),
                 fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
-  pylab.legend()
-  ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
 
@@ -132,7 +135,6 @@ def scatter(x, y, xlabel, ylabel, filename):
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
   pylab.legend()
-  ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
 
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
 
@@ -192,9 +194,8 @@ def plotNumVsProportion(pfRange, pfStep):
   # plot figure
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
-
-  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_diff')
-  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_ratio')
+  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_ratioOfMean')
+  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_meanOfRatio')
 
 def plotNumVsCarpets():
   """
@@ -254,11 +255,14 @@ def plotNumVsCarpets():
       if 'opt' in methods and len(data['q']['opt']) < len(data['q']['iisAndRelpi']):
         print 'rnd', rnd, 'carpetNum', carpetNum, 'opt', data['q']['opt'], 'iisAndRelpi', data['q']['iisAndRelpi']
 
-  #print 'iiss', [round(mean(iiss[carpetNum]), 2) for carpetNum in carpetNums]
-  #print 'relFeats', [round(mean(domPis[carpetNum]), 2) for carpetNum in carpetNums]
-
-  print 'valid instances', [len(validInstances[carpetNum]) for carpetNum in carpetNums]
-  print 'solvable instances ratio', [round(1.0 * len(solvableIns[carpetNum]) / len(validInstances[carpetNum]), 2) for carpetNum in carpetNums]
+  printTex('\\# of trials w/ no initial safe policies',
+           [len(validInstances[carpetNum]) for carpetNum in carpetNums])
+  printTex('proportion of trials where safe policies exist',
+           [round(1.0 * len(solvableIns[carpetNum]) / len(validInstances[carpetNum]), 2) for carpetNum in carpetNums])
+  printTex('average \\# of IISs',
+           [round(mean(iiss[carpetNum]), 2) for carpetNum in carpetNums])
+  printTex('average \# of dominating policies',
+           [round(mean(domPis[carpetNum]), 2) for carpetNum in carpetNums])
 
   print '# of queries'
   x = carpetNums
@@ -267,7 +271,6 @@ def plotNumVsCarpets():
   plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_ratioOfMean')
   plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_meanOfRatio')
 
-  print 'compute time'
   x = carpetNums
   y = lambda method, carpetNum: times[method, carpetNum]
   plot(x, y, methods, '# of Carpets', 'Computation Time (sec.)', 'timesCarpets')
@@ -277,7 +280,7 @@ def plotNumVsCarpets():
   y = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
 
   plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_ratioOfMean')
-  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_meanOfRatio')
+  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_meanOfRatio')
 
 if __name__ == '__main__':
   font = {'size': 13}
@@ -285,7 +288,7 @@ if __name__ == '__main__':
 
   pfCandidates = [(0.2, [0, 0.2, 0.4, 0.6, 0.8]),
                   #(0.3, [0, 0.35, 0.7]),
-                  #(0.5, [0, 0.25, 0.5])
+                  (0.5, [0, 0.25, 0.5])
                  ]
 
   # exp 1: varying num of carpets

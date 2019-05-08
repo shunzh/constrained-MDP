@@ -262,8 +262,8 @@ class DomPiHeuForSafetyAgent(InitialSafePolicyAgent):
 
     # find the policy that has the largest probability to be feasible
 
-    feasibleProb = lambda relFeats: reduce(mul,\
-                                           map(lambda _: updatedConsProbs[_], relFeats),\
+    feasibleProb = lambda relFeats: reduce(mul,
+                                           map(lambda _: updatedConsProbs[_], relFeats),
                                            1)
 
     maxProbPiRelFeats = max(self.piRelFeats, key=feasibleProb)
@@ -285,7 +285,7 @@ class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
     # need domPis for query
     self.computePolicyRelFeats()
 
-  def probOfExistanceOfSafePolicies(self, lockedCons, freeCons):
+  def probOfExistenceOfSafePolicies(self, lockedCons, freeCons):
     """
     Compute the probability of existence of at least one safe policies.
     This considers the changeabilities of all unknown features.
@@ -323,7 +323,7 @@ class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
     termProbs = {}
     for con in unknownCons:
       # the prob that safe policies exist when con is free
-      probExistWhenFree = self.probOfExistanceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
+      probExistWhenFree = self.probOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
 
       termProbs[con] = self.consProbs[con] * probExistWhenFree
 
@@ -342,6 +342,7 @@ class DescendProbQueryForSafetyAgent(InitialSafePolicyAgent):
     if answerFound != None: return answerFound
 
     unknownCons = set(self.consIndices) - set(self.knownLockedCons) - set(self.knownFreeCons)
+    assert len(unknownCons) > 0
     return max(unknownCons, key=lambda con: self.consProbs[con])
 
 
@@ -351,6 +352,7 @@ class RandomQueryAgent(InitialSafePolicyAgent):
     if answerFound != None: return answerFound
 
     unknownCons = set(self.consIndices) - set(self.knownLockedCons) - set(self.knownFreeCons)
+    assert len(unknownCons) > 0
     return random.choice(unknownCons)
 
 
