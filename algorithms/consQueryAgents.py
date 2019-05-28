@@ -45,6 +45,12 @@ class ConsQueryAgent():
     return self.findConstrainedOptPi(self.allCons)['feasible']
 
   def findConstrainedOptPi(self, activeCons):
+    """
+    :param activeCons:  constraints that should be followed
+    :return: {'feasible': if solution exists; if not exists, this is the only property,
+              'obj': the objective value,
+              'pi': the policy found}
+    """
     mdp = copy.copy(self.mdp)
 
     zeroConstraints = self.constructConstraints(activeCons)

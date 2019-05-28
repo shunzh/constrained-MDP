@@ -47,8 +47,10 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
     # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
     print 'initial safe policy does not exist'
 
-    methods = ['opt', 'iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
+    #methods = ['opt', 'iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
+    methods = ['setcoverWithValue', 'piHeuWithValue', 'random']
     queries = {}
+    valuesOfSafePis = {}
     times = {}
     # these are assigned when ouralg is run
     iiss = None
@@ -86,6 +88,8 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
         agent = MaxProbSafePolicyExistAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       elif method == 'piHeu':
         agent = DomPiHeuForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
+      elif method == 'piHeuWithValue':
+        agent = DomPiHeuForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, optimizeValue=True)
       elif method == 'random':
         agent = DescendProbQueryForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       else:
@@ -106,8 +110,9 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
           agent.updateFeats(newLockedCon=query)
 
         queries[method].append(query)
-      # ======== timed session ends ========
+
       end = time.time()
+      # ======== timed session ends ========
 
       # the alg must return an answer
       assert thisAnswer is not None
@@ -122,19 +127,22 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
       if thisAnswer == EXIST:
         # may use other ways? most algorithms check this before returning anyway
         assert agent.safePolicyExist()
+        valuesOfSafePis[method] = agent.safePolicyValue() #TODO
 
       times[method].append(end - start)
 
     print 'queries', queries
     print 'times', times
     print 'safe policy', answer
+    print 'safe policy value', valuesOfSafePis
 
     if dry:
       print 'dry run. no output'
     else:
       lb = pf; ub = pf + pfStep
       # write to file
-      pickle.dump({'q': queries, 't': times, 'iiss': iiss, 'relFeats': relFeats, 'solvable': answer == 'exist'},
+      pickle.dump({'q': queries, 't': times, 'iiss': iiss, 'relFeats': relFeats,
+                   'solvable': answer == 'exist', 'valuesOfSafePis': valuesOfSafePis},
                   open(str(spec.width) + '_' + str(spec.height) + '_' + str(len(spec.carpets)) + '_' +\
                        str(lb) + '_' + str(ub) + '_' + str(rnd) + '.pkl', 'wb'))
   else:

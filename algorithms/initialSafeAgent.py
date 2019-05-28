@@ -128,6 +128,14 @@ class InitialSafePolicyAgent(ConsQueryAgent):
 
     self.iiss = iiss
 
+  def safePolicyValue(self):
+    sol = self.findConstrainedOptPi(self.relFeats - self.knownFreeCons)
+    if sol['feasible']:
+      return sol['obj']
+    else:
+      # for comparison, the return is 0 when no safe policies exist
+      return 0
+
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True, optimizeValue=False):
     """
@@ -167,8 +175,8 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     n = len(self.piRelFeats)
     d = len(self.relFeats)
 
-    A = [[1 if self.relFeats[j] in self.piRelFeats[i] else 0 for j in xrange(d)] for i in xrange(n)]
-    b = [self.piRelFeatsAndValues[tuple(self.piRelFeats[i])] for i in xrange(n)]
+    A = [[1 if self.relFeats[j] in self.piRelFeats[i] else 0 for j in range(d)] for i in range(n)]
+    b = [self.piRelFeatsAndValues[tuple(self.piRelFeats[i])] for i in range(n)]
     #print A, b
     weights = lp.linearRegression(A, b)
 
@@ -224,8 +232,8 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
         # non-Bayesian
         if self.optimizeValue:
           # we need IIS when trying to optimize the values of policies
-          assert self.useIIS
-          score[con] = (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss))
+          score[con] = self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
+                     + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.piRelFeats))
         else:
           score[con] = max(numWhenFree, numWhenLocked)
       else:
@@ -242,10 +250,11 @@ class DomPiHeuForSafetyAgent(InitialSafePolicyAgent):
   This uses dominating policies. It first finds the dominating policy that has the largest probability being free.
   Then query about the most probable unknown feature in the relevant features of the policy.
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, constrainHuman=False):
-    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs, constrainHuman)
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, optimizeValue=False):
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     self.computePolicyRelFeats()
+    self.optimizeValue = optimizeValue
 
   def findQuery(self):
     answerFound = self.checkSafePolicyExists()
@@ -264,7 +273,7 @@ class DomPiHeuForSafetyAgent(InitialSafePolicyAgent):
 
     feasibleProb = lambda relFeats: reduce(mul,
                                            map(lambda _: updatedConsProbs[_], relFeats),
-                                           1)
+                                           self.piRelFeatsAndValues[tuple(relFeats)] if self.optimizeValue else 1)
 
     maxProbPiRelFeats = max(self.piRelFeats, key=feasibleProb)
 
@@ -279,8 +288,8 @@ class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
   """
   Find the feature that, after querying, the expected probability of finding a safe poicy / no safe policies exist is maximized.
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, constrainHuman=False):
-    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs, constrainHuman)
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     # need domPis for query
     self.computePolicyRelFeats()
@@ -360,8 +369,8 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
   """
   Find the opt query by dynamic programming. Its O(2^|\Phi|).
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, constrainHuman=False):
-    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs, constrainHuman)
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     # need domPis for query
     self.computePolicyRelFeats()
