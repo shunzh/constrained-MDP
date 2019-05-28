@@ -5,6 +5,8 @@ import numpy
 import domainConstructors
 
 # constants for objects in the environment
+import util
+
 R = 'R'
 _ = '_'
 W = 'W'
@@ -37,12 +39,12 @@ class Spec():
   """
   A object that describes the specifications of a tabular environment with walls, doors, boxes, carpets, etc.
   """
-  def __init__(self, width, height, robot, switch, walls, doors, boxes, carpets, horizon=None):
+  def __init__(self, width, height, robot, switches, walls, doors, boxes, carpets, horizon=None):
     self.width = width
     self.height = height
     
     self.robot = robot
-    self.switch = switch
+    self.switches = switches
     
     self.walls = walls
     self.doors = doors
@@ -65,7 +67,7 @@ def toyWorldConstructor(map, horizon=None):
   height = len(map)
 
   robot = None
-  switch = None
+  switches = []
   walls = []
   doors = []
   carpets = []
@@ -82,7 +84,7 @@ def toyWorldConstructor(map, horizon=None):
         if elem == R:
           robot = (j, i)
         elif elem == S:
-          switch = (j, i)
+          switches.append((j, i))
         elif elem == W:
           walls.append((j, i))
         elif elem == D:
@@ -93,9 +95,9 @@ def toyWorldConstructor(map, horizon=None):
           boxes.append((j, i))
 
   if robot == None: raise Exception('Robot location not specified!')
-  if switch == None: raise Exception('Switch location not specified!')
+  if len(switches) == 0: raise Exception('Should specify at least one switch')
 
-  return Spec(width, height, robot, switch, walls, doors, boxes, carpets, horizon)
+  return Spec(width, height, robot, switches, walls, doors, boxes, carpets, horizon)
 
 """
 A list of toy domains.
@@ -129,7 +131,7 @@ A list of parameterized domains.
 These are randomly generated rather than hand-specified.
 """
 # parameterized worlds
-def squareWorld(size, numOfCarpets, avoidBorder=True):
+def squareWorld(size, numOfCarpets, numOfSwitches):
   """
   Squared world with width = height = size.
   The robot and the swtich are at opposite corners.
@@ -139,29 +141,24 @@ def squareWorld(size, numOfCarpets, avoidBorder=True):
   height = size
   
   robot = (0, 0)
-  switch = (width - 1, height - 1)
-  
+
   walls = []
   doors = []
 
-  if avoidBorder:
-    admissibleLocs = [(x, y) for x in range(width - 1) for y in range(1, height)]
-  else:
-    admissibleLocs = [(x, y) for x in range(width) for y in range(height)]
+  possibleLocs = [(x, y) for x in range(width) for y in range(height)]
 
-  assert len(admissibleLocs) >= numOfCarpets
-  carpetIndices = numpy.random.choice(range(len(admissibleLocs)), numOfCarpets, replace=False)
-  carpets = [admissibleLocs[carpetIndex] for carpetIndex in carpetIndices]
+  carpets = util.sampleSubset(possibleLocs, numOfCarpets)
+  switches = util.sampleSubset(possibleLocs, numOfSwitches)
 
-  boxes = []
+  boxes = [] # no need to put in boxes for now
   
-  return Spec(width, height, robot, switch, walls, doors, boxes, carpets)
+  return Spec(width, height, robot, switches, walls, doors, boxes, carpets)
 
 def parameterizedSokobanWorld(size, numOfBoxes):
   width = height = size
   
   robot = (0, 0)
-  switch = (width - 1, height - 1)
+  switches = [(width - 1, height - 1)]
   
   walls = []
   doors = []
@@ -171,7 +168,7 @@ def parameterizedSokobanWorld(size, numOfBoxes):
   
   horizon = size * 2
   
-  return Spec(width, height, robot, switch, walls, doors, boxes, carpets, horizon)
+  return Spec(width, height, robot, switches, walls, doors, boxes, carpets, horizon)
 
 
 def officeNavigation(spec, gamma):
@@ -180,10 +177,10 @@ def officeNavigation(spec, gamma):
   gamma: discounting factor
   """
   # robot's location
-  lIndex = 0
-  
+  locIndex = 0
+
   # door indices
-  dIndexStart = lIndex + 1
+  dIndexStart = locIndex + 1
   dSize = len(spec.doors)
   dIndices = range(dIndexStart, dIndexStart + dSize)
 
@@ -192,14 +189,16 @@ def officeNavigation(spec, gamma):
   bSize = len(spec.boxes)
   bIndices = range(bIndexStart, bIndexStart + bSize)
 
-  # switch index
-  sIndex = bIndexStart + bSize
+  # switch indices
+  sIndexStart = bIndexStart + bSize
+  sSize = len(spec.switches)
+  sIndices = range(sIndexStart, sIndexStart + sSize)
 
-  # time index
+  # time index (may or may not be used)
   # time is needed when there are horizon-dependent constraints
-  tIndex = sIndex + 1
+  tIndex = sIndexStart + sSize
 
-  directionalActs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+  directionalActs = [(1, 0), (1, 1), (0, 1), (-1, 0), (0, -1)]
   aSets = directionalActs + [TURNOFFSWITCH]
  
   # check whether the world looks as expected
@@ -207,11 +206,11 @@ def officeNavigation(spec, gamma):
     print '%3d' % y,
     for x in range(spec.width):
       if (x, y) in spec.walls: print '[ W]',
+      elif (x, y) in spec.boxes: print '[ B]',
+      elif (x, y) in spec.switches: print '[ S]',
+      elif (x, y) == spec.robot: print '[ R]',
       elif spec.carpets.count((x, y)) == 1: print '[%2d]' % spec.carpets.index((x, y)),
       elif spec.carpets.count((x, y)) > 1: print '[%2d*' % spec.carpets.index((x, y)),
-      elif (x, y) in spec.boxes: print '[ B]',
-      elif (x, y) == spec.switch: print '[ S]',
-      elif (x, y) == spec.robot: print '[ R]',
       else: print '[  ]',
     print
   print '  ',
@@ -241,7 +240,7 @@ def officeNavigation(spec, gamma):
   factored transition functions
   """
   def navigate(s, a):
-    loc = s[lIndex]
+    loc = s[locIndex]
     if a in directionalActs:
       sp = (loc[0] + a[0], loc[1] + a[1])
       # not blocked by borders, closed doors
@@ -257,7 +256,7 @@ def officeNavigation(spec, gamma):
   
   def doorOpGen(idx, door):
     def doorOp(s, a):
-      loc = s[lIndex]
+      loc = s[locIndex]
       doorState = s[idx]
       if a in [OPENDOOR, CLOSEDOOR]:
         if loc in [(door[0] - 1, door[1]), (door[0], door[1])]:
@@ -269,7 +268,7 @@ def officeNavigation(spec, gamma):
  
   def boxOpGen(idx):
     def boxOp(s, a):
-      loc = s[lIndex]
+      loc = s[locIndex]
       box = s[idx]
       if a in directionalActs and navigate(s, a) == box:
         if boxMovable(idx, s, a):
@@ -279,11 +278,15 @@ def officeNavigation(spec, gamma):
       return box
     return boxOp
 
-  def switchOp(s, a):
-    loc = s[lIndex]
-    switchState = s[sIndex]
-    if loc == spec.switch and a == TURNOFFSWITCH: switchState = OFF
-    return switchState
+  def switchOpGen(idx, switch):
+    def switchOp(s, a):
+      loc = s[locIndex]
+      switchState = s[idx]
+      if loc == switch and a == TURNOFFSWITCH:
+        return OFF
+      else:
+        return switchState # unchaged
+    return switchOp
 
   def timeElapse(s, a):
     return s[tIndex] + 1
@@ -305,13 +308,13 @@ def officeNavigation(spec, gamma):
   tFunc = [navigate] +\
           [doorOpGen(i, spec.doors[i - dIndexStart]) for i in dIndices] +\
           [boxOpGen(i) for i in bIndices] +\
-          [switchOp] +\
+          [switchOpGen(i, spec.switches[i - sIndexStart]) for i in sIndices] +\
           ([timeElapse] if spec.horizon != None else [])
 
   s0List = [spec.robot] +\
            [CLOSED for _ in spec.doors] +\
            spec.boxes +\
-           [ON] +\
+           [ON for _ in spec.switches] +\
            ([0] if spec.horizon != None else [])
 
   s0 = tuple(s0List)
@@ -321,28 +324,35 @@ def officeNavigation(spec, gamma):
   if spec.horizon != None:
     terminal = lambda s: s[tIndex] == spec.horizon
   else:
-    terminal = lambda s: s[sIndex] == OFF
+    terminal = lambda s: any(s[sIndex] == OFF for sIndex in sIndices)
 
   """
   possible reward functions
   """
+  # reward of turning off each switch, between 0 and 1
+  switchRewards = [random.random() for _ in sIndices]
+
   # an intuitive one, give reward when and only when the switch is turned off
   # note that the robot does not have the action to turn the switch on
   def oldReward(s, a):
-    if s[lIndex] == spec.switch and s[sIndex] == ON and a == TURNOFFSWITCH:
-      return 1
-    else:
-      # create some random rewards in the domain to break ties
-      return 0
+    loc = s[locIndex]
+    if loc in spec.switches and a == TURNOFFSWITCH:
+      # check if the current switch is currently on
+      thisSwitchIndex = spec.switches.index(s[locIndex])
+      if s[sIndexStart + thisSwitchIndex] == ON:
+        return switchRewards[thisSwitchIndex]
 
+    return 0
+
+  # TODO these reward functions are implemented for a single switch.
   # the absolute value of the negative reward is smaller near the initial loc of robot and larger around the switch
   # just to create a difference between rewards over the whole space, not effective as locationReward below empirically
   def gradientReward(s, a):
     if s[sIndex] == ON:
-      if s[lIndex] in spec.carpets:
+      if s[locIndex] in spec.carpets:
         return 0
       else:
-        x, y = s[lIndex]
+        x, y = s[locIndex]
         return -(x + y)
     else:
       return 0
@@ -353,10 +363,10 @@ def officeNavigation(spec, gamma):
   locationRewardDict = {(x, y): -random.random() for x in range(spec.width) for y in range(spec.height)}
   def locationReward(s, a):
     if s[sIndex] == ON:
-      if s[lIndex] in spec.carpets:
+      if s[locIndex] in spec.carpets:
         return 0
       else:
-        return locationRewardDict[s[lIndex]]
+        return locationRewardDict[s[locIndex]]
     else:
       return 0
   
@@ -372,8 +382,6 @@ def officeNavigation(spec, gamma):
     return reward
  
   rFunc = oldReward
-  # only give reward of 1 if the switch is turned off and the boxes are in their initial locations
-  #rFunc = goalConstrainedReward(lambda s: s[sIndex] == OFF and all(s[bIdx] == s0[bIdx] for bIdx in bIndices))
 
   mdp = domainConstructors.constructDeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma, terminal)
 
@@ -385,13 +393,13 @@ def officeNavigation(spec, gamma):
   # since we implement them both as constraints in linear programming anyway.
 
   # carpets are locked features by default
-  carpetCons = [[s for s in mdp.S if s[lIndex] == _] for _ in spec.carpets]
+  carpetCons = [[s for s in mdp.S if s[locIndex] == _] for _ in spec.carpets]
   # boxes are need-to-be-reverted features by default
   boxCons = [[s for s in mdp.S if terminal(s) and s[bIdx] != s0[bIdx]] for bIdx in bIndices]
   consStates = carpetCons + boxCons
 
   # goal states are that the switch needs to be turned off in the end
-  goalStates = [s for s in mdp.S if s[sIndex] == OFF]
+  goalStates = [s for s in mdp.S for sIndex in sIndices if s[sIndex] == OFF]
   print goalStates
 
   return mdp, consStates, goalStates

@@ -255,6 +255,7 @@ if __name__ == '__main__':
   dry = False # do not save to files if dry run
 
   numOfCarpets = 10
+  numOfSwitches = 1
   numOfBoxes = 0
   size = 5
 
@@ -266,16 +267,18 @@ if __name__ == '__main__':
   batch = False # run batch experiments
 
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 's:k:n:r:dp:b')
+    opts, args = getopt.getopt(sys.argv[1:], 'm:k:n:s:r:dp:b')
   except getopt.GetoptError:
     raise Exception('Unknown flag')
   for opt, arg in opts:
     if opt == '-k':
       k = int(arg)
-    elif opt == '-s':
+    elif opt == '-m':
       size = int(arg)
     elif opt == '-n':
       numOfCarpets = int(arg)
+    elif opt == '-s':
+      numOfSwitches = int(arg)
     elif opt == '-d':
       # disable dry run if output to file
       dry = True
@@ -304,12 +307,11 @@ if __name__ == '__main__':
             # reset random seed in each iteration
             setRandomSeed(rnd)
 
-            spec = squareWorld(size, numOfCarpets, avoidBorder=False)
+            spec = squareWorld(size, numOfCarpets, numOfSwitches)
             experiment(spec, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
     #spec = carpetsAndWallsDomain()
-    spec = squareWorld(size, numOfCarpets, avoidBorder=False)
-    #spec = squareWorld(size, numOfCarpets, avoidBorder=True)
+    spec = squareWorld(size, numOfCarpets, numOfSwitches)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()

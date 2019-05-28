@@ -24,6 +24,13 @@ def powerset(iterable):
     for _ in combinations(s, r):
       yield _
 
+def sampleSubset(elems, subsetSize):
+  """
+  need this function because np.random.choice only works with 1-d array
+  """
+  selectedIndices = np.random.choice(range(len(elems)), subsetSize, replace=False)
+  return [elems[idx] for idx in selectedIndices]
+
 def getValueDistance(w1, w2):
   """
     Return:

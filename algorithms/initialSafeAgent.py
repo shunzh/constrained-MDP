@@ -129,12 +129,13 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     self.iiss = iiss
 
   def safePolicyValue(self):
-    sol = self.findConstrainedOptPi(self.relFeats - self.knownFreeCons)
+    sol = self.findConstrainedOptPi(set(self.consIndices) - set(self.knownFreeCons))
     if sol['feasible']:
       return sol['obj']
     else:
       # for comparison, the return is 0 when no safe policies exist
       return 0
+
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True, optimizeValue=False):
@@ -176,8 +177,8 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     d = len(self.relFeats)
 
     A = [[1 if self.relFeats[j] in self.piRelFeats[i] else 0 for j in range(d)] for i in range(n)]
+    assert all(tuple(self.piRelFeats[i]) in self.piRelFeatsAndValues.keys() for i in range(n))
     b = [self.piRelFeatsAndValues[tuple(self.piRelFeats[i])] for i in range(n)]
-    #print A, b
     weights = lp.linearRegression(A, b)
 
     self.featureVals = {}
