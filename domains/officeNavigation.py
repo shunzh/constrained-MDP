@@ -324,6 +324,7 @@ def officeNavigation(spec, gamma):
   if spec.horizon != None:
     terminal = lambda s: s[tIndex] == spec.horizon
   else:
+    # let the episode end when any switch is off
     terminal = lambda s: any(s[sIndex] == OFF for sIndex in sIndices)
 
   """
@@ -336,9 +337,10 @@ def officeNavigation(spec, gamma):
   # note that the robot does not have the action to turn the switch on
   def oldReward(s, a):
     loc = s[locIndex]
+    # if the robot is at a switch and the action is to turn off
     if loc in spec.switches and a == TURNOFFSWITCH:
+      thisSwitchIndex = spec.switches.index(loc)
       # check if the current switch is currently on
-      thisSwitchIndex = spec.switches.index(s[locIndex])
       if s[sIndexStart + thisSwitchIndex] == ON:
         return switchRewards[thisSwitchIndex]
 

@@ -24,9 +24,9 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     if freeCons is None:
       freeCons = self.knownFreeCons
 
-    if hasattr(self, 'piRelFeats'):
-      # if we have rel featus, simply check whether we covered all rel feats of any dom pi
-      return any(len(set(relFeats) - set(freeCons)) == 0 for relFeats in self.piRelFeats)
+    if hasattr(self, 'domPiFeats'):
+      # if we have rel feat, simply check whether we covered all rel feats of any dom pi
+      return any(len(set(relFeats) - set(freeCons)) == 0 for relFeats in self.domPiFeats)
     else:
       # for some simple heuristics, it's not fair to ask them to precompute dompis (need to run a lot of LP)
       # so we try to solve the lp problem once here
@@ -38,14 +38,14 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     if lockedCons is None:
       lockedCons = self.knownLockedCons
     if hasattr(self, 'piRelFeats'):
-      return all(len(set(relFeats).intersection(lockedCons)) > 0 for relFeats in self.piRelFeats)
+      return all(len(set(relFeats).intersection(lockedCons)) > 0 for relFeats in self.domPiFeats)
     else:
       # by only imposing these constraints, see whether the lp problem is infeasible
       return not self.findConstrainedOptPi(lockedCons)['feasible']
 
   def checkSafePolicyExists(self):
     """
-    None if can't claim, otherwise return exists or notExist
+    None if don't know, otherwise return exists or notExist
     """
     if self.safePolicyExist(): return EXIST
     elif self.safePolicyNotExist(): return NOTEXIST
@@ -63,18 +63,18 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     if hasattr(self, 'piRelFeats'): return
 
     relFeats, domPis = self.findRelevantFeaturesAndDomPis()
-    piRelFeats = []
-    piRelFeatsAndValues = {}
+    domPiFeats = []
+    domPiFeatsAndValues = {}
 
     for domPi in domPis:
       feats = self.findViolatedConstraints(domPi)
-      piRelFeats.append(feats)
+      domPiFeats.append(feats)
       # FIXME it may be easier to store the values when the dom pis are computed. this is just an easier way
-      piRelFeatsAndValues[tuple(feats)] = self.computeValue(domPi)
+      domPiFeatsAndValues[tuple(feats)] = self.computeValue(domPi)
 
-    self.piRelFeats = piRelFeats
-    self.piRelFeatsAndValues = piRelFeatsAndValues
-    self.relFeats = relFeats # the union of rel feats of all dom pis
+    self.domPiFeats = domPiFeats
+    self.domPiFeatsAndValues = domPiFeatsAndValues
+    self.relFeats = relFeats # all relevant features
 
   def computeIISs(self):
     """
@@ -87,7 +87,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
       self.computePolicyRelFeats()
 
     iiss = [set()]
-    for relFeats in self.piRelFeats:
+    for relFeats in self.domPiFeats:
       iiss = [set(iis).union({relFeat}) for iis in iiss for relFeat in relFeats]
       # kill duplicates in each set
       iiss = killSupersets(iiss)
@@ -167,18 +167,18 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
 
   def computeFeatureValue(self):
     """
-    Compute how much each feature worth for finding a high-valued safe policy.
+    Compute how much each feature worth for finding a high-valued safe policy. (w in the report)
     saves to self.featureVals
     """
     # otherwise cannot compute rel feat values
     assert self.useRelPi
 
-    n = len(self.piRelFeats)
-    d = len(self.relFeats)
+    n = len(self.domPiFeats) # number of dominating policies
+    d = len(self.relFeats) # number of relevant features
 
-    A = [[1 if self.relFeats[j] in self.piRelFeats[i] else 0 for j in range(d)] for i in range(n)]
-    assert all(tuple(self.piRelFeats[i]) in self.piRelFeatsAndValues.keys() for i in range(n))
-    b = [self.piRelFeatsAndValues[tuple(self.piRelFeats[i])] for i in range(n)]
+    A = [[1 if self.relFeats[j] in self.domPiFeats[i] else 0 for j in range(d)] for i in range(n)]
+    assert all(tuple(self.domPiFeats[i]) in self.domPiFeatsAndValues.keys() for i in range(n))
+    b = [self.domPiFeatsAndValues[tuple(self.domPiFeats[i])] for i in range(n)]
     weights = lp.linearRegression(A, b)
 
     self.featureVals = {}
@@ -193,13 +193,13 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
       if self.useIIS:
         self.iiss = coverFeat(newFreeCon, self.iiss)
       if self.useRelPi:
-        self.piRelFeats = removeFeat(newFreeCon, self.piRelFeats)
+        self.domPiFeats = removeFeat(newFreeCon, self.domPiFeats)
 
     if newLockedCon != None:
       if self.useIIS:
         self.iiss = removeFeat(newLockedCon, self.iiss)
       if self.useRelPi:
-        self.piRelFeats = coverFeat(newLockedCon, self.piRelFeats)
+        self.domPiFeats = coverFeat(newLockedCon, self.domPiFeats)
 
   def findQuery(self):
     """
@@ -218,13 +218,13 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
       # prefer using iis
       if self.useIIS and self.useRelPi:
         numWhenFree = len(coverFeat(con, self.iiss))
-        numWhenLocked = len(coverFeat(con, self.piRelFeats))
+        numWhenLocked = len(coverFeat(con, self.domPiFeats))
       elif self.useIIS and (not self.useRelPi):
         numWhenFree = len(coverFeat(con, self.iiss))
         numWhenLocked = len(leastNumElemSets(con, self.iiss))
       elif (not self.useIIS) and self.useRelPi:
-        numWhenFree = len(leastNumElemSets(con, self.piRelFeats))
-        numWhenLocked = len(coverFeat(con, self.piRelFeats))
+        numWhenFree = len(leastNumElemSets(con, self.domPiFeats))
+        numWhenLocked = len(coverFeat(con, self.domPiFeats))
       else:
         # not useRelPi and not useIIS, can't be the case
         raise Exception('no idea what to do in this case')
@@ -234,7 +234,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
         if self.optimizeValue:
           # we need IIS when trying to optimize the values of policies
           score[con] = self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
-                     + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.piRelFeats))
+                     + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.domPiFeats))
         else:
           score[con] = max(numWhenFree, numWhenLocked)
       else:
@@ -271,12 +271,13 @@ class DomPiHeuForSafetyAgent(InitialSafePolicyAgent):
       elif i in self.knownFreeCons: updatedConsProbs[i] = 1
 
     # find the policy that has the largest probability to be feasible
-
+    # weighted by values of policies if self.optimizeValue
+    piWeight = lambda relFeats: self.domPiFeatsAndValues[tuple(relFeats)] if self.optimizeValue else 1
     feasibleProb = lambda relFeats: reduce(mul,
                                            map(lambda _: updatedConsProbs[_], relFeats),
-                                           self.piRelFeatsAndValues[tuple(relFeats)] if self.optimizeValue else 1)
+                                           piWeight(relFeats))
 
-    maxProbPiRelFeats = max(self.piRelFeats, key=feasibleProb)
+    maxProbPiRelFeats = max(self.domPiFeats, key=feasibleProb)
 
     # now query about unknown features in the most probable policy's relevant features
     featsToConsider = unknownCons.intersection(maxProbPiRelFeats)

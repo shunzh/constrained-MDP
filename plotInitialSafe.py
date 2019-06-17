@@ -3,12 +3,12 @@ import pickle
 
 import matplotlib
 import pylab
-from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import FormatStrFormatter, MaxNLocator
 from numpy import mean
 
 from util import standardErr
 
-rndSeeds = 1000
+rndSeeds = 600
 
 width = height = 5
 
@@ -16,17 +16,21 @@ lensOfQ = {}
 lensOfQRelPhi = {}
 times = {}
 
-carpetNums = [8, 9, 10, 11, 12]
+#carpetNums = [8, 9, 10, 11, 12]
+carpetNums = [10, 11, 12]
 
-includeOpt = True # if opt is run
+includeOpt = False # if opt is run
 includeRandom = False # random may be out of scope
 
-methods = (['opt'] if includeOpt else []) \
-          + ['iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu'] \
-          + (['random'] if includeRandom else [])
-markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisOnly': 'bs--', 'relpiOnly': 'bd-.', 'maxProb': 'g^-', 'piHeu': 'm+-', 'random': 'c.-'}
-names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCoverQuery', 'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)', 'maxProb': 'Greed. Prob.',\
-         'piHeu': 'Most-Likely', 'random': 'Descending'}
+#methods = (['opt'] if includeOpt else []) \
+#          + ['iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu'] \
+#          + (['random'] if includeRandom else [])
+methods = ['setcoverWithValue', 'piHeuWithValue', 'random']
+markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisOnly': 'bs--', 'relpiOnly': 'bd-.', 'maxProb': 'g^-', 'piHeu': 'm+-', 'random': 'c.-',
+           'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
+names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCoverQuery', 'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
+         'maxProb': 'Greed. Prob.', 'piHeu': 'Most-Likely', 'random': 'Descending',
+         'setcoverWithValue': 'Weighted Set Cover', 'piHeuWithValue': 'Most-Likely with Value'}
 
 # output the difference of two vectors
 vectorDiff = lambda v1, v2: map(lambda e1, e2: e1 - e2, v1, v2)
@@ -59,7 +63,11 @@ def plot(x, y, methods, xlabel, ylabel, filename):
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
 
+  ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
+
+  plotLegend()
 
   pylab.close()
 
@@ -268,8 +276,9 @@ def plotNumVsCarpets():
   x = carpetNums
   # absolute number of queried features
   y = lambda method, carpetNum: lensOfQ[method, carpetNum]
-  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_ratioOfMean')
-  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_meanOfRatio')
+  plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets')
+  #plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_ratioOfMean')
+  #plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_meanOfRatio')
 
   x = carpetNums
   y = lambda method, carpetNum: times[method, carpetNum]
@@ -279,8 +288,8 @@ def plotNumVsCarpets():
   x = range(max(carpetNums))
   y = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
 
-  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_ratioOfMean')
-  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_meanOfRatio')
+  #plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_ratioOfMean')
+  #plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_meanOfRatio')
 
 if __name__ == '__main__':
   font = {'size': 13}
