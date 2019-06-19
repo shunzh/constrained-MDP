@@ -8,12 +8,13 @@ from numpy import mean
 
 from util import standardErr
 
-rndSeeds = 600
+rndSeeds = 1000
 
 width = height = 5
 
 lensOfQ = {}
 lensOfQRelPhi = {}
+safePiValues = {}
 times = {}
 
 #carpetNums = [8, 9, 10, 11, 12]
@@ -22,10 +23,10 @@ carpetNums = [10, 11, 12]
 includeOpt = False # if opt is run
 includeRandom = False # random may be out of scope
 
-#methods = (['opt'] if includeOpt else []) \
-#          + ['iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu'] \
-#          + (['random'] if includeRandom else [])
-methods = ['setcoverWithValue', 'piHeuWithValue', 'random']
+methods = (['opt'] if includeOpt else []) \
+          + ['iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu'] \
+          + (['random'] if includeRandom else [])
+#methods = ['setcoverWithValue', 'piHeuWithValue', 'random']
 markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisOnly': 'bs--', 'relpiOnly': 'bd-.', 'maxProb': 'g^-', 'piHeu': 'm+-', 'random': 'c.-',
            'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
 names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCoverQuery', 'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
@@ -82,7 +83,7 @@ def plotLegend():
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
-def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename):
+def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename, integerAxis=False):
   """
   plot data with a specified baseline.
 
@@ -102,13 +103,17 @@ def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
 
+  if integerAxis:
+    # x-axis should be integers
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
 
   plotLegend() # make sure legend is plotted somewhere
 
   pylab.close()
 
-def plotRatioOfMeanDiffWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename):
+def plotRatioOfMeanDiffWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename, integerAxis=False):
   """
   plot data with a specified baseline.
 
@@ -127,6 +132,10 @@ def plotRatioOfMeanDiffWrtBaseline(x, y, methods, baseline, xlabel, ylabel, file
 
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
+
+  if integerAxis:
+    # x-axis should be integers
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
 
@@ -202,8 +211,10 @@ def plotNumVsProportion(pfRange, pfStep):
   # plot figure
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
-  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_ratioOfMean')
-  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal', 'lensOfQPf' + str(int(pfStep * 10)) + '_meanOfRatio')
+  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
+                                 'lensOfQPf' + str(int(pfStep * 10)) + '_ratioOfMean')
+  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
+                             'lensOfQPf' + str(int(pfStep * 10)) + '_meanOfRatio')
 
 def plotNumVsCarpets():
   """
@@ -213,6 +224,7 @@ def plotNumVsCarpets():
     for carpetNum in carpetNums:
       lensOfQ[method, carpetNum] = []
       times[method, carpetNum] = []
+      safePiValues[method, carpetNum] = []
 
     for relFeatNum in range(max(carpetNums) + 1):
       # relevant features is going to be at most the number of unknown features anyway
@@ -241,7 +253,7 @@ def plotNumVsCarpets():
         filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_0_1_' +  str(rnd) + '.pkl'
         data = pickle.load(open(filename, 'rb'))
       except IOError:
-        #print filename, 'not exist'
+        print filename, 'not exist'
         continue
 
       # see which features appear in relevant features of any dominating policy
@@ -250,6 +262,7 @@ def plotNumVsCarpets():
       for method in methods:
         lensOfQ[method, carpetNum].append(len(data['q'][method]))
         lensOfQRelPhi[method, relFeats].append(len(data['q'][method]))
+        if len(data['valuesOfSafePis']) > 0: safePiValues[method, carpetNum].append(data['valuesOfSafePis'][method])
         times[method, carpetNum].append(data['t'][method])
 
       iiss[carpetNum].append(len(data['iiss']))
@@ -269,18 +282,22 @@ def plotNumVsCarpets():
            [round(1.0 * len(solvableIns[carpetNum]) / len(validInstances[carpetNum]), 2) for carpetNum in carpetNums])
   printTex('average \\# of IISs',
            [round(mean(iiss[carpetNum]), 2) for carpetNum in carpetNums])
-  printTex('average \# of dominating policies',
+  printTex('average \\# of dominating policies',
            [round(mean(domPis[carpetNum]), 2) for carpetNum in carpetNums])
 
   print '# of queries'
   x = carpetNums
   # absolute number of queried features
   y = lambda method, carpetNum: lensOfQ[method, carpetNum]
-  plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets')
-  #plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_ratioOfMean')
-  #plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal', 'lensOfQCarpets_meanOfRatio')
+  #plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets')
+  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal',
+                                 'lensOfQCarpets_ratioOfMean', integerAxis=True)
+  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal',
+                             'lensOfQCarpets_meanOfRatio', integerAxis=True)
 
-  x = carpetNums
+  y = lambda method, carpetNum: safePiValues[method, carpetNum]
+  plot(x, y, methods, '# of Carpets', 'Values of Safe Policy', 'safePiValuesCarpets')
+
   y = lambda method, carpetNum: times[method, carpetNum]
   plot(x, y, methods, '# of Carpets', 'Computation Time (sec.)', 'timesCarpets')
 
@@ -288,8 +305,10 @@ def plotNumVsCarpets():
   x = range(max(carpetNums))
   y = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
 
-  #plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_ratioOfMean')
-  #plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal', 'lensOfQCarpets_rel_meanOfRatio')
+  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal',
+                                 'lensOfQCarpets_rel_ratioOfMean', integerAxis=True)
+  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal',
+                             'lensOfQCarpets_rel_meanOfRatio', integerAxis=True)
 
 if __name__ == '__main__':
   font = {'size': 13}

@@ -128,7 +128,7 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
       if thisAnswer == EXIST:
         # may use other ways? most algorithms check this before returning anyway
         assert agent.safePolicyExist()
-        valuesOfSafePis[method] = agent.safePolicyValue() #TODO
+        valuesOfSafePis[method] = agent.safePolicyValue()
 
       times[method].append(end - start)
 

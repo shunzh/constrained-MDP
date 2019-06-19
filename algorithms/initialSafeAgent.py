@@ -11,7 +11,7 @@ from operator import mul
 from util import powerset
 
 class InitialSafePolicyAgent(ConsQueryAgent):
-  def __init__(self, mdp, consStates, goalStates, consProbs=None, costOfQuery=1):
+  def __init__(self, mdp, consStates, goalStates, consProbs=None, costOfQuery=.5):
     """
     :param costOfQuery: default cost of query is 1 unit
     """
