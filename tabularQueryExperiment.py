@@ -47,8 +47,8 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
     # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
     print 'initial safe policy does not exist'
 
-    #methods = ['opt', 'iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
-    methods = ['setcoverWithValue', 'piHeuWithValue', 'random']
+    methods = ['opt', 'iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
+    #methods = ['setcoverWithValue', 'piHeuWithValue', 'random']
     queries = {}
     valuesOfSafePis = {}
     times = {}
@@ -296,10 +296,9 @@ if __name__ == '__main__':
 
   if batch:
     # elements are (num of carpets, pf, pfStep)
-    settingCandidates = [([10, 11, 12], [0], 1),
-                         #([8, 9, 10, 11, 12], [0], 1),
-                         #([10], [0, 0.2, 0.4, 0.6, 0.8], 0.2),
-                         #([10], [0, 0.25, 0.5], 0.5),
+    settingCandidates = [#([8, 9, 10, 11, 12], [0], 1),
+                         ([10], [0, 0.2, 0.4, 0.6, 0.8], 0.2),
+                         ([10], [0, 0.25, 0.5], 0.5),
                         ]
 
     for rnd in range(1000):

@@ -39,7 +39,7 @@ vectorDiff = lambda v1, v2: map(lambda e1, e2: e1 - e2, v1, v2)
 vectorDivide = lambda v1, v2: map(lambda e1, e2: e1 / e2, v1, v2)
 
 
-def plot(x, y, methods, xlabel, ylabel, filename):
+def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False):
   """
   plot data.
 
@@ -64,7 +64,8 @@ def plot(x, y, methods, xlabel, ylabel, filename):
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
 
-  ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+  if integerAxis:
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
 
@@ -211,6 +212,8 @@ def plotNumVsProportion(pfRange, pfStep):
   # plot figure
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
+  plot(x, y, methods, '$p_f$', '# of Queried Features',
+       'lensOfQPf' + str(int(pfStep * 10)) + '_ratioOfMean')
   plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
                                  'lensOfQPf' + str(int(pfStep * 10)) + '_ratioOfMean')
   plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
