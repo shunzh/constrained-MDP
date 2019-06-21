@@ -20,7 +20,7 @@ times = {}
 #carpetNums = [8, 9, 10, 11, 12]
 carpetNums = [10, 11, 12]
 
-includeOpt = False # if opt is run
+includeOpt = True # if opt is run
 includeRandom = False # random may be out of scope
 
 methods = (['opt'] if includeOpt else []) \
@@ -212,8 +212,9 @@ def plotNumVsProportion(pfRange, pfStep):
   # plot figure
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
+  print lensOfQ.keys()
   plot(x, y, methods, '$p_f$', '# of Queried Features',
-       'lensOfQPf' + str(int(pfStep * 10)) + '_ratioOfMean')
+       'lensOfQPf' + str(int(pfStep * 10)))
   plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
                                  'lensOfQPf' + str(int(pfStep * 10)) + '_ratioOfMean')
   plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
@@ -265,7 +266,8 @@ def plotNumVsCarpets():
       for method in methods:
         lensOfQ[method, carpetNum].append(len(data['q'][method]))
         lensOfQRelPhi[method, relFeats].append(len(data['q'][method]))
-        if len(data['valuesOfSafePis']) > 0: safePiValues[method, carpetNum].append(data['valuesOfSafePis'][method])
+        if 'valuesOfSafePis' in data.keys() and len(data['valuesOfSafePis']) > 0:
+          safePiValues[method, carpetNum].append(data['valuesOfSafePis'][method])
         times[method, carpetNum].append(data['t'][method])
 
       iiss[carpetNum].append(len(data['iiss']))
@@ -298,8 +300,8 @@ def plotNumVsCarpets():
   plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal',
                              'lensOfQCarpets_meanOfRatio', integerAxis=True)
 
-  y = lambda method, carpetNum: safePiValues[method, carpetNum]
-  plot(x, y, methods, '# of Carpets', 'Values of Safe Policy', 'safePiValuesCarpets')
+  #y = lambda method, carpetNum: safePiValues[method, carpetNum]
+  #plot(x, y, methods, '# of Carpets', 'Values of Safe Policy', 'safePiValuesCarpets')
 
   y = lambda method, carpetNum: times[method, carpetNum]
   plot(x, y, methods, '# of Carpets', 'Computation Time (sec.)', 'timesCarpets')
@@ -318,12 +320,11 @@ if __name__ == '__main__':
   matplotlib.rc('font', **font)
 
   pfCandidates = [(0.2, [0, 0.2, 0.4, 0.6, 0.8]),
-                  #(0.3, [0, 0.35, 0.7]),
                   (0.5, [0, 0.25, 0.5])
                  ]
 
   # exp 1: varying num of carpets
-  plotNumVsCarpets()
+  #plotNumVsCarpets()
 
   # exp 2: varying pfs
-  #for (pfStep, pfRange) in pfCandidates: plotNumVsProportion(pfRange, pfStep)
+  for (pfStep, pfRange) in pfCandidates: plotNumVsProportion(pfRange, pfStep)
