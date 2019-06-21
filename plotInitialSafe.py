@@ -183,7 +183,7 @@ def plotNumVsProportion(pfRange, pfStep):
         filename = str(width) + '_' + str(height) + '_' + str(carpets) + '_' + str(pf) + '_' + str(pfUb) + '_' + str(rnd) + '.pkl'
         data = pickle.load(open(filename, 'rb'))
       except IOError:
-        print filename, 'not exist'
+        #print filename, 'not exist'
         continue
 
       # number of features queried
@@ -199,20 +199,19 @@ def plotNumVsProportion(pfRange, pfStep):
   print 'valid instances', len(validInstances)
   assert len(validInstances) > 0
 
-  # show cases where method1 and method2 are different with proportion. for further debugging methods
+  # to identify the runs where two methods have different outputs
   diffInstances = lambda pf, method1, method2:\
-                  (pf, method1, method2,\
+                  (pf, method1, method2,
                   filter(lambda _: _[1] != _[2], zip(validInstances, lensOfQ[method1, pf], lensOfQ[method2, pf])))
 
   """
   for pf in pfRange: 
-    print diffInstances(pf, 'iisAndRelpi', 'iisOnly')
+    print diffInstances(pf, 'opt', 'maxProb')
   """
 
   # plot figure
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
-  print lensOfQ.keys()
   plot(x, y, methods, '$p_f$', '# of Queried Features',
        'lensOfQPf' + str(int(pfStep * 10)))
   plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
@@ -257,7 +256,7 @@ def plotNumVsCarpets():
         filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_0_1_' +  str(rnd) + '.pkl'
         data = pickle.load(open(filename, 'rb'))
       except IOError:
-        print filename, 'not exist'
+        #print filename, 'not exist'
         continue
 
       # see which features appear in relevant features of any dominating policy

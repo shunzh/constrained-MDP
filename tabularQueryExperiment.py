@@ -149,6 +149,8 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
   else:
     # when initial safe policies exist, we want to improve such a safe policy using batch queries
     print 'initial policy exists'
+    #FIXME do not care about policy improvement for now
+    return
 
     agent = SafeImproveAgent(mdp, consStates)
 
@@ -256,14 +258,11 @@ if __name__ == '__main__':
   dry = False # do not save to files if dry run
 
   numOfCarpets = 10
-  numOfSwitches = 2
+  numOfSwitches = 1
   numOfBoxes = 0
   size = 5
 
   rnd = 0 # set a dummy random seed if no -r argument
-
-  pf = 0 # the prob. that a feature is free
-  pfStep = 1
 
   batch = False # run batch experiments
 
@@ -317,4 +316,4 @@ if __name__ == '__main__':
     #spec = toySokobanWorld()
     #spec = sokobanWorld()
 
-    experiment(spec, k, dry, rnd, pf=pf, pfStep=pfStep)
+    experiment(spec, k, dry, rnd)

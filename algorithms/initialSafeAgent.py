@@ -335,8 +335,9 @@ class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
     for con in unknownCons:
       # the prob that safe policies exist when con is free
       probExistWhenFree = self.probOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
+      probNotExistWhenLocked = 1 - self.probOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
 
-      termProbs[con] = self.consProbs[con] * probExistWhenFree
+      termProbs[con] = self.consProbs[con] * probExistWhenFree + (1 - self.consProbs[con]) * probNotExistWhenLocked
 
     # there should be unqueried features
     assert len(termProbs) > 0
