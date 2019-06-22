@@ -3,7 +3,7 @@ import pickle
 
 import matplotlib
 import pylab
-from matplotlib.ticker import FormatStrFormatter, MaxNLocator
+from matplotlib.ticker import MaxNLocator
 from numpy import mean
 
 from util import standardErr
@@ -17,20 +17,18 @@ lensOfQRelPhi = {}
 safePiValues = {}
 times = {}
 
-#carpetNums = [8, 9, 10, 11, 12]
-carpetNums = [10, 11, 12]
+from config import methods
+# don't plot random, out of range
+if 'random' in methods: methods.remove('random')
+print methods
 
-includeOpt = True # if opt is run
-includeRandom = False # random may be out of scope
-
-methods = (['opt'] if includeOpt else []) \
-          + ['iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu'] \
-          + (['random'] if includeRandom else [])
-#methods = ['setcoverWithValue', 'piHeuWithValue', 'random']
-markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisOnly': 'bs--', 'relpiOnly': 'bd-.', 'maxProb': 'g^-', 'piHeu': 'm+-', 'random': 'c.-',
+markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisOnly': 'bs--', 'relpiOnly': 'bd-.',
+           'maxProb': 'g^-', 'maxProbF': 'g^--', 'maxProbIF': 'g^-.',
+           'piHeu': 'm+-', 'random': 'c.-',
            'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
 names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCoverQuery', 'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
-         'maxProb': 'Greed. Prob.', 'piHeu': 'Most-Likely', 'random': 'Descending',
+         'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. F.', 'maxProbIF': 'Greed. Prob. IF.',
+         'piHeu': 'Most-Likely', 'random': 'Descending',
          'setcoverWithValue': 'Weighted Set Cover', 'piHeuWithValue': 'Most-Likely with Value'}
 
 # output the difference of two vectors
@@ -158,13 +156,11 @@ def scatter(x, y, xlabel, ylabel, filename):
 
   pylab.close()
 
-def plotNumVsProportion(pfRange, pfStep):
+def plotNumVsProportion(carpetNum, pfRange, pfStep):
   """
   Plot the the number of queried features vs the proportion of free features
   """
   # fixed carpet num for this exp
-  carpets = 10
-
   for method in methods:
     for pf in pfRange:
       lensOfQ[method, pf] = []
@@ -180,7 +176,7 @@ def plotNumVsProportion(pfRange, pfStep):
       try:
         pfUb = pf + pfStep
 
-        filename = str(width) + '_' + str(height) + '_' + str(carpets) + '_' + str(pf) + '_' + str(pfUb) + '_' + str(rnd) + '.pkl'
+        filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_' + str(pf) + '_' + str(pfUb) + '_' + str(rnd) + '.pkl'
         data = pickle.load(open(filename, 'rb'))
       except IOError:
         #print filename, 'not exist'
@@ -213,15 +209,18 @@ def plotNumVsProportion(pfRange, pfStep):
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
   plot(x, y, methods, '$p_f$', '# of Queried Features',
-       'lensOfQPf' + str(int(pfStep * 10)))
+       'lensOfQPf' + str(carpetNum) + '_' + str(pfStep))
+  """
   plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
-                                 'lensOfQPf' + str(int(pfStep * 10)) + '_ratioOfMean')
+                                 'lensOfQPf' + str(carpetNum) + '_' + str(pfStep) + '_ratioOfMean')
   plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
-                             'lensOfQPf' + str(int(pfStep * 10)) + '_meanOfRatio')
+                             'lensOfQPf' + str(carpetNum) + '_' + str(pfStep) + '_meanOfRatio')
+  """
 
-def plotNumVsCarpets():
+def plotNumVsCarpets(carpetNums):
   """
   plot the num of queried features / computation time vs. num of carpets
+  plotting data with pf = 0, pfStep = 1
   """
   for method in methods:
     for carpetNum in carpetNums:
@@ -318,12 +317,12 @@ if __name__ == '__main__':
   font = {'size': 13}
   matplotlib.rc('font', **font)
 
-  pfCandidates = [(0.2, [0, 0.2, 0.4, 0.6, 0.8]),
-                  (0.5, [0, 0.25, 0.5])
-                 ]
+  from config import carpetNums, pfCandidates
 
   # exp 1: varying num of carpets
-  #plotNumVsCarpets()
+  #plotNumVsCarpets(carpetNums)
 
   # exp 2: varying pfs
-  for (pfStep, pfRange) in pfCandidates: plotNumVsProportion(pfRange, pfStep)
+  for carpetNum in carpetNums:
+    for (pfStep, pfRange) in pfCandidates:
+      plotNumVsProportion(carpetNum, pfRange, pfStep)

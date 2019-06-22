@@ -104,8 +104,8 @@ A list of toy domains.
 """
 def carpetsAndWallsDomain():
   map = [[R, C, _, C, _],
-         [_, W, _, W, _],
-         [_, W, _, C, S]]
+         [_, W, W, W, _],
+         [_, C, _, C, S]]
   return toyWorldConstructor(map)
 
 # some toy domains for need-to-be-reverted features (boxes)
@@ -146,12 +146,15 @@ def squareWorld(size, numOfCarpets, numOfSwitches, randomSwitch=False):
   doors = []
 
   possibleLocs = [(x, y) for x in range(width) for y in range(height)]
-
-  carpets = util.sampleSubset(possibleLocs, numOfCarpets)
   if randomSwitch:
     switches = util.sampleSubset(possibleLocs, numOfSwitches)
   else:
     switches = [((width - 1), (height - 1))]
+
+  # do not put carpet under the switch
+  carpertPossibleLocs = filter(lambda loc: loc != robot and loc not in switches, possibleLocs)
+
+  carpets = util.sampleSubset(carpertPossibleLocs, numOfCarpets)
 
   boxes = [] # no need to put in boxes for now
   
@@ -201,7 +204,7 @@ def officeNavigation(spec, gamma):
   # time is needed when there are horizon-dependent constraints
   tIndex = sIndexStart + sSize
 
-  directionalActs = [(1, 0), (1, 1), (0, 1), (-1, 0), (0, -1)]
+  directionalActs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
   aSets = directionalActs + [TURNOFFSWITCH]
  
   # check whether the world looks as expected
@@ -389,8 +392,6 @@ def officeNavigation(spec, gamma):
   rFunc = oldReward
 
   mdp = domainConstructors.constructDeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma, terminal)
-
-  print 'state space', len(mdp.S)
 
   # implement the set of constrained states based on feature representation
   # consStates is [[states that violate the i-th constraint] for i in all constraints]

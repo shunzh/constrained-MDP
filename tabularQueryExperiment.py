@@ -47,8 +47,6 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
     # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
     print 'initial safe policy does not exist'
 
-    methods = ['opt', 'iisAndRelpi', 'iisOnly', 'relpiOnly', 'maxProb', 'piHeu', 'random']
-    #methods = ['setcoverWithValue', 'piHeuWithValue', 'random']
     queries = {}
     valuesOfSafePis = {}
     times = {}
@@ -59,6 +57,8 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
     # keep track of algorithms' answers on whether problems are solvable
     answer = None
     thisAnswer = None
+
+    from config import methods
 
     for method in methods:
       print method
@@ -81,7 +81,11 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
       elif method == 'relpiOnly':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=False, useRelPi=True)
       elif method == 'maxProb':
-        agent = MaxProbSafePolicyExistAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
+        agent = MaxProbSafePolicyExistAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, tryFeasible=True, tryInfeasible=True)
+      elif method == 'maxProbF':
+        agent = MaxProbSafePolicyExistAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, tryFeasible=True, tryInfeasible=False)
+      elif method == 'maxProbIF':
+        agent = MaxProbSafePolicyExistAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, tryFeasible=False, tryInfeasible=True)
       elif method == 'piHeu':
         agent = DomPiHeuForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       elif method == 'piHeuWithValue':
@@ -282,9 +286,6 @@ if __name__ == '__main__':
     elif opt == '-d':
       # disable dry run if output to file
       dry = True
-    elif opt == '-p':
-      # proportion of free features
-      pf = float(arg)
     elif opt == '-b':
       batch = True
     elif opt == '-r':
@@ -295,14 +296,12 @@ if __name__ == '__main__':
 
   if batch:
     # elements are (num of carpets, pf, pfStep)
-    settingCandidates = [#([8, 9, 10, 11, 12], [0], 1),
-                         ([10], [0, 0.2, 0.4, 0.6, 0.8], 0.2),
-                         ([10], [0, 0.25, 0.5], 0.5),
-                        ]
+
+    from config import carpetNums, pfCandidates
 
     for rnd in range(1000):
-      for (carpetNums, pfRange, pfStep) in settingCandidates:
-        for numOfCarpets in carpetNums:
+      for numOfCarpets in carpetNums:
+        for (pfStep, pfRange) in pfCandidates:
           for pf in pfRange:
             # reset random seed in each iteration
             setRandomSeed(rnd)
@@ -310,8 +309,8 @@ if __name__ == '__main__':
             spec = squareWorld(size, numOfCarpets, numOfSwitches)
             experiment(spec, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
-    #spec = carpetsAndWallsDomain()
-    spec = squareWorld(size, numOfCarpets, numOfSwitches)
+    spec = carpetsAndWallsDomain()
+    #spec = squareWorld(size, numOfCarpets, numOfSwitches)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()

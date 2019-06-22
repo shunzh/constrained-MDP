@@ -290,8 +290,11 @@ class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
   """
   Find the feature that, after querying, the expected probability of finding a safe poicy / no safe policies exist is maximized.
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, tryFeasible=True, tryInfeasible=True):
     InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
+
+    self.tryFeasible = tryFeasible
+    self.tryInfeasible = tryInfeasible
 
     # need domPis for query
     self.computePolicyRelFeats()
@@ -337,7 +340,9 @@ class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
       probExistWhenFree = self.probOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
       probNotExistWhenLocked = 1 - self.probOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
 
-      termProbs[con] = self.consProbs[con] * probExistWhenFree + (1 - self.consProbs[con]) * probNotExistWhenLocked
+      # a mixed objective, tryFeasible and tryInfeasible determine which parts are included in obj
+      termProbs[con] = self.tryFeasible * self.consProbs[con] * probExistWhenFree +\
+                       self.tryInfeasible * (1 - self.consProbs[con]) * probNotExistWhenLocked
 
     # there should be unqueried features
     assert len(termProbs) > 0
