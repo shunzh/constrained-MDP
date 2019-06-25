@@ -297,16 +297,16 @@ if __name__ == '__main__':
   if batch:
     # elements are (num of carpets, pf, pfStep)
 
-    from config import carpetNums, pfCandidates
+    from config import trials, settingCandidates
 
-    for rnd in range(1000):
-      for numOfCarpets in carpetNums:
-        for (pfStep, pfRange) in pfCandidates:
+    for rnd in range(trials):
+      for (carpetNums, pfRange, pfStep) in settingCandidates:
+        for carpetNum in carpetNums:
           for pf in pfRange:
             # reset random seed in each iteration
             setRandomSeed(rnd)
 
-            spec = squareWorld(size, numOfCarpets, numOfSwitches)
+            spec = squareWorld(size, carpetNum, numOfSwitches)
             experiment(spec, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
     spec = carpetsAndWallsDomain()

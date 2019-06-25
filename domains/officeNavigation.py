@@ -146,15 +146,13 @@ def squareWorld(size, numOfCarpets, numOfSwitches, randomSwitch=False):
   doors = []
 
   possibleLocs = [(x, y) for x in range(width) for y in range(height)]
+
+  carpets = util.sampleSubset(possibleLocs, numOfCarpets)
+
   if randomSwitch:
     switches = util.sampleSubset(possibleLocs, numOfSwitches)
   else:
     switches = [((width - 1), (height - 1))]
-
-  # do not put carpet under the switch
-  carpertPossibleLocs = filter(lambda loc: loc != robot and loc not in switches, possibleLocs)
-
-  carpets = util.sampleSubset(carpertPossibleLocs, numOfCarpets)
 
   boxes = [] # no need to put in boxes for now
   
@@ -336,8 +334,11 @@ def officeNavigation(spec, gamma):
   """
   possible reward functions
   """
-  # reward of turning off each switch, between 0 and 1
-  switchRewards = [random.random() for _ in sIndices]
+  # reward of turning off each switch
+  # same rewards for all switches
+  switchRewards = [1 for _ in sIndices]
+  # random rewards for all switches, between 0 and 1
+  #switchRewards = [random.random() for _ in sIndices]
 
   # an intuitive one, give reward when and only when the switch is turned off
   # note that the robot does not have the action to turn the switch on

@@ -8,7 +8,7 @@ from numpy import mean
 
 from util import standardErr
 
-rndSeeds = 1000
+from config import trials
 
 width = height = 5
 
@@ -168,7 +168,7 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
 
   validInstances = []
 
-  for rnd in range(rndSeeds):
+  for rnd in range(trials):
     # set to true if this instance is valid (no safe init policy)
     rndProcessed = False
 
@@ -208,14 +208,10 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
   # plot figure
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
-  plot(x, y, methods, '$p_f$', '# of Queried Features',
-       'lensOfQPf' + str(carpetNum) + '_' + str(pfStep))
-  """
-  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
-                                 'lensOfQPf' + str(carpetNum) + '_' + str(pfStep) + '_ratioOfMean')
+  #plot(x, y, methods, '$p_f$', '# of Queried Features',
+  #     'lensOfQPf' + str(carpetNum) + '_' + str(pfStep))
   plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
                              'lensOfQPf' + str(carpetNum) + '_' + str(pfStep) + '_meanOfRatio')
-  """
 
 def plotNumVsCarpets(carpetNums):
   """
@@ -249,7 +245,7 @@ def plotNumVsCarpets(carpetNums):
     solvableIns[carpetNum] = []
     validInstances[carpetNum] = []
 
-  for rnd in range(rndSeeds):
+  for rnd in range(trials):
     for carpetNum in carpetNums:
       try:
         filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_0_1_' +  str(rnd) + '.pkl'
@@ -275,9 +271,11 @@ def plotNumVsCarpets(carpetNums):
       validInstances[carpetNum].append(rnd)
       if data['solvable']: solvableIns[carpetNum].append(rnd)
 
+      """
       # print the case where ouralg is suboptimal for analysis
       if 'opt' in methods and len(data['q']['opt']) < len(data['q']['iisAndRelpi']):
         print 'rnd', rnd, 'carpetNum', carpetNum, 'opt', data['q']['opt'], 'iisAndRelpi', data['q']['iisAndRelpi']
+      """
 
   printTex('\\# of trials w/ no initial safe policies',
            [len(validInstances[carpetNum]) for carpetNum in carpetNums])
@@ -293,8 +291,6 @@ def plotNumVsCarpets(carpetNums):
   # absolute number of queried features
   y = lambda method, carpetNum: lensOfQ[method, carpetNum]
   #plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets')
-  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal',
-                                 'lensOfQCarpets_ratioOfMean', integerAxis=True)
   plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal',
                              'lensOfQCarpets_meanOfRatio', integerAxis=True)
 
@@ -308,8 +304,6 @@ def plotNumVsCarpets(carpetNums):
   x = range(max(carpetNums))
   y = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
 
-  plotRatioOfMeanDiffWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal',
-                                 'lensOfQCarpets_rel_ratioOfMean', integerAxis=True)
   plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal',
                              'lensOfQCarpets_rel_meanOfRatio', integerAxis=True)
 
@@ -317,12 +311,12 @@ if __name__ == '__main__':
   font = {'size': 13}
   matplotlib.rc('font', **font)
 
-  from config import carpetNums, pfCandidates
+  from config import settingCandidates
 
-  # exp 1: varying num of carpets
-  #plotNumVsCarpets(carpetNums)
+  for (carpetNums, pfRange, pfStep) in settingCandidates:
+    if len(carpetNums) > 1:
+      # exp 1: varying num of carpets
+      plotNumVsCarpets(carpetNums)
+    else:
+      plotNumVsProportion(carpetNums[0], pfRange, pfStep)
 
-  # exp 2: varying pfs
-  for carpetNum in carpetNums:
-    for (pfStep, pfRange) in pfCandidates:
-      plotNumVsProportion(carpetNum, pfRange, pfStep)
