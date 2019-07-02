@@ -138,21 +138,22 @@ class InitialSafePolicyAgent(ConsQueryAgent):
 
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True, optimizeValue=False):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True,
+               consistentWithOne=False, optimizeValue=False):
     """
     :param consStates: the set of states that should not be visited
-    :param consProbs: the probability that the corresponding constraint is free
+    :param consProbs: the probability that the corresponding constraint is free, None if adversarial setting
     :param useIIS: set cover on IIS. False by default and only enable it by explicitly setting true
     :param useRelPi: set cover on relevant features
-    :param adversarial: True if no Bayesian prior
-    :param optimizeValue: True if hoping to find a safe policy
+    :param consistentWithOne: make sure our greedily selected query is consistent with the greedy alg. for either problem
+    :param optimizeValue: True if hoping to find a safe policy with higher values
     """
     InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     self.useIIS = useIIS
     self.useRelPi = useRelPi
 
-    # set if the robot should also aim for finding a safe policy with higher value
+    self.consistentWithOne = consistentWithOne
     self.optimizeValue = optimizeValue
 
     # find all IISs without knowing any locked or free cons
@@ -231,14 +232,19 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
 
       if self.adversarial:
         # non-Bayesian
+        score[con] = max(numWhenFree, numWhenLocked)
+      else:
+        # Bayesian
         if self.optimizeValue:
           # we need IIS when trying to optimize the values of policies
           score[con] = self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
                      + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.domPiFeats))
+        elif self.consistentWithOne:
+          # need both sets
+          assert self.useIIS and self.useRelPi
+          score[con] = min(self.consProbs[con] * numWhenFree, (1 - self.consProbs[con]) * numWhenLocked)
         else:
-          score[con] = max(numWhenFree, numWhenLocked)
-      else:
-        score[con] = self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
+          score[con] = self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
 
     return min(score.iteritems(), key=lambda _: _[1])[0]
 

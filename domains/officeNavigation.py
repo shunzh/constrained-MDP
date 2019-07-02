@@ -131,23 +131,25 @@ A list of parameterized domains.
 These are randomly generated rather than hand-specified.
 """
 # parameterized worlds
-def squareWorld(size, numOfCarpets, numOfSwitches, randomSwitch=False):
+def squareWorld(size, numOfCarpets, numOfSwitches, numOfWalls=0, randomSwitch=False):
   """
   Squared world with width = height = size.
-  The robot and the swtich are at opposite corners.
-  No walls or doors.
+  The robot and the switch are at opposite corners (unless randomSwitch==True).
+  Carpets and walls are uniformly randomly generated.
+  No doors.
   """
   width = size
   height = size
   
   robot = (0, 0)
 
-  walls = []
   doors = []
 
   possibleLocs = [(x, y) for x in range(width) for y in range(height)]
 
   carpets = util.sampleSubset(possibleLocs, numOfCarpets)
+
+  walls = util.sampleSubset(possibleLocs, numOfWalls)
 
   if randomSwitch:
     switches = util.sampleSubset(possibleLocs, numOfSwitches)

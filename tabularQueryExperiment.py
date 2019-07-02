@@ -72,6 +72,8 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
         agent = OptQueryForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       elif method == 'iisAndRelpi':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True)
+      elif method == 'iisAndRelpiOne':
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True, consistentWithOne=True)
       elif method == 'setcoverNonBayes':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=None, useIIS=True, useRelPi=True)
       elif method == 'setcoverWithValue':

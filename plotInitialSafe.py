@@ -22,12 +22,13 @@ from config import methods
 if 'random' in methods: methods.remove('random')
 print methods
 
-markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisOnly': 'bs--', 'relpiOnly': 'bd-.',
+markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisAndRelpiOne': 'bs-', 'iisOnly': 'bo--', 'relpiOnly': 'bo-.',
            'maxProb': 'g^-', 'maxProbF': 'g^--', 'maxProbIF': 'g^-.',
            'piHeu': 'm+-', 'random': 'c.-',
            'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
-names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCoverQuery', 'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
-         'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. F.', 'maxProbIF': 'Greed. Prob. IF.',
+names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCoverQuery', 'iisAndRelpiOne': 'SetCoverQuery\'',
+         'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
+         'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. Feasible', 'maxProbIF': 'Greed. Prob. Infeasible',
          'piHeu': 'Most-Likely', 'random': 'Descending',
          'setcoverWithValue': 'Weighted Set Cover', 'piHeuWithValue': 'Most-Likely with Value'}
 
@@ -78,7 +79,7 @@ def printTex(head, data):
 
 def plotLegend():
   ax = pylab.gca()
-  figLegend = pylab.figure(figsize=(3.2, 2))
+  figLegend = pylab.figure(figsize=(3.2, 2.5))
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
