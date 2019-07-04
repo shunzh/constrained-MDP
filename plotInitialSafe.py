@@ -8,9 +8,10 @@ from numpy import mean
 
 from util import standardErr
 
-from config import trials
+from config import trials, size
 
-width = height = 5
+# FIXME assuming squared domain for now
+width = height = size
 
 lensOfQ = {}
 lensOfQRelPhi = {}
@@ -252,7 +253,7 @@ def plotNumVsCarpets(carpetNums):
         filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_0_1_' +  str(rnd) + '.pkl'
         data = pickle.load(open(filename, 'rb'))
       except IOError:
-        #print filename, 'not exist'
+        print filename, 'not exist'
         continue
 
       # see which features appear in relevant features of any dominating policy

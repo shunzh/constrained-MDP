@@ -143,6 +143,10 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
     print 'safe policy', answer
     print 'safe policy value', valuesOfSafePis
 
+    if len(queries['opt']) == 0:
+      # do not record cases where it is impossible to find a safe policy (because of the transition dynamics)
+      return
+
     if dry:
       print 'dry run. no output'
     else:
@@ -263,10 +267,12 @@ if __name__ == '__main__':
   k = 1 # dummy for sequential queries?
   dry = False # do not save to files if dry run
 
+  from config import size
+
   numOfCarpets = 10
   numOfSwitches = 1
+  numOfWalls = 5
   numOfBoxes = 0
-  size = 5
 
   rnd = 0 # set a dummy random seed if no -r argument
 
@@ -297,8 +303,6 @@ if __name__ == '__main__':
       raise Exception('unknown argument')
 
   if batch:
-    # elements are (num of carpets, pf, pfStep)
-
     from config import trials, settingCandidates
 
     for rnd in range(trials):
@@ -308,11 +312,11 @@ if __name__ == '__main__':
             # reset random seed in each iteration
             setRandomSeed(rnd)
 
-            spec = squareWorld(size, carpetNum, numOfSwitches)
+            spec = squareWorld(size, carpetNum, numOfSwitches, numOfWalls=numOfWalls)
             experiment(spec, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
     spec = carpetsAndWallsDomain()
-    #spec = squareWorld(size, numOfCarpets, numOfSwitches)
+    #spec = squareWorld(size, numOfCarpets, numOfSwitches, numOfWalls=numOfWalls)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()

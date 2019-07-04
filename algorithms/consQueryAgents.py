@@ -42,7 +42,11 @@ class ConsQueryAgent():
     """
     Run the LP solver with all constraints and see if the LP problem is feasible.
     """
-    return self.findConstrainedOptPi(self.allCons)['feasible']
+    statusObj = self.findConstrainedOptPi(self.allCons)
+
+    #if statusObj['feasible']: printOccSA(statusObj['pi'])
+
+    return statusObj['feasible']
 
   def findConstrainedOptPi(self, activeCons):
     """
@@ -56,7 +60,8 @@ class ConsQueryAgent():
     zeroConstraints = self.constructConstraints(activeCons)
 
     if config.METHOD == 'gurobi':
-      return lpDualGurobi(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)
+      return lpDualGurobi(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons,
+                          positiveConstraintsOcc=0.1)
     elif config.METHOD == 'cplex':
       # not using this. only for comparision
       return lpDualCPLEX(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)

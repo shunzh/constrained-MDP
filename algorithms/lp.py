@@ -31,7 +31,7 @@ def linearRegression(A, b):
 
   return [x[_].X for _ in xrange(d)]
 
-def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstraintsOcc=0.1):
+def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstraintsOcc=0):
   """
   Solve the dual problem of lp, maybe with some constraints
   Same arguments
@@ -39,6 +39,9 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
   Note that this is a lower level function that does not consider feature extraction.
   r should be a reward function, not a reward parameter.
   """
+  if len(positiveConstraints) == 0 and positiveConstraintsOcc > 0:
+    return {'feasible': False}
+
   S = mdp.S
   A = mdp.A
   T = mdp.T

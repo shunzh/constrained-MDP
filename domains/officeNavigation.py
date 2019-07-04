@@ -103,8 +103,8 @@ def toyWorldConstructor(map, horizon=None):
 A list of toy domains.
 """
 def carpetsAndWallsDomain():
-  map = [[R, C, _, C, _],
-         [_, W, W, W, _],
+  map = [[R, W, _, C, _],
+         [W, W, W, W, _],
          [_, C, _, C, S]]
   return toyWorldConstructor(map)
 
