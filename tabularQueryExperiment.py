@@ -267,6 +267,7 @@ if __name__ == '__main__':
   k = 1 # dummy for sequential queries?
   dry = False # do not save to files if dry run
 
+  # the domain is size x size
   from config import size
 
   numOfCarpets = 10
@@ -305,7 +306,7 @@ if __name__ == '__main__':
   if batch:
     from config import trials, settingCandidates
 
-    for rnd in range(trials):
+    for rnd in range(860, trials):
       for (carpetNums, pfRange, pfStep) in settingCandidates:
         for carpetNum in carpetNums:
           for pf in pfRange:
@@ -321,4 +322,4 @@ if __name__ == '__main__':
     #spec = toySokobanWorld()
     #spec = sokobanWorld()
 
-    experiment(spec, k, dry, rnd)
+    experiment(spec, k, dry, rnd, pf=0.5, pfStep=0)

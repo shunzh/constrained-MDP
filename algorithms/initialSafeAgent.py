@@ -237,15 +237,18 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
         # Bayesian
         if self.optimizeValue:
           # we need IIS when trying to optimize the values of policies
-          score[con] = self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
+          score[con] = 1 +\
+                       self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
                      + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.domPiFeats))
         elif self.consistentWithOne:
           # need both sets
           assert self.useIIS and self.useRelPi
-          score[con] = min(self.consProbs[con] * numWhenFree, (1 - self.consProbs[con]) * numWhenLocked)
+          score[con] = 1 + min(self.consProbs[con] * numWhenFree, (1 - self.consProbs[con]) * numWhenLocked)
         else:
-          score[con] = self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
+          score[con] = 1 + self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
 
+    # debug: to understand the behavior
+    print score
     return min(score.iteritems(), key=lambda _: _[1])[0]
 
   def heuristic(self, con):
@@ -389,12 +392,14 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     # need domPis for query
     self.computePolicyRelFeats()
 
+    # (locked, free) -> (query, expected value)
     self.optQs = {}
     # the set of cons imposing which we have a safe policy
     self.freeBoundary = []
     # the set of cons imposing which we don't have a safe policy for sure
     self.lockedBoundary = []
 
+    # this is computed in advance
     self.computeOptQueries()
 
   def getQueryAndValue(self, locked, free):
@@ -450,6 +455,7 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
         if set(lockedCons).isdisjoint(set(freeCons)):
           admissibleCons.append((lockedCons, freeCons))
 
+    # make sure all terms on the RHS (of def of f above) are evaluated
     readyToEvaluate = lambda l, f: all(self.getQueryAndValue(l, set(f).union({con})) != None \
                                        and self.getQueryAndValue(set(l).union({con}), f) != None \
                                        for con in set(self.relFeats) - set(l) - set(f))
@@ -468,13 +474,17 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
 
       unknownCons = set(self.relFeats) - set(lockedCons) - set(freeCons)
 
-      minNums = [(con,\
+      # evaluate all candidate con and compute their minimum number of queries
+      minNums = [(con,
                   self.consProbs[con] * self.getQueryAndValue(lockedCons, set(freeCons).union({con}))[1]\
                   + (1 - self.consProbs[con]) * self.getQueryAndValue(set(lockedCons).union({con}), freeCons)[1]\
                   + 1) # count con in
                  for con in unknownCons]
       # pick the tuple that has the minimum obj value after querying
       self.setQueryAndValue(lockedCons, freeCons, min(minNums, key=lambda _: _[1]))
+
+      # debug
+      print lockedCons, freeCons, minNums
 
       # add neighbors that ready to evaluate to readToEvalSet
       readyToEvalSet += filter(lambda (l, f): self.getQueryAndValue(l, f) == None and readyToEvaluate(l, f),
