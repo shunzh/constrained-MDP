@@ -247,8 +247,8 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
         else:
           score[con] = 1 + self.consProbs[con] * numWhenFree + (1 - self.consProbs[con]) * numWhenLocked
 
-    # debug: to understand the behavior
-    print score
+    # to understand the behavior
+    if config.VERBOSE: print score
     return min(score.iteritems(), key=lambda _: _[1])[0]
 
   def heuristic(self, con):
@@ -445,7 +445,7 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
           self.freeBoundary.append(freeCons)
       else: admissibleFreeCons.append(freeCons)
 
-    if config.VERBOSE:
+    if config.DEBUG:
       print 'locked', self.lockedBoundary
       print 'free', self.freeBoundary
 
@@ -468,7 +468,7 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     # keep fill out the values of optQs within boundary
     # whenever filled out
     while len(readyToEvalSet) > 0:
-      if config.VERBOSE: print len(readyToEvalSet), 'need to be evaluated'
+      if config.DEBUG: print len(readyToEvalSet), 'need to be evaluated'
 
       (lockedCons, freeCons) = readyToEvalSet.pop()
 
@@ -483,8 +483,7 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
       # pick the tuple that has the minimum obj value after querying
       self.setQueryAndValue(lockedCons, freeCons, min(minNums, key=lambda _: _[1]))
 
-      # debug
-      print lockedCons, freeCons, minNums
+      if config.VERBOSE: print lockedCons, freeCons, minNums
 
       # add neighbors that ready to evaluate to readToEvalSet
       readyToEvalSet += filter(lambda (l, f): self.getQueryAndValue(l, f) == None and readyToEvaluate(l, f),

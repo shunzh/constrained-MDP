@@ -306,7 +306,7 @@ if __name__ == '__main__':
   if batch:
     from config import trials, settingCandidates
 
-    for rnd in range(860, trials):
+    for rnd in range(trials):
       for (carpetNums, pfRange, pfStep) in settingCandidates:
         for carpetNum in carpetNums:
           for pf in pfRange:
@@ -322,4 +322,4 @@ if __name__ == '__main__':
     #spec = toySokobanWorld()
     #spec = sokobanWorld()
 
-    experiment(spec, k, dry, rnd, pf=0.5, pfStep=0)
+    experiment(spec, k, dry, rnd, pf=0.9, pfStep=0)
