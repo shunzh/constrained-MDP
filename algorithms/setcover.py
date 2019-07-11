@@ -29,8 +29,11 @@ def removeFeat(feat, sets):
   We remove feat, and remove sets that are reducible (which are supersets of any other set).
   """
   newSets = map(lambda s: tuple(set(s) - {feat}), sets)
-  newSets = list(set(newSets)) # kill duplicates
+  # kill duplicates
+  newSets = list(set(newSets))
+  # kill supersets
   newSets = filter(lambda s: not any(set(otherSet).issubset(s) for otherSet in newSets if otherSet != s), newSets)
+
   return map(lambda s: tuple(s), newSets)
 
 def killSupersets(sets):

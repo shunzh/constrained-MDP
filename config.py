@@ -1,4 +1,4 @@
-VERBOSE = True
+VERBOSE = False
 DEBUG = False
 
 METHOD = 'gurobi'
@@ -6,7 +6,7 @@ METHOD = 'gurobi'
 
 # experiment configuration
 trials = 1000
-settingCandidates = [([7, 8, 9, 10, 11, 12, 13], [0], 1),
+settingCandidates = [([8, 9, 10, 11, 12], [0], 1),
                      ([10], map(lambda _: 0.1 * _, range(9)), 0.2),
                      ([10], map(lambda _: 0.1 * _, range(6)), 0.5),
                     ]
@@ -15,7 +15,7 @@ size = 6
 
 methods = ['opt',
            'iisAndRelpi',
-           'iisOnly', 'relpiOnly',
+           #'iisOnly', 'relpiOnly',
            'iisAndRelpiOne',
            'maxProb',
            #'maxProbF', 'maxProbIF', # variatiosn of maxProb
