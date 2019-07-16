@@ -23,11 +23,14 @@ from config import methods
 if 'random' in methods: methods.remove('random')
 print methods
 
-markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisAndRelpiOne': 'bs-', 'iisOnly': 'bo--', 'relpiOnly': 'bo-.',
+markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisAndRelpi1': 'bs-', 'iisAndRelpi2': 'bd-',
+           'iisOnly': 'bo--', 'relpiOnly': 'bo-.',
            'maxProb': 'g^-', 'maxProbF': 'g^--', 'maxProbIF': 'g^-.',
            'piHeu': 'm+-', 'random': 'c.-',
            'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
-names = {'opt': 'Optimal', 'iisAndRelpi': 'SetCoverQuery', 'iisAndRelpiOne': 'SetCoverQuery\'',
+names = {'opt': 'Optimal', 'iisAndRelpi': '$h_{SC}$',
+         'iisAndRelpi1': 'SetCoverQuery 1',
+         'iisAndRelpi2': '$h_{CR}$',
          'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
          'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. Feasible', 'maxProbIF': 'Greed. Prob. Infeasible',
          'piHeu': 'Most-Likely', 'random': 'Descending',
@@ -39,7 +42,7 @@ vectorDiff = lambda v1, v2: map(lambda e1, e2: e1 - e2, v1, v2)
 vectorDivide = lambda v1, v2: map(lambda e1, e2: e1 / e2, v1, v2)
 
 
-def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False):
+def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False, xAxis=None):
   """
   plot data.
 
@@ -51,6 +54,8 @@ def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False):
   :param filename: output to filename.pdf
   :return:
   """
+  if xAxis is None: xAxis = x
+
   yMean = lambda method: [mean(y(method, xElem)) for xElem in x]
   yCI = lambda method: [standardErr(y(method, xElem)) for xElem in x]
 
@@ -59,7 +64,7 @@ def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False):
   ax = pylab.gca()
   for method in methods:
     #print method, yMean(method), yCI(method)
-    ax.errorbar(x, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
+    ax.errorbar(xAxis, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
@@ -80,16 +85,19 @@ def printTex(head, data):
 
 def plotLegend():
   ax = pylab.gca()
-  figLegend = pylab.figure(figsize=(3.2, 2.5))
+  figLegend = pylab.figure(figsize=(3.2, 1.5))
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
-def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename, integerAxis=False):
+def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename, integerAxis=False, xAxis=None):
   """
   plot data with a specified baseline.
 
   mean (value of this method / value of the baseline)
   """
+  # can set displayed x to be different
+  if xAxis is None: xAxis = x
+
   yMean = lambda method: [mean(vectorDivide(y(method, xElem), y(baseline, xElem))) for xElem in x]
   yCI = lambda method: [standardErr(vectorDivide(y(method, xElem), y(baseline, xElem))) for xElem in x]
 
@@ -98,7 +106,7 @@ def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename
   ax = pylab.gca()
   for method in methods:
     #print method, yMean(method), yCI(method)
-    ax.errorbar(x, yMean(method), yCI(method),
+    ax.errorbar(xAxis, yMean(method), yCI(method),
                 fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
   pylab.xlabel(xlabel)
@@ -210,10 +218,14 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
   # plot figure
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
-  #plot(x, y, methods, '$p_f$', '# of Queried Features',
-  #     'lensOfQPf' + str(carpetNum) + '_' + str(pfStep))
+  # plot the midpoint of intervals
+  xAxis = map(lambda _: _ + pfStep / 2, pfRange)
+  plot(x, y, methods, '$p_f$', '# of Queried Features',
+       'lensOfQPf' + str(carpetNum) + '_' + str(pfStep),
+       xAxis=xAxis)
   plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
-                             'lensOfQPf' + str(carpetNum) + '_' + str(pfStep) + '_meanOfRatio')
+                             'lensOfQPf' + str(carpetNum) + '_' + str(pfStep) + '_meanOfRatio',
+                             xAxis=xAxis)
 
 def plotNumVsCarpets(carpetNums):
   """
@@ -253,7 +265,7 @@ def plotNumVsCarpets(carpetNums):
         filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_0_1_' +  str(rnd) + '.pkl'
         data = pickle.load(open(filename, 'rb'))
       except IOError:
-        print filename, 'not exist'
+        #print filename, 'not exist'
         continue
 
       # see which features appear in relevant features of any dominating policy
@@ -292,7 +304,7 @@ def plotNumVsCarpets(carpetNums):
   x = carpetNums
   # absolute number of queried features
   y = lambda method, carpetNum: lensOfQ[method, carpetNum]
-  #plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets')
+  plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets')
   plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal',
                              'lensOfQCarpets_meanOfRatio', integerAxis=True)
 

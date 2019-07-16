@@ -15,7 +15,7 @@ from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigation, squareWorld, toySokobanWorld, sokobanWorld, carpetsAndWallsDomain
 
 
-def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
+def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
@@ -25,7 +25,7 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
   pf: only for Bayesian setting. ["prob that ith unknown feature is free" for i in range(self.numOfCons)]
     If None (by default), set randomly
   """
-  mdp, consStates, goalStates = officeNavigation(spec, gamma)
+
 
   numOfCons = len(consStates)
   consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
@@ -72,8 +72,12 @@ def experiment(spec, k, dry, rnd, gamma=0.9, pf=0, pfStep=1):
         agent = OptQueryForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       elif method == 'iisAndRelpi':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True)
-      elif method == 'iisAndRelpiOne':
-        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True, extendedBelief=True)
+      elif method == 'iisAndRelpi1':
+        # only with extended belief
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True, heuristicID=1)
+      elif method == 'iisAndRelpi2':
+        # with extended belief and submodular estimate
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True, heuristicID=2)
       elif method == 'setcoverNonBayes':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=None, useIIS=True, useRelPi=True)
       elif method == 'setcoverWithValue':
@@ -314,7 +318,8 @@ if __name__ == '__main__':
             setRandomSeed(rnd)
 
             spec = squareWorld(size, carpetNum, numOfSwitches, numOfWalls=numOfWalls)
-            experiment(spec, k, dry, rnd, pf=pf, pfStep=pfStep)
+            mdp, consStates, goalStates = officeNavigation(spec)
+            experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
     spec = carpetsAndWallsDomain()
     #spec = squareWorld(size, numOfCarpets, numOfSwitches, numOfWalls=numOfWalls)
@@ -322,4 +327,5 @@ if __name__ == '__main__':
     #spec = toySokobanWorld()
     #spec = sokobanWorld()
 
-    experiment(spec, k, dry, rnd, pf=0.9, pfStep=0)
+    mdp, consStates, goalStates = officeNavigation(spec)
+    experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0.9, pfStep=0)

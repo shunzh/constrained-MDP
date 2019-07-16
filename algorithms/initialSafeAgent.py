@@ -5,7 +5,7 @@ from itertools import combinations
 import config
 from algorithms import lp
 from algorithms.consQueryAgents import ConsQueryAgent, NOTEXIST, EXIST
-from algorithms.setcover import coverFeat, removeFeat, leastNumElemSets, killSupersets
+from algorithms.setcover import coverFeat, removeFeat, leastNumElemSetsWithoutFeat, killSupersets, numOfSetsContainFeat
 from operator import mul
 
 from util import powerset
@@ -69,7 +69,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     for domPi in domPis:
       feats = self.findViolatedConstraints(domPi)
       domPiFeats.append(feats)
-      # FIXME it may be easier to store the values when the dom pis are computed. this is just an easier way
+      # FIXME it may be easier to store the values when the dom pis are computed. recomputing here.
       domPiFeatsAndValues[tuple(feats)] = self.computeValue(domPi)
 
     self.domPiFeats = domPiFeats
@@ -136,18 +136,31 @@ class InitialSafePolicyAgent(ConsQueryAgent):
       # for comparison, the return is 0 when no safe policies exist
       return 0
 
-  def probOfExistenceOfSafePolicies(self, lockedCons, freeCons):
+  def computeIfSafePiExists(self):
+    """
+    For all partitions of free and locked features, compute if safe pi exists.
+    This will be called if getProbOfExistenceOfSafePolicies is called. Otherwise we don't need this
+    """
+    allSubsetsOfUnknownCons = powerset(self.consIndices)
+    self.cachedSafePolicyExist = {}
+
+    for freeSubset in allSubsetsOfUnknownCons:
+      # now consider the partition that freeSubset is free and self.consIndices \ freeSubset are locked
+      self.cachedSafePolicyExist[frozenset(freeSubset)] = self.safePolicyExist(freeCons=freeSubset)
+
+  def getProbOfExistenceOfSafePolicies(self, lockedCons, freeCons):
     """
     Compute the probability of existence of at least one safe policies.
     This considers the changeabilities of all unknown features.
-    FIXME can be cached
 
     lockedCons, freeCons: The set of locked and free features.
       They might be different from the ones confirmed by querying.
       These are hypothetical ones just to compute the corresponding prob.
     """
+    if not hasattr(self, 'cachedSafePolicyExist'):
+      self.computeIfSafePiExists()
+
     unknownCons = set(self.consIndices) - set(lockedCons) - set(freeCons)
-    # \EE[policy exists]
     expect = 0
 
     allSubsetsOfUnknownCons = powerset(unknownCons)
@@ -159,22 +172,21 @@ class InitialSafePolicyAgent(ConsQueryAgent):
              reduce(mul, map(lambda _: 1 - self.consProbs[_], unknownCons - set(freeSubset)), 1)
 
       # an indicator represents if safe policies exist
-      safePolicyExist = self.safePolicyExist(freeCons=list(freeCons) + list(freeSubset))
-
-      expect += safePolicyExist * prob
+      if self.cachedSafePolicyExist[frozenset(list(freeCons) + list(freeSubset))]:
+        expect += prob
 
     return expect
 
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True,
-               extendedBelief=False, optimizeValue=False):
+               optimizeValue=False, heuristicID=None):
     """
     :param consStates: the set of states that should not be visited
     :param consProbs: the probability that the corresponding constraint is free, None if adversarial setting
     :param useIIS: set cover on IIS. False by default and only enable it by explicitly setting true
     :param useRelPi: set cover on relevant features
-    :param consistentWithOne: make sure our greedily selected query is consistent with the greedy alg. for either problem
+    :param heuristicID: an hack for trying different heuristics
     :param optimizeValue: True if hoping to find a safe policy with higher values
     """
     InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
@@ -182,7 +194,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     self.useIIS = useIIS
     self.useRelPi = useRelPi
 
-    self.extendedBelief = extendedBelief
+    self.heuristicID = heuristicID
     self.optimizeValue = optimizeValue
 
     # find all IISs without knowing any locked or free cons
@@ -252,7 +264,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
       else:
         # approximate it using relPhi
         assert self.useRelPi
-        iisNumWhenFree = len(leastNumElemSets(con, self.domPiFeats))
+        iisNumWhenFree = len(leastNumElemSetsWithoutFeat(con, self.domPiFeats))
 
       if self.useRelPi:
         relNumWhenLocked = len(coverFeat(con, self.domPiFeats))
@@ -260,7 +272,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
       else:
         # approximate it using iis
         assert self.useIIS
-        relNumWhenLocked = len(leastNumElemSets(con, self.iiss))
+        relNumWhenLocked = len(leastNumElemSetsWithoutFeat(con, self.iiss))
 
       if self.adversarial:
         # non-Bayesian
@@ -272,16 +284,28 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
           score[con] = 1\
                      + self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
                      + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.domPiFeats))
-        elif self.extendedBelief:
+        elif self.heuristicID in [1, 2]:
           # need both sets
           assert self.useIIS and self.useRelPi
           # prob of safe policy exists
-          safePiExistWhenFree = self.probOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
-          safePiExistWhenLocked = self.probOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
+          safePiExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
+          safePiExistWhenLocked = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
 
-          score[con] = 1\
-                     + self.consProbs[con] * (safePiExistWhenFree * iisNumWhenFree + (1 - safePiExistWhenFree) * relNumWhenFree)\
-                     + (1 - self.consProbs[con]) * (safePiExistWhenLocked * iisNumWhenLocked + (1 - safePiExistWhenLocked) * relNumWhenLocked)
+          if self.heuristicID == 1:
+            score[con] = 1\
+                       + self.consProbs[con] * (safePiExistWhenFree * iisNumWhenFree + (1 - safePiExistWhenFree) * relNumWhenFree)\
+                       + (1 - self.consProbs[con]) * (safePiExistWhenLocked * iisNumWhenLocked + (1 - safePiExistWhenLocked) * relNumWhenLocked)
+          elif self.heuristicID == 2:
+            estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
+
+            # useful locally
+            freeProb = lambda _: self.consProbs[_]
+            lockedProb = lambda _: 1 - self.consProbs[_]
+
+            score[con] = self.consProbs[con] * (safePiExistWhenFree * estimateCoverElems(coverFeat(con, self.iiss), freeProb)
+                                             + (1 - safePiExistWhenFree) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
+                       + (1 - self.consProbs[con]) * (safePiExistWhenLocked * estimateCoverElems(removeFeat(con, self.iiss), freeProb)
+                                                   + (1 - safePiExistWhenLocked) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
         else:
           # original heuristic
           score[con] = 1 + self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
@@ -289,9 +313,6 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     # to understand the behavior
     if config.VERBOSE: print score
     return min(score.iteritems(), key=lambda _: _[1])[0]
-
-  def heuristic(self, con):
-    raise Exception('need to be defined')
 
 
 class DomPiHeuForSafetyAgent(InitialSafePolicyAgent):
@@ -358,8 +379,8 @@ class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
     termProbs = {}
     for con in unknownCons:
       # the prob that safe policies exist when con is free
-      probExistWhenFree = self.probOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
-      probNotExistWhenLocked = 1 - self.probOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
+      probExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
+      probNotExistWhenLocked = 1 - self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
 
       # a mixed objective, tryFeasible and tryInfeasible determine which parts are included in obj
       termProbs[con] = self.tryFeasible * self.consProbs[con] * probExistWhenFree +\

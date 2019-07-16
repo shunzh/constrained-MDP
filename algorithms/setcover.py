@@ -44,13 +44,16 @@ def killSupersets(sets):
   """
   return removeFeat(None, sets)
 
-def leastNumElemSets(feat, sets):
+def leastNumElemSetsWithoutFeat(feat, sets):
   """
   Find the smallest set that contains feat and return the size when feat is removed.
   """
   setsWithoutFeat = map(lambda s: set(s) - {feat}, sets)
   minSizedSet = min(setsWithoutFeat, key=lambda s: len(s))
   return minSizedSet
+
+def numOfSetsContainFeat(feat, sets):
+  return sum(feat in s for s in sets)
 
 def elementExists(feat, sets):
   return any(feat in s for s in sets)

@@ -7,7 +7,7 @@ METHOD = 'gurobi'
 # experiment configuration
 trials = 1000
 settingCandidates = [([8, 9, 10, 11, 12], [0], 1),
-                     ([10], map(lambda _: 0.1 * _, range(9)), 0.2),
+                     #([10], map(lambda _: 0.1 * _, range(9)), 0.2),
                      ([10], map(lambda _: 0.1 * _, range(6)), 0.5),
                     ]
 
@@ -16,7 +16,8 @@ size = 6
 methods = ['opt',
            'iisAndRelpi',
            #'iisOnly', 'relpiOnly',
-           'iisAndRelpiOne',
+           #'iisAndRelpi1',
+           'iisAndRelpi2',
            'maxProb',
            #'maxProbF', 'maxProbIF', # variatiosn of maxProb
            'piHeu',

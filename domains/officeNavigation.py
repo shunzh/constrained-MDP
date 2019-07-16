@@ -178,7 +178,7 @@ def parameterizedSokobanWorld(size, numOfBoxes):
   return Spec(width, height, robot, switches, walls, doors, boxes, carpets, horizon)
 
 
-def officeNavigation(spec, gamma):
+def officeNavigation(spec, gamma=.9):
   """
   spec: specification of the factored mdp
   gamma: discounting factor
