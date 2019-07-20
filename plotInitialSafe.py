@@ -23,15 +23,20 @@ from config import methods
 if 'random' in methods: methods.remove('random')
 print methods
 
-markers = {'opt': 'r*-', 'iisAndRelpi': 'bo-', 'iisAndRelpi1': 'bs-', 'iisAndRelpi2': 'bd-',
+markers = {'opt': 'r*-', 'optFree': 'r*--', 'optLocked': 'r*-.',
+           'iisAndRelpi': 'bo-', 'iisAndRelpi1': 'bs-', 'iisAndRelpi2': 'bd-',
            'iisOnly': 'bo--', 'relpiOnly': 'bo-.',
+           'iisOnly2': 'bo--', 'relpiOnly2': 'bo-.',
            'maxProb': 'g^-', 'maxProbF': 'g^--', 'maxProbIF': 'g^-.',
            'piHeu': 'm+-', 'random': 'c.-',
            'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
-names = {'opt': 'Optimal', 'iisAndRelpi': '$h_{SC}$',
+names = {'opt': 'Optimal',
+         'optFree': 'Optimal Free', 'optLocked': 'Optimal Locked',
+         'iisAndRelpi': '$h_{SC}$',
+         'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
          'iisAndRelpi1': 'SetCoverQuery 1',
          'iisAndRelpi2': '$h_{CR}$',
-         'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
+         'iisOnly2': '$h_{CR}$ (IIS)', 'relpiOnly2': '$h_{CR}$ (rel. feat.)',
          'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. Feasible', 'maxProbIF': 'Greed. Prob. Infeasible',
          'piHeu': 'Most-Likely', 'random': 'Descending',
          'setcoverWithValue': 'Weighted Set Cover', 'piHeuWithValue': 'Most-Likely with Value'}
@@ -63,7 +68,7 @@ def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False, xAxis=None)
 
   ax = pylab.gca()
   for method in methods:
-    #print method, yMean(method), yCI(method)
+    print method, yMean(method), yCI(method)
     ax.errorbar(xAxis, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
   pylab.xlabel(xlabel)

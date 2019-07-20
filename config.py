@@ -14,10 +14,12 @@ settingCandidates = [([8, 9, 10, 11, 12], [0], 1),
 size = 6
 
 methods = ['opt',
-           'iisAndRelpi',
+           'optLocked', 'optFree',
+           #'iisAndRelpi',
            #'iisOnly', 'relpiOnly',
            #'iisAndRelpi1',
            'iisAndRelpi2',
+           #'iisOnly2', 'relpiOnly2',
            'maxProb',
            #'maxProbF', 'maxProbIF', # variatiosn of maxProb
            'piHeu',

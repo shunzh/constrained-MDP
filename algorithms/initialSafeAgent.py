@@ -285,27 +285,32 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
                      + self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
                      + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.domPiFeats))
         elif self.heuristicID in [1, 2]:
-          # need both sets
-          assert self.useIIS and self.useRelPi
           # prob of safe policy exists
           safePiExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
           safePiExistWhenLocked = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
 
           if self.heuristicID == 1:
+            # only uses P[\top;\psi] and P[\bot;\psi]
             score[con] = 1\
                        + self.consProbs[con] * (safePiExistWhenFree * iisNumWhenFree + (1 - safePiExistWhenFree) * relNumWhenFree)\
                        + (1 - self.consProbs[con]) * (safePiExistWhenLocked * iisNumWhenLocked + (1 - safePiExistWhenLocked) * relNumWhenLocked)
           elif self.heuristicID == 2:
+            # this heuristic uses coverage ratio estimate
             estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
 
             # useful locally
             freeProb = lambda _: self.consProbs[_]
             lockedProb = lambda _: 1 - self.consProbs[_]
 
-            score[con] = self.consProbs[con] * (safePiExistWhenFree * estimateCoverElems(coverFeat(con, self.iiss), freeProb)
-                                             + (1 - safePiExistWhenFree) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
-                       + (1 - self.consProbs[con]) * (safePiExistWhenLocked * estimateCoverElems(removeFeat(con, self.iiss), freeProb)
-                                                   + (1 - safePiExistWhenLocked) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
+            if self.useIIS and not self.useRelPi:
+              score[con] = estimateCoverElems(coverFeat(con, self.iiss), freeProb)
+            elif not self.useIIS and self.useRelPi:
+              score[con] = estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb)
+            else:
+              score[con] = self.consProbs[con] * (safePiExistWhenFree * estimateCoverElems(coverFeat(con, self.iiss), freeProb)
+                                               + (1 - safePiExistWhenFree) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
+                         + (1 - self.consProbs[con]) * (safePiExistWhenLocked * estimateCoverElems(removeFeat(con, self.iiss), freeProb)
+                                                     + (1 - safePiExistWhenLocked) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
         else:
           # original heuristic
           score[con] = 1 + self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
@@ -419,7 +424,7 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
   """
   Find the opt query by dynamic programming. Its O(2^|\Phi|).
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, optimizeLocked=True, optimizeFree=True):
     InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     # need domPis for query
@@ -432,14 +437,17 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     # the set of cons imposing which we don't have a safe policy for sure
     self.lockedBoundary = []
 
+    self.lockedTerminalCost = 1 if optimizeLocked else 0
+    self.freeTerminalCost = 1 if optimizeFree else 0
+
     # this is computed in advance
     self.computeOptQueries()
 
   def getQueryAndValue(self, locked, free):
     if any(set(locked).issuperset(lockedB) for lockedB in self.lockedBoundary):
-      return (NOTEXIST, 0)
+      return (NOTEXIST, self.lockedTerminalCost)
     elif any(set(free).issuperset(freeB) for freeB in self.freeBoundary):
-      return (EXIST, 0)
+      return (EXIST, self.freeTerminalCost)
     elif not (frozenset(locked), frozenset(free)) in self.optQs:
       return None
     else:
@@ -460,6 +468,7 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     consPowerset = list(powerset(self.relFeats))
 
     # free/locked cons that are not supersets of elements on their boundaries
+    # that is, we can't determine if safe policy exsits if these elements are known to be locked/free
     admissibleFreeCons = []
     admissibleLockedCons = []
     # the set of (lockedCons, freeCons) to evaluate the optimal queries
@@ -468,12 +477,14 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
 
     for lockedCons in consPowerset:
       if self.safePolicyNotExist(lockedCons=lockedCons):
+        # make sure not elements in boundary is a superset of another element
         if not any(set(lockedCons).issuperset(lockedB) for lockedB in self.lockedBoundary):
           self.lockedBoundary.append(lockedCons)
       else: admissibleLockedCons.append(lockedCons)
 
     for freeCons in consPowerset:
       if self.safePolicyExist(freeCons=freeCons):
+        # similarly
         if not any(set(freeCons).issuperset(freeB) for freeB in self.freeBoundary):
           self.freeBoundary.append(freeCons)
       else: admissibleFreeCons.append(freeCons)
@@ -531,3 +542,9 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     qAndV = self.getQueryAndValue(relLockedCons, relFreeCons)
     assert qAndV != None
     return qAndV[0]
+
+
+class OrcaleQueryAgent(InitialSafePolicyAgent):
+  # TODO query the minimum number of queries that are needed. Do I actually need to simulate the querying process?
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
