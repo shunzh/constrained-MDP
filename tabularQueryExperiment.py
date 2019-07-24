@@ -10,7 +10,7 @@ import scipy
 
 from algorithms.consQueryAgents import ConsQueryAgent, EXIST, NOTEXIST
 from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyAgent, \
-  MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent
+  MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent, OracleSafetyAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigation, squareWorld, toySokobanWorld, sokobanWorld, carpetsAndWallsDomain
 
@@ -40,7 +40,6 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
   # or hand designed
   print 'true free features', trueFreeFeatures
 
-  #if not agent.initialSafePolicyExists():
   if not agent.initialSafePolicyExists():
     # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
     print 'initial safe policy does not exist'
@@ -66,7 +65,9 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
       # ======== timed session starts ========
       start = time.time()
 
-      if method == 'opt':
+      if method == 'oracle':
+        agent = OracleSafetyAgent(mdp, consStates, trueFreeFeatures, goalStates=goalStates, consProbs=consProbs)
+      elif method == 'opt':
         agent = OptQueryForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       elif method == 'optLocked':
         agent = OptQueryForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, optimizeLocked=True, optimizeFree=False)
@@ -153,7 +154,7 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
     print 'safe policy', answer
     print 'safe policy value', valuesOfSafePis
 
-    if len(queries['opt']) == 0:
+    if len(queries['oracle']) == 0:
       # do not record cases where it is impossible to find a safe policy (because of the transition dynamics)
       return
 

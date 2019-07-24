@@ -280,40 +280,45 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
       else:
         # Bayesian
         if self.optimizeValue:
+          # try to optimize values of the safe policies
           # we need IIS when trying to optimize the values of policies
           score[con] = 1\
                      + self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
                      + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.domPiFeats))
-        elif self.heuristicID in [1, 2]:
-          # prob of safe policy exists
-          safePiExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
-          safePiExistWhenLocked = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
-
-          if self.heuristicID == 1:
-            # only uses P[\top;\psi] and P[\bot;\psi]
-            score[con] = 1\
-                       + self.consProbs[con] * (safePiExistWhenFree * iisNumWhenFree + (1 - safePiExistWhenFree) * relNumWhenFree)\
-                       + (1 - self.consProbs[con]) * (safePiExistWhenLocked * iisNumWhenLocked + (1 - safePiExistWhenLocked) * relNumWhenLocked)
-          elif self.heuristicID == 2:
-            # this heuristic uses coverage ratio estimate
-            estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
-
-            # useful locally
-            freeProb = lambda _: self.consProbs[_]
-            lockedProb = lambda _: 1 - self.consProbs[_]
-
-            if self.useIIS and not self.useRelPi:
-              score[con] = estimateCoverElems(coverFeat(con, self.iiss), freeProb)
-            elif not self.useIIS and self.useRelPi:
-              score[con] = estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb)
-            else:
-              score[con] = self.consProbs[con] * (safePiExistWhenFree * estimateCoverElems(coverFeat(con, self.iiss), freeProb)
-                                               + (1 - safePiExistWhenFree) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
-                         + (1 - self.consProbs[con]) * (safePiExistWhenLocked * estimateCoverElems(removeFeat(con, self.iiss), freeProb)
-                                                     + (1 - safePiExistWhenLocked) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
         else:
-          # original heuristic
-          score[con] = 1 + self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
+          # only aim to find a safe policy (regardless of its value)
+          if self.heuristicID in [1, 2]:
+            # prob of safe policy exists
+            safePiExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
+            safePiExistWhenLocked = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
+
+            if self.heuristicID == 1:
+              # only uses P[\top;\psi] and P[\bot;\psi]
+              score[con] = 1\
+                         + self.consProbs[con] * (safePiExistWhenFree * iisNumWhenFree + (1 - safePiExistWhenFree) * relNumWhenFree)\
+                         + (1 - self.consProbs[con]) * (safePiExistWhenLocked * iisNumWhenLocked + (1 - safePiExistWhenLocked) * relNumWhenLocked)
+            elif self.heuristicID == 2:
+              # this heuristic uses coverage ratio estimate
+              estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
+
+              # useful locally
+              freeProb = lambda _: self.consProbs[_]
+              lockedProb = lambda _: 1 - self.consProbs[_]
+
+              if self.useIIS and not self.useRelPi:
+                score[con] = estimateCoverElems(coverFeat(con, self.iiss), freeProb)
+              elif not self.useIIS and self.useRelPi:
+                score[con] = estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb)
+              elif self.useIIS and self.useRelPi:
+                score[con] = self.consProbs[con] * (safePiExistWhenFree * estimateCoverElems(coverFeat(con, self.iiss), freeProb)
+                                                 + (1 - safePiExistWhenFree) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
+                           + (1 - self.consProbs[con]) * (safePiExistWhenLocked * estimateCoverElems(removeFeat(con, self.iiss), freeProb)
+                                                       + (1 - safePiExistWhenLocked) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
+              else:
+                raise Exception('need iis or relPi')
+          else:
+            # original heuristic
+            score[con] = 1 + self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
 
     # to understand the behavior
     if config.VERBOSE: print score
@@ -524,6 +529,7 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
                   + (1 - self.consProbs[con]) * self.getQueryAndValue(set(lockedCons).union({con}), freeCons)[1]\
                   + 1) # count con in
                  for con in unknownCons]
+
       # pick the tuple that has the minimum obj value after querying
       self.setQueryAndValue(lockedCons, freeCons, min(minNums, key=lambda _: _[1]))
 
@@ -544,7 +550,36 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     return qAndV[0]
 
 
-class OrcaleQueryAgent(InitialSafePolicyAgent):
-  # TODO query the minimum number of queries that are needed. Do I actually need to simulate the querying process?
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
+class OracleSafetyAgent(InitialSafePolicyAgent):
+  """
+  It knows the true partitions of features.
+  So it can ask about the minimum number of features.
+  """
+  def __init__(self, mdp, consStates, trueFreeFeatures, goalStates=(), consProbs=None):
     InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
+
+    self.queries = []
+    self.answer = None
+    if self.safePolicyExist(trueFreeFeatures):
+      # query is the relevant features of any dom pi that has the minimum number of relevant features
+      self.computePolicyRelFeats()
+
+      freePiFeats = filter(lambda _: set(trueFreeFeatures).issuperset(_), self.domPiFeats)
+      assert len(freePiFeats) > 0
+      self.queries = min(freePiFeats, key=lambda _: len(_))
+      self.answer = EXIST
+    else:
+      # query the minimim sized IIS
+      self.computeIISs()
+      trueLockedFeatures = set(self.relFeats) - set(trueFreeFeatures)
+
+      lockedIISs =  filter(lambda _: set(trueLockedFeatures).issuperset(_), self.iiss)
+      assert len(lockedIISs) > 0
+      self.queries = min(lockedIISs, key=lambda _: len(_))
+      self.answer = NOTEXIST
+
+    self.queries = list(self.queries)
+
+  def findQuery(self):
+    if len(self.queries) == 0: return self.answer
+    else: return self.queries.pop()
