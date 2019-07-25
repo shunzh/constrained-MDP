@@ -23,14 +23,19 @@ from config import methods
 if 'random' in methods: methods.remove('random')
 print methods
 
-markers = {'opt': 'r*-', 'optFree': 'r*--', 'optLocked': 'r*-.',
+#baselineMethod = 'opt'
+baselineMethod = 'oracle'
+
+markers = {'oracle': 'r+-',
+           'opt': 'r*-', 'optFree': 'r*--', 'optLocked': 'r*-.',
            'iisAndRelpi': 'bo-', 'iisAndRelpi1': 'bs-', 'iisAndRelpi2': 'bd-',
            'iisOnly': 'bo--', 'relpiOnly': 'bo-.',
            'iisOnly2': 'bo--', 'relpiOnly2': 'bo-.',
            'maxProb': 'g^-', 'maxProbF': 'g^--', 'maxProbIF': 'g^-.',
            'piHeu': 'm+-', 'random': 'c.-',
            'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
-names = {'opt': 'Optimal',
+names = {'oracle': 'Oracle',
+         'opt': 'Optimal',
          'optFree': 'Optimal Free', 'optLocked': 'Optimal Locked',
          'iisAndRelpi': '$h_{SC}$',
          'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
@@ -215,11 +220,6 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
                   (pf, method1, method2,
                   filter(lambda _: _[1] != _[2], zip(validInstances, lensOfQ[method1, pf], lensOfQ[method2, pf])))
 
-  """
-  for pf in pfRange: 
-    print diffInstances(pf, 'opt', 'maxProb')
-  """
-
   # plot figure
   x = pfRange
   y = lambda method, pf: lensOfQ[method, pf]
@@ -228,7 +228,7 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
   plot(x, y, methods, '$p_f$', '# of Queried Features',
        'lensOfQPf' + str(carpetNum) + '_' + str(pfStep),
        xAxis=xAxis)
-  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '$p_f$', '# of Queried Features / Optimal',
+  plotMeanOfRatioWrtBaseline(x, y, methods, baselineMethod, '$p_f$', '# of Queried Features / Optimal',
                              'lensOfQPf' + str(carpetNum) + '_' + str(pfStep) + '_meanOfRatio',
                              xAxis=xAxis)
 
@@ -310,7 +310,7 @@ def plotNumVsCarpets(carpetNums):
   # absolute number of queried features
   y = lambda method, carpetNum: lensOfQ[method, carpetNum]
   plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets')
-  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Carpets', '# of Queried Features / Optimal',
+  plotMeanOfRatioWrtBaseline(x, y, methods, baselineMethod, '# of Carpets', '# of Queried Features / Optimal',
                              'lensOfQCarpets_meanOfRatio', integerAxis=True)
 
   #y = lambda method, carpetNum: safePiValues[method, carpetNum]
@@ -323,7 +323,7 @@ def plotNumVsCarpets(carpetNums):
   x = range(max(carpetNums))
   y = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
 
-  plotMeanOfRatioWrtBaseline(x, y, methods, 'opt', '# of Relevant Features', '# of Queried Features / Optimal',
+  plotMeanOfRatioWrtBaseline(x, y, methods, baselineMethod, '# of Relevant Features', '# of Queried Features / Optimal',
                              'lensOfQCarpets_rel_meanOfRatio', integerAxis=True)
 
 if __name__ == '__main__':
@@ -333,9 +333,10 @@ if __name__ == '__main__':
   from config import settingCandidates
 
   for (carpetNums, pfRange, pfStep) in settingCandidates:
-    if len(carpetNums) > 1:
+    if len(carpetNums) > 1 and len(pfRange) == 1:
       # exp 1: varying num of carpets
       plotNumVsCarpets(carpetNums)
     else:
-      plotNumVsProportion(carpetNums[0], pfRange, pfStep)
+      for carpetNum in carpetNums:
+        plotNumVsProportion(carpetNum, pfRange, pfStep)
 

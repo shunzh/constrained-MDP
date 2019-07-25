@@ -6,9 +6,9 @@ METHOD = 'gurobi'
 
 # experiment configuration
 trials = 1000
-settingCandidates = [([10, 15, 20], [0], 1),
+settingCandidates = [([10, 14, 18], [0], 1),
                      #([10], map(lambda _: 0.1 * _, range(9)), 0.2),
-                     ([10, 15, 20], map(lambda _: 0.1 * _, range(6)), 0.5),
+                     ([10, 14, 18], map(lambda _: 0.1 * _, range(6)), 0.5),
                     ]
 
 size = 6
