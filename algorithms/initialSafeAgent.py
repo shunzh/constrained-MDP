@@ -18,6 +18,17 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     ConsQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     self.costOfQuery = costOfQuery
+    # counter for the number of queries asked
+    self.numOfAskedQueries = 0
+
+  def updateFeats(self, newFreeCon=None, newLockedCon=None):
+    # function as an interface. does nothing by default
+    if newFreeCon is not None:
+      self.knownFreeCons.append(newFreeCon)
+    if newLockedCon is not None:
+      self.knownLockedCons.append(newLockedCon)
+
+    self.numOfAskedQueries += 1
 
   def safePolicyExist(self, freeCons=None):
     # some dom pi's relevant features are all free
@@ -180,7 +191,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True,
-               optimizeValue=False, heuristicID=None):
+               optimizeValue=False, heuristicID=0):
     """
     :param consStates: the set of states that should not be visited
     :param consProbs: the probability that the corresponding constraint is free, None if adversarial setting
@@ -229,7 +240,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
     # this just add to the list of known free and locked features
-    ConsQueryAgent.updateFeats(self, newFreeCon, newLockedCon)
+    InitialSafePolicyAgent.updateFeats(self, newFreeCon, newLockedCon)
 
     if newFreeCon != None:
       if self.useIIS:
@@ -287,7 +298,16 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
                      + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.domPiFeats))
         else:
           # only aim to find a safe policy (regardless of its value)
-          if self.heuristicID in [1, 2]:
+          if self.heuristicID == 0:
+            # original heuristic, h_{SC}
+            score[con] = 1 + self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
+          elif self.heuristicID == 3:
+            # alternating between covering iis and relFeats
+            if self.numOfAskedQueries % 2 == 0:
+              score[con] = self.consProbs[con] * iisNumWhenFree
+            else:
+              score[con] = (1 - self.consProbs[con]) * relNumWhenLocked
+          elif self.heuristicID in [1, 2]:
             # prob of safe policy exists
             safePiExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
             safePiExistWhenLocked = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
@@ -300,7 +320,6 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
             elif self.heuristicID == 2:
               # this heuristic uses coverage ratio estimate
               estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
-
               # useful locally
               freeProb = lambda _: self.consProbs[_]
               lockedProb = lambda _: 1 - self.consProbs[_]
@@ -317,8 +336,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
               else:
                 raise Exception('need iis or relPi')
           else:
-            # original heuristic
-            score[con] = 1 + self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
+            raise Exception('unknown heuristicID')
 
     # to understand the behavior
     if config.VERBOSE: print score

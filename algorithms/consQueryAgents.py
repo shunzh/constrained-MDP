@@ -68,12 +68,6 @@ class ConsQueryAgent():
     else:
       raise Exception('unknown method')
 
-  def updateFeats(self, newFreeCon=None, newLockedCon=None):
-    # function as an interface. does nothing by default
-    if newFreeCon is not None:
-      self.knownFreeCons.append(newFreeCon)
-    if newLockedCon is not None:
-      self.knownLockedCons.append(newLockedCon)
 
   """
   Methods for finding dominating policies and relevant features

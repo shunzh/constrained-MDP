@@ -65,6 +65,7 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
       # ======== timed session starts ========
       start = time.time()
 
+      # oracle / opt
       if method == 'oracle':
         agent = OracleSafetyAgent(mdp, consStates, trueFreeFeatures, goalStates=goalStates, consProbs=consProbs)
       elif method == 'opt':
@@ -73,26 +74,34 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
         agent = OptQueryForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, optimizeLocked=True, optimizeFree=False)
       elif method == 'optFree':
         agent = OptQueryForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, optimizeLocked=False, optimizeFree=True)
+
+      # our heuristics
       elif method == 'iisAndRelpi':
-        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True)
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
       elif method == 'iisAndRelpi1':
         # only with extended belief
-        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True, heuristicID=1)
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, heuristicID=1)
       elif method == 'setcoverNonBayes':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=None, useIIS=True, useRelPi=True)
       elif method == 'setcoverWithValue':
-        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True, optimizeValue=True)
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, optimizeValue=True)
       elif method == 'iisOnly':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=False)
       elif method == 'relpiOnly':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=False, useRelPi=True)
+
       elif method == 'iisAndRelpi2':
         # with extended belief and submodular estimate
-        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=True, heuristicID=2)
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, heuristicID=2)
       elif method == 'iisOnly2':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=False, heuristicID=2)
       elif method == 'relpiOnly2':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=False, useRelPi=True, heuristicID=2)
+
+      elif method == 'iisAndRelpi3':
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, heuristicID=3)
+
+      # baseline heuristics
       elif method == 'maxProb':
         agent = MaxProbSafePolicyExistAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, tryFeasible=True, tryInfeasible=True)
       elif method == 'maxProbF':

@@ -26,21 +26,22 @@ print methods
 #baselineMethod = 'opt'
 baselineMethod = 'oracle'
 
-markers = {'oracle': 'r+-',
-           'opt': 'r*-', 'optFree': 'r*--', 'optLocked': 'r*-.',
+markers = {'oracle': 'r*--',
+           'opt': 'r*-',
            'iisAndRelpi': 'bo-', 'iisAndRelpi1': 'bs-', 'iisAndRelpi2': 'bd-',
            'iisOnly': 'bo--', 'relpiOnly': 'bo-.',
            'iisOnly2': 'bo--', 'relpiOnly2': 'bo-.',
+           'iisAndRelpi3': 'bv-',
            'maxProb': 'g^-', 'maxProbF': 'g^--', 'maxProbIF': 'g^-.',
            'piHeu': 'm+-', 'random': 'c.-',
            'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
 names = {'oracle': 'Oracle',
          'opt': 'Optimal',
-         'optFree': 'Optimal Free', 'optLocked': 'Optimal Locked',
          'iisAndRelpi': '$h_{SC}$',
          'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
          'iisAndRelpi1': 'SetCoverQuery 1',
          'iisAndRelpi2': '$h_{CR}$',
+         'iisAndRelpi3': '$h_{CR}$ alter.',
          'iisOnly2': '$h_{CR}$ (IIS)', 'relpiOnly2': '$h_{CR}$ (rel. feat.)',
          'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. Feasible', 'maxProbIF': 'Greed. Prob. Infeasible',
          'piHeu': 'Most-Likely', 'random': 'Descending',
