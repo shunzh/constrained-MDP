@@ -23,8 +23,8 @@ from config import methods
 if 'random' in methods: methods.remove('random')
 print methods
 
-#baselineMethod = 'opt'
-baselineMethod = 'oracle'
+#baseline = 'opt'
+baseline = 'oracle'
 
 markers = {'oracle': 'r*--',
            'opt': 'r*-',
@@ -50,7 +50,7 @@ names = {'oracle': 'Oracle',
 # output the difference of two vectors
 vectorDiff = lambda v1, v2: map(lambda e1, e2: e1 - e2, v1, v2)
 # output the ratio of two vectors. 1 if e2 == 0
-vectorDivide = lambda v1, v2: map(lambda e1, e2: e1 / e2, v1, v2)
+vectorDivide = lambda v1, v2: map(lambda e1, e2: 1.0 * e1 / e2, v1, v2)
 
 
 def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False, xAxis=None):
@@ -100,7 +100,7 @@ def plotLegend():
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
-def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename, integerAxis=False, xAxis=None):
+def plotMeanOfRatioWrtBaseline(x, y, methods, xlabel, ylabel, filename, integerAxis=False, xAxis=None):
   """
   plot data with a specified baseline.
 
@@ -116,7 +116,7 @@ def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename
 
   ax = pylab.gca()
   for method in methods:
-    #print method, yMean(method), yCI(method)
+    print method, yMean(method), yCI(method)
     ax.errorbar(xAxis, yMean(method), yCI(method),
                 fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
@@ -133,7 +133,7 @@ def plotMeanOfRatioWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename
 
   pylab.close()
 
-def plotRatioOfMeanDiffWrtBaseline(x, y, methods, baseline, xlabel, ylabel, filename, integerAxis=False):
+def plotRatioOfMeanDiffWrtBaseline(x, y, methods, xlabel, ylabel, filename, integerAxis=False):
   """
   plot data with a specified baseline.
 
@@ -229,7 +229,7 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
   plot(x, y, methods, '$p_f$', '# of Queried Features',
        'lensOfQPf' + str(carpetNum) + '_' + str(pfStep),
        xAxis=xAxis)
-  plotMeanOfRatioWrtBaseline(x, y, methods, baselineMethod, '$p_f$', '# of Queried Features / Optimal',
+  plotMeanOfRatioWrtBaseline(x, y, methods, '$p_f$', '# of Queried Features / Optimal',
                              'lensOfQPf' + str(carpetNum) + '_' + str(pfStep) + '_meanOfRatio',
                              xAxis=xAxis)
 
@@ -311,7 +311,7 @@ def plotNumVsCarpets(carpetNums):
   # absolute number of queried features
   y = lambda method, carpetNum: lensOfQ[method, carpetNum]
   plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets')
-  plotMeanOfRatioWrtBaseline(x, y, methods, baselineMethod, '# of Carpets', '# of Queried Features / Optimal',
+  plotMeanOfRatioWrtBaseline(x, y, methods, '# of Carpets', '# of Queried Features / Optimal',
                              'lensOfQCarpets_meanOfRatio', integerAxis=True)
 
   #y = lambda method, carpetNum: safePiValues[method, carpetNum]
@@ -324,7 +324,7 @@ def plotNumVsCarpets(carpetNums):
   x = range(max(carpetNums))
   y = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
 
-  plotMeanOfRatioWrtBaseline(x, y, methods, baselineMethod, '# of Relevant Features', '# of Queried Features / Optimal',
+  plotMeanOfRatioWrtBaseline(x, y, methods, '# of Relevant Features', '# of Queried Features / Optimal',
                              'lensOfQCarpets_rel_meanOfRatio', integerAxis=True)
 
 if __name__ == '__main__':
