@@ -49,7 +49,7 @@ names = {'oracle': 'Oracle',
 
 # output the difference of two vectors
 vectorDiff = lambda v1, v2: map(lambda e1, e2: e1 - e2, v1, v2)
-# output the ratio of two vectors. 1 if e2 == 0
+# output the ratio of two vectors
 vectorDivide = lambda v1, v2: map(lambda e1, e2: 1.0 * e1 / e2, v1, v2)
 
 
@@ -74,7 +74,7 @@ def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False, xAxis=None)
 
   ax = pylab.gca()
   for method in methods:
-    print method, yMean(method), yCI(method)
+    #print method, yMean(method), yCI(method)
     ax.errorbar(xAxis, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
   pylab.xlabel(xlabel)
@@ -116,7 +116,7 @@ def plotMeanOfRatioWrtBaseline(x, y, methods, xlabel, ylabel, filename, integerA
 
   ax = pylab.gca()
   for method in methods:
-    print method, yMean(method), yCI(method)
+    #print method, yMean(method), yCI(method)
     ax.errorbar(xAxis, yMean(method), yCI(method),
                 fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 

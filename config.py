@@ -6,9 +6,9 @@ METHOD = 'gurobi'
 
 # experiment configuration
 trials = 1000
-settingCandidates = [([10, 14, 18], [0], 1),
+settingCandidates = [([8, 9, 10, 11, 12], [0], 1),
                      #([10], map(lambda _: 0.1 * _, range(9)), 0.2),
-                     ([14], map(lambda _: 0.1 * _, range(6)), 0.5),
+                     ([10], map(lambda _: 0.1 * _, range(6)), 0.5),
                     ]
 
 size = 6
@@ -17,7 +17,7 @@ methods = ['oracle',
            #'opt',
            #'optLocked', 'optFree',
            'iisAndRelpi',
-           #'iisOnly', 'relpiOnly',
+           'iisOnly', 'relpiOnly',
            #'iisAndRelpi1',
            'iisAndRelpi2',
            #'iisOnly2', 'relpiOnly2',

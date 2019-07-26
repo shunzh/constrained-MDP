@@ -292,6 +292,7 @@ if __name__ == '__main__':
 
   numOfCarpets = 10
   numOfSwitches = 1
+  # FIXME a crucial parameter shouldn't be put here
   numOfWalls = 5
   numOfBoxes = 0
 
