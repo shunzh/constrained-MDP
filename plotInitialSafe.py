@@ -13,11 +13,6 @@ from config import trials, size
 # FIXME assuming squared domain for now
 width = height = size
 
-lensOfQ = {}
-lensOfQRelPhi = {}
-safePiValues = {}
-times = {}
-
 from config import methods
 # don't plot random, out of range
 if 'random' in methods: methods.remove('random')
@@ -30,19 +25,19 @@ markers = {'oracle': 'r*--',
            'opt': 'r*-',
            'iisAndRelpi': 'bo-', 'iisAndRelpi1': 'bs-', 'iisAndRelpi2': 'bd-',
            'iisOnly': 'bo--', 'relpiOnly': 'bo-.',
-           'iisOnly2': 'bo--', 'relpiOnly2': 'bo-.',
            'iisAndRelpi3': 'bv-',
+           'iisOnly3': 'bv--', 'relpiOnly3': 'bv-.',
            'maxProb': 'g^-', 'maxProbF': 'g^--', 'maxProbIF': 'g^-.',
            'piHeu': 'm+-', 'random': 'c.-',
            'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
 names = {'oracle': 'Oracle',
          'opt': 'Optimal',
          'iisAndRelpi': '$h_{SC}$',
-         'iisOnly': 'SetCoverQuery (IIS)', 'relpiOnly': 'SetCoverQuery (rel. feat.)',
-         'iisAndRelpi1': 'SetCoverQuery 1',
-         'iisAndRelpi2': '$h_{CR}$',
-         'iisAndRelpi3': '$h_{CR}$ alter.',
-         'iisOnly2': '$h_{CR}$ (IIS)', 'relpiOnly2': '$h_{CR}$ (rel. feat.)',
+         'iisOnly': '$h_{SC}$ (IIS)', 'relpiOnly': '$h_{SC}$ (rel. feat.)',
+         'iisAndRelpi1': '$h_{SC}$ w/ P[T]',
+         'iisAndRelpi2': '$h_{CR}$ max',
+         'iisAndRelpi3': '$h_{CR}$ sum',
+         'iisOnly3': '$h_{CR}$ (IIS)', 'relpiOnly3': '$h_{CR}$ (rel. feat.)',
          'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. Feasible', 'maxProbIF': 'Greed. Prob. Infeasible',
          'piHeu': 'Most-Likely', 'random': 'Descending',
          'setcoverWithValue': 'Weighted Set Cover', 'piHeuWithValue': 'Most-Likely with Value'}
@@ -73,8 +68,9 @@ def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False, xAxis=None)
   fig = pylab.figure()
 
   ax = pylab.gca()
+  print xlabel, ylabel
   for method in methods:
-    #print method, yMean(method), yCI(method)
+    print method, yMean(method), yCI(method)
     ax.errorbar(xAxis, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
 
   pylab.xlabel(xlabel)
@@ -181,6 +177,9 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
   """
   Plot the the number of queried features vs the proportion of free features
   """
+  lensOfQ = {}
+  times = {}
+
   # fixed carpet num for this exp
   for method in methods:
     for pf in pfRange:
@@ -223,9 +222,10 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
 
   # plot figure
   x = pfRange
-  y = lambda method, pf: lensOfQ[method, pf]
   # plot the midpoint of intervals
   xAxis = map(lambda _: _ + pfStep / 2, pfRange)
+
+  y = lambda method, pf: lensOfQ[method, pf]
   plot(x, y, methods, '$p_f$', '# of Queried Features',
        'lensOfQPf' + str(carpetNum) + '_' + str(pfStep),
        xAxis=xAxis)
@@ -233,11 +233,19 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
                              'lensOfQPf' + str(carpetNum) + '_' + str(pfStep) + '_meanOfRatio',
                              xAxis=xAxis)
 
+  y = lambda method, pf: times[method, pf]
+  plot(x, y, methods, '$p_f$', 'Computation Time (sec.)', 'timesPf', xAxis=xAxis)
+
 def plotNumVsCarpets(carpetNums):
   """
   plot the num of queried features / computation time vs. num of carpets
   plotting data with pf = 0, pfStep = 1
   """
+  lensOfQ = {}
+  lensOfQRelPhi = {}
+  safePiValues = {}
+  times = {}
+
   for method in methods:
     for carpetNum in carpetNums:
       lensOfQ[method, carpetNum] = []

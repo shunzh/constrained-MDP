@@ -297,7 +297,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
           if self.heuristicID == 0:
             # original heuristic, h_{SC}
             score[con] = 1 + self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
-          elif self.heuristicID in [1, 2]:
+          elif self.heuristicID in [1, 2, 3]:
             # prob of safe policy exists
             probSafePiExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
             probSafePiExistWhenLocked = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
@@ -318,11 +318,26 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
                                                      (1 - probSafePiExistWhenFree) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
                          + (1 - self.consProbs[con]) * max(probSafePiExistWhenLocked * estimateCoverElems(removeFeat(con, self.iiss), freeProb),
                                                            (1 - probSafePiExistWhenLocked) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
-          elif self.heuristicID == 3:
-            if self.numOfAskedQueries % 2 == 0:
-              score[con] = self.consProbs[con] * iisNumWhenFree
-            else:
-              score[con] = (1 - self.consProbs[con]) * relNumWhenLocked
+            elif self.heuristicID == 3:
+              # this heuristic uses coverage ratio estimate
+              estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
+              # useful locally
+              freeProb = lambda _: self.consProbs[_]
+              lockedProb = lambda _: 1 - self.consProbs[_]
+
+              if self.useIIS and self.useRelPi:
+                score[con] = self.consProbs[con] * (probSafePiExistWhenFree * estimateCoverElems(coverFeat(con, self.iiss), freeProb) +
+                                                    (1 - probSafePiExistWhenFree) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
+                           + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked * estimateCoverElems(removeFeat(con, self.iiss), freeProb) +
+                                                          (1 - probSafePiExistWhenLocked) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
+              elif self.useIIS and not self.useRelPi:
+                score[con] = self.consProbs[con] * estimateCoverElems(coverFeat(con, self.iiss), freeProb)\
+                             + (1 - self.consProbs[con]) * estimateCoverElems(removeFeat(con, self.iiss), freeProb)
+              elif not self.useIIS and self.useRelPi:
+                score[con] = self.consProbs[con] * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb)\
+                             + (1 - self.consProbs[con]) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb)
+              else:
+                raise Exception('should enable useIIS or useRelPi')
           else:
             raise Exception('unknown heuristicID')
 

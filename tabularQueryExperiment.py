@@ -93,13 +93,13 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
       elif method == 'iisAndRelpi2':
         # with extended belief and submodular estimate
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, heuristicID=2)
-      elif method == 'iisOnly2':
-        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=False, heuristicID=2)
-      elif method == 'relpiOnly2':
-        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=False, useRelPi=True, heuristicID=2)
 
       elif method == 'iisAndRelpi3':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, heuristicID=3)
+      elif method == 'iisOnly3':
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=True, useRelPi=False, heuristicID=3)
+      elif method == 'relpiOnly3':
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=False, useRelPi=True, heuristicID=3)
 
       # baseline heuristics
       elif method == 'maxProb':
