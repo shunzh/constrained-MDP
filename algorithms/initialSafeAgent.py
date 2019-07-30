@@ -83,7 +83,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
       # FIXME it may be easier to store the values when the dom pis are computed. recomputing here.
       domPiFeatsAndValues[tuple(feats)] = self.computeValue(domPi)
 
-    self.domPiFeats = domPiFeats
+    self.domPiFeats = killSupersets(domPiFeats)
     self.domPiFeatsAndValues = domPiFeatsAndValues
     self.relFeats = relFeats # all relevant features
 
@@ -331,11 +331,11 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
                            + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked * estimateCoverElems(removeFeat(con, self.iiss), freeProb) +
                                                           (1 - probSafePiExistWhenLocked) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
               elif self.useIIS and not self.useRelPi:
-                score[con] = self.consProbs[con] * estimateCoverElems(coverFeat(con, self.iiss), freeProb)\
-                             + (1 - self.consProbs[con]) * estimateCoverElems(removeFeat(con, self.iiss), freeProb)
+                score[con] = self.consProbs[con] * probSafePiExistWhenFree * estimateCoverElems(coverFeat(con, self.iiss), freeProb)\
+                             + (1 - self.consProbs[con]) * probSafePiExistWhenLocked * estimateCoverElems(removeFeat(con, self.iiss), freeProb)
               elif not self.useIIS and self.useRelPi:
-                score[con] = self.consProbs[con] * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb)\
-                             + (1 - self.consProbs[con]) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb)
+                score[con] = self.consProbs[con] * (1 - probSafePiExistWhenFree) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb)\
+                             + (1 - self.consProbs[con]) * (1 - probSafePiExistWhenLocked) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb)
               else:
                 raise Exception('should enable useIIS or useRelPi')
           else:
