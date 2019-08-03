@@ -11,7 +11,7 @@ settingCandidates = [([8, 9, 10, 11, 12], [0], 1),
                      #([14], map(lambda _: 0.1 * _, range(6)), 0.5),
                     ]
 
-size = 6
+size = 5
 
 methods = ['oracle',
            'opt',
@@ -21,7 +21,7 @@ methods = ['oracle',
            #'iisAndRelpi1',
            'iisAndRelpi2',
            'iisAndRelpi3',
-           'iisOnly3', 'relpiOnly3',
+           #'iisOnly3', 'relpiOnly3',
            'maxProb',
            #'maxProbF', 'maxProbIF', # variatiosn of maxProb
            'piHeu',

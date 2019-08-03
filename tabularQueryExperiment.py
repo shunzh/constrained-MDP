@@ -168,7 +168,9 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
       return
 
     if dry:
-      print 'dry run. no output'
+      print 'iiss', iiss
+      print 'relFeats', relFeats
+      print 'dry run. no file output'
     else:
       lb = pf; ub = pf + pfStep
       # write to file
@@ -264,7 +266,7 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
       print mrk, regret, runTime
 
       if dry:
-        print 'dry run. no output'
+        print 'dry run. no file output'
       else:
         saveToFileForSafePiImprove(method, k, numOfCarpets, q, mrk, runTime, regret)
 
@@ -345,4 +347,4 @@ if __name__ == '__main__':
     #spec = sokobanWorld()
 
     mdp, consStates, goalStates = officeNavigation(spec)
-    experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0.9, pfStep=0)
+    experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1)

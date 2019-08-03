@@ -289,14 +289,13 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
         if self.optimizeValue:
           # try to optimize values of the safe policies
           # we need IIS when trying to optimize the values of policies
-          score[con] = 1\
-                     + self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
+          score[con] = self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
                      + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.domPiFeats))
         else:
           # only aim to find a safe policy (regardless of its value)
           if self.heuristicID == 0:
             # original heuristic, h_{SC}
-            score[con] = 1 + self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
+            score[con] = self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
           elif self.heuristicID in [1, 2, 3]:
             # prob of safe policy exists
             probSafePiExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
@@ -304,8 +303,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
 
             if self.heuristicID == 1:
               # only uses P[\top;\psi] and P[\bot;\psi]
-              score[con] = 1\
-                         + self.consProbs[con] * (probSafePiExistWhenFree * iisNumWhenFree + (1 - probSafePiExistWhenFree) * relNumWhenFree)\
+              score[con] = self.consProbs[con] * (probSafePiExistWhenFree * iisNumWhenFree + (1 - probSafePiExistWhenFree) * relNumWhenFree)\
                          + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked * iisNumWhenLocked + (1 - probSafePiExistWhenLocked) * relNumWhenLocked)
             elif self.heuristicID == 2:
               # this heuristic uses coverage ratio estimate
@@ -340,6 +338,9 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
                 raise Exception('should enable useIIS or useRelPi')
           else:
             raise Exception('unknown heuristicID')
+
+      # semantically, score estimates the number of queries, so count the current feature
+      score[con] += 1
 
     # to understand the behavior
     if config.VERBOSE: print score
@@ -455,20 +456,22 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     # need domPis for query
     self.computePolicyRelFeats()
 
-    # (locked, free) -> (query, expected value)
+    # (locked, free) -> [(query, expected value)]
     self.optQs = {}
     # the set of cons imposing which we have a safe policy
     self.freeBoundary = []
     # the set of cons imposing which we don't have a safe policy for sure
     self.lockedBoundary = []
 
-    self.lockedTerminalCost = 1 if optimizeLocked else 0
-    self.freeTerminalCost = 1 if optimizeFree else 0
+    # fixme do not need terminal cost for now
+    self.lockedTerminalCost = self.freeTerminalCost = 0
+    #self.lockedTerminalCost = 1 if optimizeLocked else 0
+    #self.freeTerminalCost = 1 if optimizeFree else 0
 
     # this is computed in advance
     self.computeOptQueries()
 
-  def getQueryAndValue(self, locked, free):
+  def getQueryAndValue(self, locked, free, allValues=False):
     if any(set(locked).issuperset(lockedB) for lockedB in self.lockedBoundary):
       return (NOTEXIST, self.lockedTerminalCost)
     elif any(set(free).issuperset(freeB) for freeB in self.freeBoundary):
@@ -476,10 +479,15 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     elif not (frozenset(locked), frozenset(free)) in self.optQs:
       return None
     else:
-      return self.optQs[frozenset(locked), frozenset(free)]
+      if not allValues:
+        return min(self.optQs[frozenset(locked), frozenset(free)], key=lambda _: _[1])
+      else:
+        # if allValues, return the whole list of q function
+        return self.optQs[frozenset(locked), frozenset(free)]
 
-  def setQueryAndValue(self, locked, free, qAndV):
-    self.optQs[frozenset(locked), frozenset(free)] = qAndV
+  def setQueryAndValue(self, locked, free, minNums):
+    # keep the whole `q function' for debugging
+    self.optQs[frozenset(locked), frozenset(free)] = minNums
 
   def computeOptQueries(self):
     """
@@ -547,13 +555,11 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
       minNums = [(con,
                   self.consProbs[con] * self.getQueryAndValue(lockedCons, set(freeCons).union({con}))[1]\
                   + (1 - self.consProbs[con]) * self.getQueryAndValue(set(lockedCons).union({con}), freeCons)[1]\
-                  + 1) # count con in
+                  + 1)
                  for con in unknownCons]
 
       # pick the tuple that has the minimum obj value after querying
-      self.setQueryAndValue(lockedCons, freeCons, min(minNums, key=lambda _: _[1]))
-
-      if config.VERBOSE: print lockedCons, freeCons, minNums
+      self.setQueryAndValue(lockedCons, freeCons, minNums)
 
       # add neighbors that ready to evaluate to readToEvalSet
       readyToEvalSet += filter(lambda (l, f): self.getQueryAndValue(l, f) == None and readyToEvaluate(l, f),
@@ -567,6 +573,9 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
 
     qAndV = self.getQueryAndValue(relLockedCons, relFreeCons)
     assert qAndV != None
+
+    if config.VERBOSE: print self.getQueryAndValue(relLockedCons, relFreeCons, allValues=True)
+
     return qAndV[0]
 
 
