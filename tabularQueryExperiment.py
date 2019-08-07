@@ -101,6 +101,9 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
       elif method == 'relpiOnly3':
         agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, useIIS=False, useRelPi=True, heuristicID=3)
 
+      elif method == 'iisAndRelpi4':
+        agent = GreedyForSafetyAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, heuristicID=4)
+
       # baseline heuristics
       elif method == 'maxProb':
         agent = MaxProbSafePolicyExistAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs, tryFeasible=True, tryInfeasible=True)
@@ -327,9 +330,9 @@ if __name__ == '__main__':
       raise Exception('unknown argument')
 
   if batch:
-    from config import trials, settingCandidates
+    from config import trialsStart, trialsEnd, settingCandidates
 
-    for rnd in range(trials):
+    for rnd in range(trialsStart, trialsEnd):
       for (carpetNums, pfRange, pfStep) in settingCandidates:
         for carpetNum in carpetNums:
           for pf in pfRange:
@@ -340,8 +343,8 @@ if __name__ == '__main__':
             mdp, consStates, goalStates = officeNavigation(spec)
             experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
-    spec = carpetsAndWallsDomain()
-    #spec = squareWorld(size, numOfCarpets, numOfSwitches, numOfWalls=numOfWalls)
+    #spec = carpetsAndWallsDomain()
+    spec = squareWorld(size, numOfCarpets, numOfSwitches, numOfWalls=numOfWalls)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()

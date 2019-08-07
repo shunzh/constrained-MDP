@@ -8,7 +8,7 @@ from numpy import mean
 
 from util import standardErr
 
-from config import trials, size
+from config import trialsStart, trialsEnd, size
 
 # FIXME assuming squared domain for now
 width = height = size
@@ -27,6 +27,7 @@ markers = {'oracle': 'r*--',
            'iisOnly': 'bo--', 'relpiOnly': 'bo-.',
            'iisAndRelpi3': 'bv-',
            'iisOnly3': 'bv--', 'relpiOnly3': 'bv-.',
+           'iisAndRelpi4': 'bs-',
            'maxProb': 'g^-', 'maxProbF': 'g^--', 'maxProbIF': 'g^-.',
            'piHeu': 'm+-', 'random': 'c.-',
            'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
@@ -36,7 +37,8 @@ names = {'oracle': 'Oracle',
          'iisOnly': '$h_{SC}$ (IIS)', 'relpiOnly': '$h_{SC}$ (rel. feat.)',
          'iisAndRelpi1': '$h_{SC}$ w/ P[T]',
          'iisAndRelpi2': '$h_{CR}$ max',
-         'iisAndRelpi3': '$h_{CR}$ sum',
+         'iisAndRelpi3': '$h_{CR}$',
+         'iisAndRelpi4': '$h_{AP}$',
          'iisOnly3': '$h_{CR}$ (IIS)', 'relpiOnly3': '$h_{CR}$ (rel. feat.)',
          'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. Feasible', 'maxProbIF': 'Greed. Prob. Infeasible',
          'piHeu': 'Most-Likely', 'random': 'Descending',
@@ -92,7 +94,7 @@ def printTex(head, data):
 
 def plotLegend():
   ax = pylab.gca()
-  figLegend = pylab.figure(figsize=(3.2, 2))
+  figLegend = pylab.figure(figsize=(3, 2.3))
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
@@ -173,6 +175,16 @@ def scatter(x, y, xlabel, ylabel, filename):
 
   pylab.close()
 
+def histogram(x, xlabel, filename):
+  fig = pylab.figure()
+
+  pylab.hist(x)
+
+  pylab.xlabel(xlabel)
+
+  fig.savefig(filename + ".pdf", dpi=300, format="pdf")
+  pylab.close()
+
 def plotNumVsProportion(carpetNum, pfRange, pfStep):
   """
   Plot the the number of queried features vs the proportion of free features
@@ -187,11 +199,9 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
       times[method, pf] = []
 
   validInstances = []
+  qDiffs = []
 
-  for rnd in range(trials):
-    # set to true if this instance is valid (no safe init policy)
-    rndProcessed = False
-
+  for rnd in range(trialsStart, trialsEnd):
     for pf in pfRange:
       try:
         pfUb = pf + pfStep
@@ -207,11 +217,12 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
         lensOfQ[method, pf].append(len(data['q'][method]))
         times[method, pf].append(data['t'][method])
       
-      if not rndProcessed:
-        rndProcessed = True
+      validInstances.append(rnd)
 
-        validInstances.append(rnd)
-    
+      qDiffs.append(len(data['q']['iisAndRelpi4']) - len(data['q']['iisAndRelpi3']))
+
+  histogram(qDiffs, names['iisAndRelpi4'] + ' - ' + names['iisAndRelpi3'], 'qdiffPfs')
+
   print 'valid instances', len(validInstances)
   assert len(validInstances) > 0
 
@@ -273,7 +284,9 @@ def plotNumVsCarpets(carpetNums):
     solvableIns[carpetNum] = []
     validInstances[carpetNum] = []
 
-  for rnd in range(trials):
+  qDiffs = []
+
+  for rnd in range(trialsStart, trialsEnd):
     for carpetNum in carpetNums:
       try:
         filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_0_1_' +  str(rnd) + '.pkl'
@@ -299,11 +312,10 @@ def plotNumVsCarpets(carpetNums):
       validInstances[carpetNum].append(rnd)
       if data['solvable']: solvableIns[carpetNum].append(rnd)
 
-      """
       # print the case where ouralg is suboptimal for analysis
-      if 'opt' in methods and len(data['q']['opt']) < len(data['q']['iisAndRelpi']):
-        print 'rnd', rnd, 'carpetNum', carpetNum, 'opt', data['q']['opt'], 'iisAndRelpi', data['q']['iisAndRelpi']
-      """
+      qDiffs.append(len(data['q']['iisAndRelpi4']) - len(data['q']['iisAndRelpi3']))
+
+  histogram(qDiffs, names['iisAndRelpi4'] + ' - ' + names['iisAndRelpi3'], 'qdiffCarpet')
 
   printTex('\\# of trials w/ no initial safe policies',
            [len(validInstances[carpetNum]) for carpetNum in carpetNums])
