@@ -15,7 +15,7 @@ from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigation, squareWorld, toySokobanWorld, sokobanWorld, carpetsAndWallsDomain
 
 
-def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
+def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1, consProbs=None):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
@@ -26,7 +26,7 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
     If None (by default), set randomly
   """
   numOfCons = len(consStates)
-  consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
+  if consProbs is None: consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
 
   print 'consProbs', zip(range(numOfCons), consProbs)
 
@@ -164,7 +164,7 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1):
     print 'queries', queries
     print 'times', times
     print 'safe policy', answer
-    print 'safe policy value', valuesOfSafePis
+    #print 'safe policy value', valuesOfSafePis
 
     if len(queries['oracle']) == 0:
       # do not record cases where it is impossible to find a safe policy (because of the transition dynamics)
@@ -293,12 +293,11 @@ if __name__ == '__main__':
   dry = False # do not save to files if dry run
 
   # the domain is size x size
-  from config import size
+  from config import size, walls
 
-  numOfCarpets = 10
+  numOfCarpets = 6
   numOfSwitches = 1
   # FIXME a crucial parameter shouldn't be put here
-  numOfWalls = 5
   numOfBoxes = 0
 
   rnd = 0 # set a dummy random seed if no -r argument
@@ -339,12 +338,12 @@ if __name__ == '__main__':
             # reset random seed in each iteration
             setRandomSeed(rnd)
 
-            spec = squareWorld(size, carpetNum, numOfSwitches, numOfWalls=numOfWalls)
+            spec = squareWorld(size, carpetNum, numOfSwitches, numOfWalls=walls)
             mdp, consStates, goalStates = officeNavigation(spec)
             experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
     #spec = carpetsAndWallsDomain()
-    spec = squareWorld(size, numOfCarpets, numOfSwitches, numOfWalls=numOfWalls)
+    spec = squareWorld(size, numOfCarpets, numOfSwitches, numOfWalls=walls)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()

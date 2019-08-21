@@ -219,9 +219,9 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
       
       validInstances.append(rnd)
 
-      qDiffs.append(len(data['q']['iisAndRelpi4']) - len(data['q']['iisAndRelpi3']))
+      #qDiffs.append(len(data['q']['iisAndRelpi4']) - len(data['q']['iisAndRelpi3']))
 
-  histogram(qDiffs, names['iisAndRelpi4'] + ' - ' + names['iisAndRelpi3'], 'qdiffPfs')
+  #histogram(qDiffs, names['iisAndRelpi4'] + ' - ' + names['iisAndRelpi3'], 'qdiffPfs')
 
   print 'valid instances', len(validInstances)
   assert len(validInstances) > 0
@@ -313,9 +313,9 @@ def plotNumVsCarpets(carpetNums):
       if data['solvable']: solvableIns[carpetNum].append(rnd)
 
       # print the case where ouralg is suboptimal for analysis
-      qDiffs.append(len(data['q']['iisAndRelpi4']) - len(data['q']['iisAndRelpi3']))
+      #qDiffs.append(len(data['q']['iisAndRelpi4']) - len(data['q']['iisAndRelpi3']))
 
-  histogram(qDiffs, names['iisAndRelpi4'] + ' - ' + names['iisAndRelpi3'], 'qdiffCarpet')
+  #histogram(qDiffs, names['iisAndRelpi4'] + ' - ' + names['iisAndRelpi3'], 'qdiffCarpet')
 
   printTex('\\# of trials w/ no initial safe policies',
            [len(validInstances[carpetNum]) for carpetNum in carpetNums])

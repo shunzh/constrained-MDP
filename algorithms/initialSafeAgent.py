@@ -273,10 +273,6 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     if self.heuristicID in [1, 2, 3]:
       probSafePiExistWhenFree = {con: self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con]) for con in unknownCons}
       probSafePiExistWhenLocked = {con: self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons) for con in unknownCons}
-    elif self.heuristicID == 4:
-      probSafePiExist = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons)
-      maxCoverIIS = max(self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) for con in unknownCons)
-      maxCoverRel = max((1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) for con in unknownCons)
 
     for con in unknownCons:
       # prefer using iis
@@ -306,9 +302,10 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
           # only aim to find a safe policy (regardless of its value)
           if self.heuristicID == 0:
             # original heuristic, h_{SC}
-            score[con] = self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
+            #score[con] = self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
+            score[con] = -(self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) / len(self.iiss)
+                       + (1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) / len(self.domPiFeats))
           elif self.heuristicID == 1:
-            # only uses P[\top;\psi] and P[\bot;\psi]
             score[con] = self.consProbs[con] * (probSafePiExistWhenFree[con] * iisNumWhenFree + (1 - probSafePiExistWhenFree[con]) * relNumWhenFree)\
                        + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked[con] * iisNumWhenLocked + (1 - probSafePiExistWhenLocked[con]) * relNumWhenLocked)
           elif self.heuristicID == 2:
@@ -334,22 +331,13 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
                                                   (1 - probSafePiExistWhenFree[con]) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
                          + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked[con] * estimateCoverElems(removeFeat(con, self.iiss), freeProb) +
                                                         (1 - probSafePiExistWhenLocked[con]) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
-            elif self.useIIS and not self.useRelPi:
-              score[con] = self.consProbs[con] * probSafePiExistWhenFree[con] * estimateCoverElems(coverFeat(con, self.iiss), freeProb)\
-                           + (1 - self.consProbs[con]) * probSafePiExistWhenLocked[con] * estimateCoverElems(removeFeat(con, self.iiss), freeProb)
-            elif not self.useIIS and self.useRelPi:
-              score[con] = self.consProbs[con] * (1 - probSafePiExistWhenFree[con]) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb)\
-                           + (1 - self.consProbs[con]) * (1 - probSafePiExistWhenLocked[con]) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb)
-            else:
-              raise Exception('should enable useIIS or useRelPi')
           elif self.heuristicID == 4:
-            score[con] = 1.0 * maxCoverIIS / (self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) + 1e-4) * probSafePiExist * (math.log(len(self.iiss)) + 1) ** 2 +\
-                         1.0 * maxCoverRel / ((1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) + 1e-4) * (1 - probSafePiExist) * (math.log(len(self.domPiFeats)) + 1) ** 2
+
           else:
             raise Exception('unknown heuristicID')
 
       # semantically, score estimates the number of queries, so count the current feature
-      score[con] += 1
+      #score[con] += 1
 
     # to understand the behavior
     if config.VERBOSE: print score
@@ -583,7 +571,8 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     qAndV = self.getQueryAndValue(relLockedCons, relFreeCons)
     assert qAndV != None
 
-    if config.VERBOSE: print self.getQueryAndValue(relLockedCons, relFreeCons, allValues=True)
+    if config.VERBOSE:
+      print self.getQueryAndValue(relLockedCons, relFreeCons, allValues=True)
 
     return qAndV[0]
 
