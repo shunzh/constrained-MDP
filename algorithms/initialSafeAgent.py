@@ -270,9 +270,16 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     score = {}
 
     # compute quantities used by some heuristics
-    if self.heuristicID in [1, 2, 3]:
+    if self.heuristicID in [1, 3]:
       probSafePiExistWhenFree = {con: self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con]) for con in unknownCons}
       probSafePiExistWhenLocked = {con: self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons) for con in unknownCons}
+
+    if self.heuristicID == 2:
+      probSafePiExist = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons)
+
+    if self.heuristicID == 4:
+      maxDeltaIIS = max(self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) for con in unknownCons)
+      maxDeltaRel = max((1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) for con in unknownCons)
 
     for con in unknownCons:
       # prefer using iis
@@ -303,22 +310,25 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
           if self.heuristicID == 0:
             # original heuristic, h_{SC}
             #score[con] = self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
-            score[con] = -(self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) / len(self.iiss)
+            score[con] = (self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) / len(self.iiss)
                        + (1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) / len(self.domPiFeats))
+            # maximize this objective
+            score[con] = -score[con]
           elif self.heuristicID == 1:
             score[con] = self.consProbs[con] * (probSafePiExistWhenFree[con] * iisNumWhenFree + (1 - probSafePiExistWhenFree[con]) * relNumWhenFree)\
                        + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked[con] * iisNumWhenLocked + (1 - probSafePiExistWhenLocked[con]) * relNumWhenLocked)
           elif self.heuristicID == 2:
             # this heuristic uses coverage ratio estimate
             estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
-            # useful locally
             freeProb = lambda _: self.consProbs[_]
             lockedProb = lambda _: 1 - self.consProbs[_]
 
-            score[con] = self.consProbs[con] * max(probSafePiExistWhenFree[con] * estimateCoverElems(coverFeat(con, self.iiss), freeProb),
-                                                   (1 - probSafePiExistWhenFree[con]) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
-                       + (1 - self.consProbs[con]) * max(probSafePiExistWhenLocked[con] * estimateCoverElems(removeFeat(con, self.iiss), freeProb),
-                                                         (1 - probSafePiExistWhenLocked[con]) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
+            score[con] = (self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) / len(self.iiss)
+                         * (probSafePiExist * estimateCoverElems(self.iiss, freeProb))
+                       + (1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) / len(self.domPiFeats)
+                         * (1 - probSafePiExist) * estimateCoverElems(self.domPiFeats, lockedProb))
+            # maximize this objective
+            score[con] = -score[con]
           elif self.heuristicID == 3:
             # this heuristic uses coverage ratio estimate
             estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
@@ -332,7 +342,9 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
                          + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked[con] * estimateCoverElems(removeFeat(con, self.iiss), freeProb) +
                                                         (1 - probSafePiExistWhenLocked[con]) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
           elif self.heuristicID == 4:
-
+            score[con] = max(maxDeltaIIS / (self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) + 1e-4),
+                             maxDeltaRel / ((1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) + 1e-4)
+                            )
           else:
             raise Exception('unknown heuristicID')
 
