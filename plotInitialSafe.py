@@ -35,10 +35,8 @@ names = {'oracle': 'Oracle',
          'opt': 'Optimal',
          'iisAndRelpi': '$h_{SC}$',
          'iisOnly': '$h_{SC}$ (IIS)', 'relpiOnly': '$h_{SC}$ (rel. feat.)',
-         'iisAndRelpi1': '$h_{SC}$ w/ P[T]',
-         'iisAndRelpi2': '$h_{CR}$ max',
+         'iisAndRelpi1': '$h_{SC}$ est',
          'iisAndRelpi3': '$h_{CR}$',
-         'iisAndRelpi4': '$h_{AP}$',
          'iisOnly3': '$h_{CR}$ (IIS)', 'relpiOnly3': '$h_{CR}$ (rel. feat.)',
          'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. Feasible', 'maxProbIF': 'Greed. Prob. Infeasible',
          'piHeu': 'Most-Likely', 'random': 'Descending',
@@ -185,7 +183,7 @@ def histogram(x, xlabel, filename):
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
   pylab.close()
 
-def plotNumVsProportion(carpetNum, pfRange, pfStep):
+def plotNumVsProportion(carpetNum, wallNum, pfRange, pfStep):
   """
   Plot the the number of queried features vs the proportion of free features
   """
@@ -206,7 +204,7 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
       try:
         pfUb = pf + pfStep
 
-        filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_' + str(pf) + '_' + str(pfUb) + '_' + str(rnd) + '.pkl'
+        filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_' + str(wallNum) + '_' + str(pf) + '_' + str(pfUb) + '_' + str(rnd) + '.pkl'
         data = pickle.load(open(filename, 'rb'))
       except IOError:
         #print filename, 'not exist'
@@ -238,19 +236,19 @@ def plotNumVsProportion(carpetNum, pfRange, pfStep):
 
   y = lambda method, pf: lensOfQ[method, pf]
   plot(x, y, methods, '$p_f$', '# of Queried Features',
-       'lensOfQPf' + str(carpetNum) + '_' + str(pfStep),
+       'lensOfQPf' + str(carpetNum) + '_' + str(wallNum) + '_' + str(pfStep),
        xAxis=xAxis)
   plotMeanOfRatioWrtBaseline(x, y, methods, '$p_f$', '# of Queried Features / Optimal',
-                             'lensOfQPf' + str(carpetNum) + '_' + str(pfStep) + '_meanOfRatio',
+                             'lensOfQPf_meanOfRatio_' + str(carpetNum) + '_' + str(wallNum) + '_' + str(pfStep),
                              xAxis=xAxis)
 
   y = lambda method, pf: times[method, pf]
-  plot(x, y, methods, '$p_f$', 'Computation Time (sec.)', 'timesPf', xAxis=xAxis)
+  plot(x, y, methods, '$p_f$', 'Computation Time (sec.)', 'timesPf_' + str(carpetNum) + '_' + str(wallNum), xAxis=xAxis)
 
-def plotNumVsCarpets(carpetNums):
+def plotNumVsCarpets(carpetNums, wallNum):
   """
   plot the num of queried features / computation time vs. num of carpets
-  plotting data with pf = 0, pfStep = 1
+  wallNum is given; plotting data with pf = 0, pfStep = 1
   """
   lensOfQ = {}
   lensOfQRelPhi = {}
@@ -289,7 +287,7 @@ def plotNumVsCarpets(carpetNums):
   for rnd in range(trialsStart, trialsEnd):
     for carpetNum in carpetNums:
       try:
-        filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_0_1_' +  str(rnd) + '.pkl'
+        filename = str(width) + '_' + str(height) + '_' + str(carpetNum) + '_' + str(wallNum) + '_0_1_' +  str(rnd) + '.pkl'
         data = pickle.load(open(filename, 'rb'))
       except IOError:
         #print filename, 'not exist'
@@ -330,22 +328,21 @@ def plotNumVsCarpets(carpetNums):
   x = carpetNums
   # absolute number of queried features
   y = lambda method, carpetNum: lensOfQ[method, carpetNum]
-  plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets')
+  plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets_' + str(wallNum),)
   plotMeanOfRatioWrtBaseline(x, y, methods, '# of Carpets', '# of Queried Features / Optimal',
-                             'lensOfQCarpets_meanOfRatio', integerAxis=True)
+                             'lensOfQCarpets_meanOfRatio_' + str(wallNum), integerAxis=True)
 
   #y = lambda method, carpetNum: safePiValues[method, carpetNum]
   #plot(x, y, methods, '# of Carpets', 'Values of Safe Policy', 'safePiValuesCarpets')
 
   y = lambda method, carpetNum: times[method, carpetNum]
-  plot(x, y, methods, '# of Carpets', 'Computation Time (sec.)', 'timesCarpets')
+  plot(x, y, methods, '# of Carpets', 'Computation Time (sec.)', 'timesCarpets_' + str(wallNum))
 
   # plot num of features queried based on the num of dom pis
-  x = range(max(carpetNums))
-  y = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
-
-  plotMeanOfRatioWrtBaseline(x, y, methods, '# of Relevant Features', '# of Queried Features / Optimal',
-                             'lensOfQCarpets_rel_meanOfRatio', integerAxis=True)
+  #x = range(max(carpetNums))
+  # = lambda method, relFeat: lensOfQRelPhi[method, relFeat]
+  #lotMeanOfRatioWrtBaseline(x, y, methods, '# of Relevant Features', '# of Queried Features / Optimal',
+  #                           'lensOfQCarpets_rel_meanOfRatio', integerAxis=True)
 
 if __name__ == '__main__':
   font = {'size': 13}
@@ -353,11 +350,12 @@ if __name__ == '__main__':
 
   from config import settingCandidates
 
-  for (carpetNums, pfRange, pfStep) in settingCandidates:
+  for (carpetNums, wallNums, pfRange, pfStep) in settingCandidates:
     if len(carpetNums) > 1 and len(pfRange) == 1:
       # exp 1: varying num of carpets
-      plotNumVsCarpets(carpetNums)
+      for wallNum in wallNums:
+        plotNumVsCarpets(carpetNums=carpetNums, wallNum=wallNum)
     else:
       for carpetNum in carpetNums:
-        plotNumVsProportion(carpetNum, pfRange, pfStep)
-
+        for wallNum in wallNums:
+          plotNumVsProportion(carpetNum=carpetNum, wallNum=wallNum, pfRange=pfRange, pfStep=pfStep)

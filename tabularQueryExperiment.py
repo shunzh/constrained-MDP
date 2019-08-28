@@ -179,8 +179,11 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1, consPro
       # write to file
       pickle.dump({'q': queries, 't': times, 'iiss': iiss, 'relFeats': relFeats,
                    'solvable': answer == 'exist', 'valuesOfSafePis': valuesOfSafePis},
-                  open(str(spec.width) + '_' + str(spec.height) + '_' + str(len(spec.carpets)) + '_' +\
-                       str(lb) + '_' + str(ub) + '_' + str(rnd) + '.pkl', 'wb'))
+                  open(str(spec.width) + '_' + str(spec.height)
+                       + '_' + str(len(spec.carpets))
+                       + '_' + str(len(spec.walls))
+                       + '_' + str(lb) + '_' + str(ub)
+                       + '_' + str(rnd) + '.pkl', 'wb'))
   else:
     # when initial safe policies exist, we want to improve such a safe policy using batch queries
     print 'initial policy exists'
@@ -293,7 +296,7 @@ if __name__ == '__main__':
   dry = False # do not save to files if dry run
 
   # the domain is size x size
-  from config import size, walls
+  from config import size
 
   numOfCarpets = 6
   numOfSwitches = 1
@@ -332,18 +335,19 @@ if __name__ == '__main__':
     from config import trialsStart, trialsEnd, settingCandidates
 
     for rnd in range(trialsStart, trialsEnd):
-      for (carpetNums, pfRange, pfStep) in settingCandidates:
+      for (carpetNums, wallNums, pfRange, pfStep) in settingCandidates:
         for carpetNum in carpetNums:
-          for pf in pfRange:
-            # reset random seed in each iteration
-            setRandomSeed(rnd)
+          for wallNum in wallNums:
+            for pf in pfRange:
+              # reset random seed in each iteration
+              setRandomSeed(rnd)
 
-            spec = squareWorld(size, carpetNum, numOfSwitches, numOfWalls=walls)
-            mdp, consStates, goalStates = officeNavigation(spec)
-            experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
+              spec = squareWorld(size=size, numOfCarpets=carpetNum, numOfWalls=wallNum)
+              mdp, consStates, goalStates = officeNavigation(spec)
+              experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
     #spec = carpetsAndWallsDomain()
-    spec = squareWorld(size, numOfCarpets, numOfSwitches, numOfWalls=walls)
+    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=6)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()

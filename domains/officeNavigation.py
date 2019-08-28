@@ -132,7 +132,7 @@ A list of parameterized domains.
 These are randomly generated rather than hand-specified.
 """
 # parameterized worlds
-def squareWorld(size, numOfCarpets, numOfSwitches, numOfWalls=0, randomSwitch=False):
+def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1, randomSwitch=False):
   """
   Squared world with width = height = size.
   The robot and the switch are at opposite corners (unless randomSwitch==True).
