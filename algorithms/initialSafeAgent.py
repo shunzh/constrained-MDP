@@ -1,6 +1,7 @@
 import copy
 import math
 import random
+import time
 from itertools import combinations
 
 import config
@@ -29,6 +30,17 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     if newLockedCon is not None:
       self.knownLockedCons.append(newLockedCon)
 
+    # recompute dom pi and iiss every time if we're doing early stopping
+    if config.earlyStop is not None:
+      # delete corresponding attributes and re-compute
+      if hasattr(self, 'domPiFeats'):
+        delattr(self, 'domPiFeats')
+        self.computePolicyRelFeats()
+
+      if hasattr(self, 'iiss'):
+        delattr(self, 'iiss')
+        self.computeIISs()
+
     self.numOfAskedQueries += 1
 
   def safePolicyExist(self, freeCons=None):
@@ -43,7 +55,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
       # for some simple heuristics, it's not fair to ask them to precompute dompis (need to run a lot of LP)
       # so we try to solve the lp problem once here
       # see whether the lp is feasible if we assume all other features are locked
-      return self.findConstrainedOptPi(set(self.allCons) - set(freeCons))['feasible']
+      return self.findConstrainedOptPi(set(self.unknownCons) - set(freeCons))['feasible']
 
   def safePolicyNotExist(self, lockedCons=None):
     # there are some locked features in all dom pis
@@ -72,7 +84,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     This can be O(2^|relevant features|), depending on the implementation of findDomPis
     """
     # check whether this is already computed
-    if hasattr(self, 'piRelFeats'): return
+    if hasattr(self, 'domPiFeats'): return
 
     relFeats, domPis = self.findRelevantFeaturesAndDomPis()
     domPiFeats = []
@@ -95,6 +107,9 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     eg. (1 and 2) or (3 and 4) --> (1 or 3) and (1 or 4) and (2 or 3) and (2 or 4)
     """
     # we first need relevant features
+    if hasattr(self, 'iiss'):
+      return
+
     if not hasattr(self, 'piRelFeats'):
       self.computePolicyRelFeats()
 
@@ -115,7 +130,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     a brute force way to find all iiss and return their indicies
     can be O(2^|unknown features|)
     """
-    unknownConsPowerset = powerset(self.allCons)
+    unknownConsPowerset = powerset(self.unknownCons)
     feasible = {}
     iiss = []
 
@@ -153,7 +168,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     For all partitions of free and locked features, compute if safe pi exists.
     This will be called if getProbOfExistenceOfSafePolicies is called. Otherwise we don't need this
     """
-    allSubsetsOfUnknownCons = powerset(self.consIndices)
+    allSubsetsOfUnknownCons = powerset(self.unknownCons)
     self.cachedSafePolicyExist = {}
 
     for freeSubset in allSubsetsOfUnknownCons:
@@ -278,64 +293,46 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
       probSafePiExist = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons)
 
     for con in unknownCons:
-      # prefer using iis
-      if self.useIIS:
-        iisNumWhenFree = len(coverFeat(con, self.iiss))
-        iisNumWhenLocked = len(removeFeat(con, self.iiss))
+      if self.optimizeValue:
+        # try to optimize values of the safe policies
+        # we need IIS when trying to optimize the values of policies
+        score[con] = self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
+                   + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.domPiFeats))
       else:
-        iisNumWhenFree = iisNumWhenLocked = 0
+        # only aim to find a safe policy (regardless of its value)
+        if self.heuristicID == 0:
+          # original heuristic, h_{SC}
+          #score[con] = self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
+          score[con] = (self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) / len(self.iiss)
+                     + (1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) / len(self.domPiFeats))
+        elif self.heuristicID == 1:
+          score[con] = self.consProbs[con] * probSafePiExist * numOfSetsContainFeat(con, self.iiss)\
+                     + (1 - self.consProbs[con]) * (1 - probSafePiExist) * numOfSetsContainFeat(con, self.domPiFeats)
+        elif self.heuristicID == 2:
+          estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
+          freeProb = lambda _: self.consProbs[_]
+          lockedProb = lambda _: 1 - self.consProbs[_]
 
-      if self.useRelPi:
-        relNumWhenLocked = len(coverFeat(con, self.domPiFeats))
-        relNumWhenFree = len(removeFeat(con, self.domPiFeats))
-      else:
-        relNumWhenLocked = relNumWhenFree = 0
+          score[con] = (self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) / len(self.iiss)
+                       * (probSafePiExist * estimateCoverElems(self.iiss, freeProb))
+                     + (1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) / len(self.domPiFeats)
+                       * (1 - probSafePiExist) * estimateCoverElems(self.domPiFeats, lockedProb))
+        elif self.heuristicID == 3:
+          # this heuristic uses coverage ratio estimate
+          estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
+          # useful locally
+          freeProb = lambda _: self.consProbs[_]
+          lockedProb = lambda _: 1 - self.consProbs[_]
 
-      if self.adversarial:
-        # non-Bayesian
-        score[con] = max(iisNumWhenFree, relNumWhenLocked)
-      else:
-        # Bayesian
-        if self.optimizeValue:
-          # try to optimize values of the safe policies
-          # we need IIS when trying to optimize the values of policies
-          score[con] = self.consProbs[con] * (self.costOfQuery - self.featureVals[con]) / len(filter(lambda _: con in _, self.iiss)) \
-                     + (1 - self.consProbs[con]) * self.costOfQuery / len(filter(lambda _: con in _, self.domPiFeats))
+          if self.useIIS and self.useRelPi:
+            score[con] = self.consProbs[con] * (probSafePiExistWhenFree[con] * estimateCoverElems(coverFeat(con, self.iiss), freeProb) +
+                                                (1 - probSafePiExistWhenFree[con]) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
+                       + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked[con] * estimateCoverElems(removeFeat(con, self.iiss), freeProb) +
+                                                      (1 - probSafePiExistWhenLocked[con]) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
+          # minimize this objective
+          score[con] = -score[con]
         else:
-          # only aim to find a safe policy (regardless of its value)
-          if self.heuristicID == 0:
-            # original heuristic, h_{SC}
-            #score[con] = self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
-            score[con] = (self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) / len(self.iiss)
-                       + (1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) / len(self.domPiFeats))
-          elif self.heuristicID == 1:
-            score[con] = self.consProbs[con] * probSafePiExist * numOfSetsContainFeat(con, self.iiss)\
-                       + (1 - self.consProbs[con]) * (1 - probSafePiExist) * numOfSetsContainFeat(con, self.domPiFeats)
-          elif self.heuristicID == 2:
-            estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
-            freeProb = lambda _: self.consProbs[_]
-            lockedProb = lambda _: 1 - self.consProbs[_]
-
-            score[con] = (self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) / len(self.iiss)
-                         * (probSafePiExist * estimateCoverElems(self.iiss, freeProb))
-                       + (1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) / len(self.domPiFeats)
-                         * (1 - probSafePiExist) * estimateCoverElems(self.domPiFeats, lockedProb))
-          elif self.heuristicID == 3:
-            # this heuristic uses coverage ratio estimate
-            estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
-            # useful locally
-            freeProb = lambda _: self.consProbs[_]
-            lockedProb = lambda _: 1 - self.consProbs[_]
-
-            if self.useIIS and self.useRelPi:
-              score[con] = self.consProbs[con] * (probSafePiExistWhenFree[con] * estimateCoverElems(coverFeat(con, self.iiss), freeProb) +
-                                                  (1 - probSafePiExistWhenFree[con]) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
-                         + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked[con] * estimateCoverElems(removeFeat(con, self.iiss), freeProb) +
-                                                        (1 - probSafePiExistWhenLocked[con]) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
-            # minimize this objective
-            score[con] = -score[con]
-          else:
-            raise Exception('unknown heuristicID')
+          raise Exception('unknown heuristicID')
 
       # semantically, score estimates the number of queries, so count the current feature
       #score[con] += 1

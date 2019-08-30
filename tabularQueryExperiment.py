@@ -166,7 +166,7 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1, consPro
     print 'safe policy', answer
     #print 'safe policy value', valuesOfSafePis
 
-    if len(queries['oracle']) == 0:
+    if 'oracle' in queries.keys() and len(queries['oracle']) == 0:
       # do not record cases where it is impossible to find a safe policy (because of the transition dynamics)
       return
 
@@ -223,10 +223,10 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1, consPro
 
     # decide the true changeable features for expected regrets
     numpy.random.seed(2 * (1 + rnd)) # avoid weird coupling, e.g., the ones that are queried are exactly the true changeable ones
-    if len(agent.allCons) < k:
+    if len(agent.unknownCons) < k:
       raise Exception('k is larger than the number of unknown features so no need to select queries. abort.')
-    violableIndices = numpy.random.choice(range(len(agent.allCons)), k, replace=False)
-    violableCons = [agent.allCons[_] for _ in violableIndices]
+    violableIndices = numpy.random.choice(range(len(agent.unknownCons)), k, replace=False)
+    violableCons = [agent.unknownCons[_] for _ in violableIndices]
 
     for method in methods:
       start = time.time()
@@ -234,7 +234,7 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1, consPro
         q = agent.findMinimaxRegretConstraintQBruteForce(k, relFeats, domPis)
       elif method == 'reallyBrute':
         # really brute still need domPis to find out MR...
-        q = agent.findMinimaxRegretConstraintQBruteForce(k, agent.allCons, domPis)
+        q = agent.findMinimaxRegretConstraintQBruteForce(k, agent.unknownCons, domPis)
       elif method == 'alg1':
         q = agent.findMinimaxRegretConstraintQ(k, relFeats, domPis)
       elif method == 'alg1NoFilter':
@@ -298,7 +298,7 @@ if __name__ == '__main__':
   # the domain is size x size
   from config import size
 
-  numOfCarpets = 6
+  numOfCarpets = 20
   numOfSwitches = 1
   # FIXME a crucial parameter shouldn't be put here
   numOfBoxes = 0

@@ -21,10 +21,10 @@ class SafeImproveAgent(ConsQueryAgent):
     A utility function that finds regret given the true violable constraints
     """
     consRobotCanViolate = set(q).intersection(violableCons)
-    rInvarCons = set(self.allCons).difference(consRobotCanViolate)
+    rInvarCons = set(self.unknownCons).difference(consRobotCanViolate)
     robotPi = self.findConstrainedOptPi(rInvarCons)['pi']
 
-    hInvarCons = set(self.allCons).difference(violableCons)
+    hInvarCons = set(self.unknownCons).difference(violableCons)
     humanPi = self.findConstrainedOptPi(hInvarCons)['pi']
 
     hValue = self.computeValue(humanPi)

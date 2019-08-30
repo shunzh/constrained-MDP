@@ -1,4 +1,5 @@
 import pprint
+import time
 
 from lp import lpDualGurobi, computeValue, lpDualCPLEX
 from util import powerset
@@ -30,7 +31,8 @@ class ConsQueryAgent():
     self.consProbs = consProbs
     self.adversarial = (consProbs is None)
 
-    self.allCons = self.consIndices # FIXME different subclasses call this differently!
+    # FIXME different subclasses call this differently!
+    self.unknownCons = self.consIndices
 
     self.goalCons = [(s, a) for a in mdp.A for s in goalStates]
 
@@ -42,9 +44,7 @@ class ConsQueryAgent():
     """
     Run the LP solver with all constraints and see if the LP problem is feasible.
     """
-    statusObj = self.findConstrainedOptPi(self.allCons)
-
-    #if statusObj['feasible']: printOccSA(statusObj['pi'])
+    statusObj = self.findConstrainedOptPi(self.unknownCons)
 
     return statusObj['feasible']
 
@@ -57,7 +57,7 @@ class ConsQueryAgent():
     """
     mdp = copy.copy(self.mdp)
 
-    zeroConstraints = self.constructConstraints(activeCons)
+    zeroConstraints = self.constructConstraints(tuple(activeCons) + tuple(self.knownLockedCons))
 
     if config.METHOD == 'gurobi':
       return lpDualGurobi(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons,
@@ -74,7 +74,7 @@ class ConsQueryAgent():
   """
   #FIXME what is this for?? just to check the computation time?
   def findRelevantFeaturesBruteForce(self):
-    allConsPowerset = set(powerset(self.allCons))
+    allConsPowerset = set(powerset(self.unknownCons))
 
     for subsetsToConsider in allConsPowerset:
       self.findConstrainedOptPi(subsetsToConsider)
@@ -83,6 +83,8 @@ class ConsQueryAgent():
     """
     Incrementally add dominating policies to a set
     DomPolicies algorithm in the IJCAI paper
+
+    earlyStop: stop within this time and return whatever dompis found
     """
     beta = [] # rules to keep
     dominatingPolicies = {}
@@ -91,8 +93,15 @@ class ConsQueryAgent():
     allConsPowerset = set(powerset(allCons))
     subsetsConsidered = []
 
+    if config.earlyStop is None:
+      # never stop before finding all dom pis
+      terminateCond = lambda: False
+    else:
+      startTime = time.time()
+      terminateCond = lambda: time.time() - startTime >= config.earlyStop
+
     # iterate until no more dominating policies are found
-    while True:
+    while not terminateCond():
       subsetsToConsider = allConsPowerset.difference(subsetsConsidered)
 
       if len(subsetsToConsider) == 0: break
@@ -112,6 +121,7 @@ class ConsQueryAgent():
       if skipThisCons:
         continue
 
+      # it will enforce activeCons and known locked features (inside)
       sol = self.findConstrainedOptPi(activeCons)
       if sol['feasible']:
         x = sol['pi']
@@ -165,16 +175,19 @@ class ConsQueryAgent():
     return set(cons).isdisjoint(set(violatedCons))
 
   def findViolatedConstraints(self, x):
-    # set of changed features
-    var = set()
+    """
+    only return the indices of unknown features that are changed by policy (w/ occupancy x)
+    """
+    var = []
 
-    for idx in self.consIndices:
+    for idx in self.unknownCons:
       # states violated by idx
       for s, a in x.keys():
         if any(x[s, a] > 0 for a in self.mdp.A) and s in self.consStates[idx]:
-          var.add(idx)
+          var.append(idx)
+          break
     
-    return list(var)
+    return var
 
 
 

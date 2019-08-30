@@ -38,7 +38,7 @@ names = {'oracle': 'Oracle',
          'iisAndRelpi1': '$h_{SC}$ est',
          'iisAndRelpi3': '$h_{CR}$',
          'iisOnly3': '$h_{CR}$ (IIS)', 'relpiOnly3': '$h_{CR}$ (rel. feat.)',
-         'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. Feasible', 'maxProbIF': 'Greed. Prob. Infeasible',
+         'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. $\\top$', 'maxProbIF': 'Greed. Prob. $\\bot$',
          'piHeu': 'Most-Likely', 'random': 'Descending',
          'setcoverWithValue': 'Weighted Set Cover', 'piHeuWithValue': 'Most-Likely with Value'}
 
