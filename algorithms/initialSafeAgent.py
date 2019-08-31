@@ -26,8 +26,10 @@ class InitialSafePolicyAgent(ConsQueryAgent):
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
     # function as an interface. does nothing by default
     if newFreeCon is not None:
+      self.unknownCons.remove(newFreeCon)
       self.knownFreeCons.append(newFreeCon)
     if newLockedCon is not None:
+      self.unknownCons.remove(newLockedCon)
       self.knownLockedCons.append(newLockedCon)
 
     # recompute dom pi and iiss every time if we're doing early stopping
@@ -578,14 +580,14 @@ class OracleSafetyAgent(InitialSafePolicyAgent):
 
     self.safePolicyIndeedExist = self.safePolicyExist(trueFreeFeatures)
 
+    # we know the answer before querying, set it here
     if self.safePolicyIndeedExist:
-      # query is the relevant features of any dom pi that has the minimum number of relevant features
-      self.computePolicyRelFeats()
       self.answer = EXIST
     else:
-      # query the minimim sized IIS
-      self.computeIISs()
       self.answer = NOTEXIST
+
+    self.computePolicyRelFeats()
+    self.computeIISs()
 
     # depend on whether we find the true dom pis
     if config.earlyStop is None:
@@ -611,14 +613,17 @@ class OracleSafetyAgent(InitialSafePolicyAgent):
     So we greedily cover tree free/locked features
     :return:
     """
-    if len(self.iiss) == 0 or len(self.domPiFeats) == 0:
-      self.queries = []
-    else:
-      if self.safePolicyIndeedExist:
-        query = max(self.trueFreeFeatures, key=lambda con: numOfSetsContainFeat(con, self.iiss))
-        self.queries = [query]
+    if self.safePolicyIndeedExist:
+      if len(self.iiss) == 0:
+        self.queries = []
       else:
-        query = max(self.trueLockedFeatures, key=lambda con: numOfSetsContainFeat(con, self.domPiFeats))
+        query = max(set(self.trueFreeFeatures) - set(self.knownFreeCons), key=lambda con: numOfSetsContainFeat(con, self.iiss))
+        self.queries = [query]
+    else:
+      if len(self.domPiFeats) == 0:
+        self.queries = []
+      else:
+        query = max(set(self.trueLockedFeatures) - set(self.knownLockedCons), key=lambda con: numOfSetsContainFeat(con, self.domPiFeats))
         self.queries = [query]
 
   def findQuery(self):
