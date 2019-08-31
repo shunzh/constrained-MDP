@@ -300,8 +300,7 @@ if __name__ == '__main__':
 
   numOfCarpets = 20
   numOfSwitches = 1
-  # FIXME a crucial parameter shouldn't be put here
-  numOfBoxes = 0
+  numOfWalls = 15
 
   rnd = 0 # set a dummy random seed if no -r argument
 
@@ -347,7 +346,7 @@ if __name__ == '__main__':
               experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
     #spec = carpetsAndWallsDomain()
-    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=6)
+    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()

@@ -13,11 +13,12 @@ settingCandidates = [#([10, 12, 14], [5], [0], 1),
                     ]
 
 size = 10
+#size = 6
 
-earlyStop = 15
+earlyStop = 20
 #earlyStop = None
 
-methods = [#'oracle',
+methods = ['oracle',
            #'opt',
            #'optLocked', 'optFree',
            'iisAndRelpi',
@@ -26,7 +27,7 @@ methods = [#'oracle',
            #'iisAndRelpi2',
            'iisAndRelpi3',
            'maxProb',
-           #'maxProbF', 'maxProbIF', # variations of maxProb
+           'maxProbF', 'maxProbIF', # variations of maxProb
            'piHeu',
            #'setcoverWithValue', 'piHeuWithValue', # valuebased
            #'random'

@@ -114,6 +114,8 @@ class InitialSafePolicyAgent(ConsQueryAgent):
       self.computePolicyRelFeats()
 
     iiss = [set()]
+    # essentially convert DNF to CNF
+    # incrementally consider more relFeats
     for relFeats in self.domPiFeats:
       iiss = [set(iis).union({relFeat}) for iis in iiss for relFeat in relFeats]
       # kill duplicates in each set
@@ -163,46 +165,32 @@ class InitialSafePolicyAgent(ConsQueryAgent):
       # for comparison, the return is 0 when no safe policies exist
       return 0
 
-  def computeIfSafePiExists(self):
-    """
-    For all partitions of free and locked features, compute if safe pi exists.
-    This will be called if getProbOfExistenceOfSafePolicies is called. Otherwise we don't need this
-    """
-    allSubsetsOfUnknownCons = powerset(self.unknownCons)
-    self.cachedSafePolicyExist = {}
-
-    for freeSubset in allSubsetsOfUnknownCons:
-      # now consider the partition that freeSubset is free and self.consIndices \ freeSubset are locked
-      self.cachedSafePolicyExist[frozenset(freeSubset)] = self.safePolicyExist(freeCons=freeSubset)
-
   def getProbOfExistenceOfSafePolicies(self, lockedCons, freeCons):
     """
-    Compute the probability of existence of at least one safe policies.
-    This considers the changeabilities of all unknown features.
+    Compute the probability that safe policies exist using dominating policies (the best way?)
 
     lockedCons, freeCons: The set of locked and free features.
       They might be different from the ones confirmed by querying.
       These are hypothetical ones just to compute the corresponding prob.
     """
-    if not hasattr(self, 'cachedSafePolicyExist'):
-      self.computeIfSafePiExists()
-
     unknownCons = set(self.consIndices) - set(lockedCons) - set(freeCons)
-    expect = 0
+    result = 0
 
-    allSubsetsOfUnknownCons = powerset(unknownCons)
+    def pf(con):
+      if con in lockedCons: return 0
+      elif con in freeCons: return 1
+      else: return self.consProbs[con]
 
-    for freeSubset in allSubsetsOfUnknownCons:
-      # assume now freeSubset is free and uknownCons \ freeSubset is locked
-      # compute the prob. that this happens (given lockedCons and freeCons)
-      prob = reduce(mul, map(lambda _: self.consProbs[_], freeSubset), 1) *\
-             reduce(mul, map(lambda _: 1 - self.consProbs[_], unknownCons - set(freeSubset)), 1)
+    assert hasattr(self, 'domPiFeats')
 
-      # an indicator represents if safe policies exist
-      if self.cachedSafePolicyExist[frozenset(list(freeCons) + list(freeSubset))]:
-        expect += prob
+    for k in range(1, len(self.domPiFeats)):
+      sign = 1 if k % 2 == 1 else -1
+      for domPiFeatsSubset in combinations(self.domPiFeats, k):
+        domPiFeatsSubsetLists = map(lambda _: list(_), domPiFeatsSubset)
+        unionOfFeats = set(sum(domPiFeatsSubsetLists, []))
+        result += sign * reduce(mul, map(pf, unionOfFeats), 1)
 
-    return expect
+    return result
 
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
@@ -324,11 +312,10 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
           freeProb = lambda _: self.consProbs[_]
           lockedProb = lambda _: 1 - self.consProbs[_]
 
-          if self.useIIS and self.useRelPi:
-            score[con] = self.consProbs[con] * (probSafePiExistWhenFree[con] * estimateCoverElems(coverFeat(con, self.iiss), freeProb) +
-                                                (1 - probSafePiExistWhenFree[con]) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
-                       + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked[con] * estimateCoverElems(removeFeat(con, self.iiss), freeProb) +
-                                                      (1 - probSafePiExistWhenLocked[con]) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
+          score[con] = self.consProbs[con] * (probSafePiExistWhenFree[con] * estimateCoverElems(coverFeat(con, self.iiss), freeProb) +
+                                              (1 - probSafePiExistWhenFree[con]) * estimateCoverElems(removeFeat(con, self.domPiFeats), lockedProb))\
+                     + (1 - self.consProbs[con]) * (probSafePiExistWhenLocked[con] * estimateCoverElems(removeFeat(con, self.iiss), freeProb) +
+                                                    (1 - probSafePiExistWhenLocked[con]) * estimateCoverElems(coverFeat(con, self.domPiFeats), lockedProb))
           # minimize this objective
           score[con] = -score[con]
         else:
@@ -585,26 +572,59 @@ class OracleSafetyAgent(InitialSafePolicyAgent):
 
     self.queries = []
     self.answer = None
-    if self.safePolicyExist(trueFreeFeatures):
+
+    self.trueFreeFeatures = trueFreeFeatures
+    self.trueLockedFeatures = set(self.consIndices) - set(trueFreeFeatures)
+
+    self.safePolicyIndeedExist = self.safePolicyExist(trueFreeFeatures)
+
+    if self.safePolicyIndeedExist:
       # query is the relevant features of any dom pi that has the minimum number of relevant features
       self.computePolicyRelFeats()
-
-      freePiFeats = filter(lambda _: set(trueFreeFeatures).issuperset(_), self.domPiFeats)
-      assert len(freePiFeats) > 0
-      self.queries = min(freePiFeats, key=lambda _: len(_))
       self.answer = EXIST
     else:
       # query the minimim sized IIS
       self.computeIISs()
-      trueLockedFeatures = set(self.relFeats) - set(trueFreeFeatures)
+      self.answer = NOTEXIST
 
-      lockedIISs =  filter(lambda _: set(trueLockedFeatures).issuperset(_), self.iiss)
+    # depend on whether we find the true dom pis
+    if config.earlyStop is None:
+      self.computeExactQueries()
+    else:
+      self.computeApproximateQueries()
+
+  def computeExactQueries(self):
+    if self.safePolicyIndeedExist:
+      freePiFeats = filter(lambda _: set(self.trueFreeFeatures).issuperset(_), self.domPiFeats)
+      assert len(freePiFeats) > 0
+      self.queries = min(freePiFeats, key=lambda _: len(_))
+    else:
+      lockedIISs = filter(lambda _: set(self.trueLockedFeatures).issuperset(_), self.iiss)
       assert len(lockedIISs) > 0
       self.queries = min(lockedIISs, key=lambda _: len(_))
-      self.answer = NOTEXIST
 
     self.queries = list(self.queries)
 
+  def computeApproximateQueries(self):
+    """
+    We do not have the computation power to find all domPis and IISs.
+    So we greedily cover tree free/locked features
+    :return:
+    """
+    if len(self.iiss) == 0 or len(self.domPiFeats) == 0:
+      self.queries = []
+    else:
+      if self.safePolicyIndeedExist:
+        query = max(self.trueFreeFeatures, key=lambda con: numOfSetsContainFeat(con, self.iiss))
+        self.queries = [query]
+      else:
+        query = max(self.trueLockedFeatures, key=lambda con: numOfSetsContainFeat(con, self.domPiFeats))
+        self.queries = [query]
+
   def findQuery(self):
+    # recompute approximate queries when we do early stopping
+    if config.earlyStop is not None: self.computeApproximateQueries()
+
     if len(self.queries) == 0: return self.answer
     else: return self.queries.pop()
+
