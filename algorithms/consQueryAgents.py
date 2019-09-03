@@ -31,8 +31,7 @@ class ConsQueryAgent():
     self.consProbs = consProbs
     self.adversarial = (consProbs is None)
 
-    # FIXME different subclasses call this differently!
-    self.unknownCons = self.consIndices
+    self.unknownCons = copy.copy(self.consIndices)
 
     self.goalCons = [(s, a) for a in mdp.A for s in goalStates]
 
@@ -147,7 +146,7 @@ class ConsQueryAgent():
       allCons.update(violatedCons)
 
       allConsPowerset = set(powerset(allCons))
-      
+
     domPis = []
     for pi in dominatingPolicies.values():
       if pi not in domPis: domPis.append(pi)

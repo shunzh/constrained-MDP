@@ -7,28 +7,44 @@ METHOD = 'gurobi'
 # experiment configuration
 trialsStart = 0
 trialsEnd = 1000
-settingCandidates = [#([10, 12, 14], [5], [0], 1),
-                     ([15, 20, 25], [20], [0], 1),
-                     #([14], [5], map(lambda _: 0.1 * _, range(6)), 0.5),
-                    ]
 
-size = 10
-#size = 6
+exp = 1
 
-earlyStop = 20
-#earlyStop = None
+if exp == 1:
+  settingCandidates = [([10, 12, 14], [5], [0], 1),
+                       ([14], [5], map(lambda _: 0.1 * _, range(6)), 0.5)
+                      ]
 
-methods = ['oracle',
-           #'opt',
-           #'optLocked', 'optFree',
-           'iisAndRelpi',
-           #'iisOnly', 'relpiOnly',
-           #'iisAndRelpi1',
-           #'iisAndRelpi2',
-           'iisAndRelpi3',
-           'maxProb',
-           'maxProbF', 'maxProbIF', # variations of maxProb
-           'piHeu',
-           #'setcoverWithValue', 'piHeuWithValue', # valuebased
-           #'random'
-          ]
+  size = 6
+
+  earlyStop = None
+
+  methods = ['oracle',
+             'opt',
+             'iisAndRelpi',
+             'iisAndRelpi3',
+             'maxProb',
+             'maxProbF', 'maxProbIF', # variations of maxProb
+             'piHeu',
+             'random'
+            ]
+
+elif exp == 2:
+  settingCandidates = [([30], [20], map(lambda _: 0.1 * _, range(6)), 0.5)
+                      ]
+
+  size = 10
+
+  earlyStop = 5
+
+  methods = ['oracle',
+             #'opt',
+             'iisAndRelpi',
+             'iisAndRelpi3',
+             'maxProb',
+             'maxProbF', 'maxProbIF', # variations of maxProb
+             'piHeu',
+             #'random'
+            ]
+else:
+  raise Exception('unknown exp')

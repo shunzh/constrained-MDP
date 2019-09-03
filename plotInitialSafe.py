@@ -28,7 +28,7 @@ markers = {'oracle': 'r*--',
            'iisAndRelpi3': 'bv-',
            'iisOnly3': 'bv--', 'relpiOnly3': 'bv-.',
            'iisAndRelpi4': 'bs-',
-           'maxProb': 'g^-', 'maxProbF': 'g^--', 'maxProbIF': 'g^-.',
+           'maxProb': 'g^-', 'maxProbF': 'g^--', 'maxProbIF': 'g^:',
            'piHeu': 'm+-', 'random': 'c.-',
            'setcoverWithValue': 'bo-', 'piHeuWithValue': 'm+-'}
 names = {'oracle': 'Oracle',
@@ -282,8 +282,6 @@ def plotNumVsCarpets(carpetNums, wallNum):
     solvableIns[carpetNum] = []
     validInstances[carpetNum] = []
 
-  qDiffs = []
-
   for rnd in range(trialsStart, trialsEnd):
     for carpetNum in carpetNums:
       try:
@@ -311,10 +309,10 @@ def plotNumVsCarpets(carpetNums, wallNum):
       if data['solvable']: solvableIns[carpetNum].append(rnd)
 
       # print the case where ouralg is suboptimal for analysis
-      #qDiffs.append(len(data['q']['iisAndRelpi4']) - len(data['q']['iisAndRelpi3']))
+      if len(data['q']['iisAndRelpi3']) - len(data['q']['iisAndRelpi']) > 0: print rnd, carpetNum, 'cr better than sc'
+      if len(data['q']['opt']) - len(data['q']['iisAndRelpi3']) > 0: print rnd, carpetNum, 'opt better than cr'
 
-  #histogram(qDiffs, names['iisAndRelpi4'] + ' - ' + names['iisAndRelpi3'], 'qdiffCarpet')
-
+  """
   printTex('\\# of trials w/ no initial safe policies',
            [len(validInstances[carpetNum]) for carpetNum in carpetNums])
   printTex('proportion of trials where safe policies exist',
@@ -323,6 +321,7 @@ def plotNumVsCarpets(carpetNums, wallNum):
            [round(mean(iiss[carpetNum]), 2) for carpetNum in carpetNums])
   printTex('average \\# of dominating policies',
            [round(mean(domPis[carpetNum]), 2) for carpetNum in carpetNums])
+  """
 
   print '# of queries'
   x = carpetNums

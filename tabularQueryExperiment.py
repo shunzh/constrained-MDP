@@ -12,7 +12,7 @@ from algorithms.consQueryAgents import ConsQueryAgent, EXIST, NOTEXIST
 from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyAgent, \
   MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent, OracleSafetyAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
-from domains.officeNavigation import officeNavigation, squareWorld, toySokobanWorld, sokobanWorld, carpetsAndWallsDomain
+from domains.officeNavigation import officeNavigation, squareWorld, carpetsAndWallsDomain
 
 
 def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1, consProbs=None):
@@ -300,7 +300,7 @@ if __name__ == '__main__':
 
   numOfCarpets = 20
   numOfSwitches = 1
-  numOfWalls = 15
+  numOfWalls = 5
 
   rnd = 0 # set a dummy random seed if no -r argument
 

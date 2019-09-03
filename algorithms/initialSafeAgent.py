@@ -42,16 +42,25 @@ class InitialSafePolicyAgent(ConsQueryAgent):
       if hasattr(self, 'iiss'):
         delattr(self, 'iiss')
         self.computeIISs()
+    else:
+      if hasattr(self, 'relFeats'):
+        # update relFeats to only contain unknown features
+        self.relFeats = set(self.relFeats).intersection(self.unknownCons)
 
     self.numOfAskedQueries += 1
 
   def safePolicyExist(self, freeCons=None):
+    """
+    Safe policy known to exist
+    at least one dom pi's relevant features are all free
+    """
     # some dom pi's relevant features are all free
     if freeCons is None:
       freeCons = self.knownFreeCons
 
-    if hasattr(self, 'domPiFeats'):
+    if config.earlyStop is not None and hasattr(self, 'domPiFeats'):
       # if we have rel feat, simply check whether we covered all rel feats of any dom pi
+      # this can only be used when earlyStop is not used, so we find exact domPiFeats
       return any(len(set(relFeats) - set(freeCons)) == 0 for relFeats in self.domPiFeats)
     else:
       # for some simple heuristics, it's not fair to ask them to precompute dompis (need to run a lot of LP)
@@ -60,10 +69,14 @@ class InitialSafePolicyAgent(ConsQueryAgent):
       return self.findConstrainedOptPi(set(self.unknownCons) - set(freeCons))['feasible']
 
   def safePolicyNotExist(self, lockedCons=None):
-    # there are some locked features in all dom pis
+    """
+    True is no safe policy known to exist
+    there are some locked features in all dom pis
+    """
     if lockedCons is None:
       lockedCons = self.knownLockedCons
-    if hasattr(self, 'piRelFeats'):
+
+    if config.earlyStop is not None and hasattr(self, 'piRelFeats'):
       return all(len(set(relFeats).intersection(lockedCons)) > 0 for relFeats in self.domPiFeats)
     else:
       # by only imposing these constraints, see whether the lp problem is infeasible
@@ -175,7 +188,6 @@ class InitialSafePolicyAgent(ConsQueryAgent):
       They might be different from the ones confirmed by querying.
       These are hypothetical ones just to compute the corresponding prob.
     """
-    unknownCons = set(self.consIndices) - set(lockedCons) - set(freeCons)
     result = 0
 
     def pf(con):
@@ -185,12 +197,22 @@ class InitialSafePolicyAgent(ConsQueryAgent):
 
     assert hasattr(self, 'domPiFeats')
 
-    for k in range(1, len(self.domPiFeats)):
-      sign = 1 if k % 2 == 1 else -1
-      for domPiFeatsSubset in combinations(self.domPiFeats, k):
-        domPiFeatsSubsetLists = map(lambda _: list(_), domPiFeatsSubset)
-        unionOfFeats = set(sum(domPiFeatsSubsetLists, []))
-        result += sign * reduce(mul, map(pf, unionOfFeats), 1)
+    # two ways to compute the probs. either 2^|relFeats| or 2^|domPis|
+    # so see which one is smaller
+    if len(self.relFeats) < len(self.domPiFeats):
+      allSubsetsOfRelFeats = powerset(self.relFeats)
+      for freeSubset in allSubsetsOfRelFeats:
+        if self.safePolicyExist(freeCons = list(freeSubset) + list(self.knownFreeCons)):
+          prob = reduce(mul, map(lambda _: self.consProbs[_], freeSubset), 1) *\
+                 reduce(mul, map(lambda _: 1 - self.consProbs[_], set(self.relFeats) - set(freeSubset)), 1)
+          result += prob
+    else:
+      for k in range(1, len(self.domPiFeats) + 1):
+        sign = 1 if k % 2 == 1 else -1
+        for domPiFeatsSubset in combinations(self.domPiFeats, k):
+          domPiFeatsSubsetLists = map(lambda _: list(_), domPiFeatsSubset)
+          unionOfFeats = set(sum(domPiFeatsSubsetLists, []))
+          result += sign * reduce(mul, map(pf, unionOfFeats), 1)
 
     return result
 
@@ -269,20 +291,20 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     if answerFound != None: return answerFound
 
     # make sure the constraints that are already queried are not going to be queried again
-    unknownCons = set(self.consIndices) - set(self.knownFreeCons) - set(self.knownLockedCons)
+    relFeats = self.relFeats
 
     # find the maximum frequency constraint weighted by the probability
     score = {}
 
     # compute quantities used by some heuristics
     if self.heuristicID == 3:
-      probSafePiExistWhenFree = {con: self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con]) for con in unknownCons}
-      probSafePiExistWhenLocked = {con: self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons) for con in unknownCons}
+      probSafePiExistWhenFree = {con: self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con]) for con in relFeats}
+      probSafePiExistWhenLocked = {con: self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons) for con in relFeats}
 
     if self.heuristicID == 1:
       probSafePiExist = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons)
 
-    for con in unknownCons:
+    for con in relFeats:
       if self.optimizeValue:
         # try to optimize values of the safe policies
         # we need IIS when trying to optimize the values of policies
@@ -299,7 +321,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
           score[con] = self.consProbs[con] * probSafePiExist * numOfSetsContainFeat(con, self.iiss)\
                      + (1 - self.consProbs[con]) * (1 - probSafePiExist) * numOfSetsContainFeat(con, self.domPiFeats)
         elif self.heuristicID == 2:
-          estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
+          estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in relFeats)
           freeProb = lambda _: self.consProbs[_]
           lockedProb = lambda _: 1 - self.consProbs[_]
 
@@ -309,7 +331,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
                        * (1 - probSafePiExist) * estimateCoverElems(self.domPiFeats, lockedProb))
         elif self.heuristicID == 3:
           # this heuristic uses coverage ratio estimate
-          estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in unknownCons)
+          estimateCoverElems = lambda s, prob: min(1.0 * len(s) / (prob(nextCon) * numOfSetsContainFeat(nextCon, s) + 1e-4) for nextCon in relFeats)
           # useful locally
           freeProb = lambda _: self.consProbs[_]
           lockedProb = lambda _: 1 - self.consProbs[_]
@@ -346,26 +368,26 @@ class DomPiHeuForSafetyAgent(InitialSafePolicyAgent):
     answerFound = self.checkSafePolicyExists()
     if answerFound != None: return answerFound
 
-    unknownCons = set(self.consIndices) - set(self.knownFreeCons) - set(self.knownLockedCons)
+    relFeats = self.relFeats
 
+    updatedConsProbs = {}
     # find the most probable policy
     # update the cons prob to make it easier
-    updatedConsProbs = copy.copy(self.consProbs)
     for i in self.consIndices:
       if i in self.knownLockedCons: updatedConsProbs[i] = 0
       elif i in self.knownFreeCons: updatedConsProbs[i] = 1
+      elif i in self.unknownCons: updatedConsProbs[i] = self.consProbs[i]
+      else: raise Exception('uncategorized feature, should not happen')
 
     # find the policy that has the largest probability to be feasible
-    # weighted by values of policies if self.optimizeValue
-    piWeight = lambda relFeats: self.domPiFeatsAndValues[tuple(relFeats)] if self.optimizeValue else 1
     feasibleProb = lambda relFeats: reduce(mul,
                                            map(lambda _: updatedConsProbs[_], relFeats),
-                                           piWeight(relFeats))
+                                           1)
 
     maxProbPiRelFeats = max(self.domPiFeats, key=feasibleProb)
 
     # now query about unknown features in the most probable policy's relevant features
-    featsToConsider = unknownCons.intersection(maxProbPiRelFeats)
+    featsToConsider = set(relFeats).intersection(maxProbPiRelFeats)
     # the probability is less than 1. so there must be unknown features to consider
     assert len(featsToConsider) > 0
     return max(featsToConsider, key=lambda _: self.consProbs[_])
@@ -388,11 +410,11 @@ class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
     answerFound = self.checkSafePolicyExists()
     if answerFound != None: return answerFound
 
-    unknownCons = set(self.consIndices) - set(self.knownLockedCons) - set(self.knownFreeCons)
+    relFeats = self.relFeats
 
     # the probability that either
     termProbs = {}
-    for con in unknownCons:
+    for con in relFeats:
       # the prob that safe policies exist when con is free
       probExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
       probNotExistWhenLocked = 1 - self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
@@ -415,7 +437,7 @@ class DescendProbQueryForSafetyAgent(InitialSafePolicyAgent):
     answerFound = self.checkSafePolicyExists()
     if answerFound != None: return answerFound
 
-    unknownCons = set(self.consIndices) - set(self.knownLockedCons) - set(self.knownFreeCons)
+    unknownCons = self.unknownCons
     assert len(unknownCons) > 0
     return max(unknownCons, key=lambda con: self.consProbs[con])
 
@@ -425,7 +447,7 @@ class RandomQueryAgent(InitialSafePolicyAgent):
     answerFound = self.checkSafePolicyExists()
     if answerFound != None: return answerFound
 
-    unknownCons = set(self.consIndices) - set(self.knownLockedCons) - set(self.knownFreeCons)
+    unknownCons = self.relFeats
     assert len(unknownCons) > 0
     return random.choice(unknownCons)
 
@@ -446,6 +468,8 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     self.freeBoundary = []
     # the set of cons imposing which we don't have a safe policy for sure
     self.lockedBoundary = []
+
+    self.initRelFeats = copy.copy(self.relFeats)
 
     # fixme do not need terminal cost for now
     self.lockedTerminalCost = self.freeTerminalCost = 0
@@ -552,8 +576,8 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
 
   def findQuery(self):
     # we only care about the categories of rel feats
-    relLockedCons = set(self.knownLockedCons).intersection(self.relFeats)
-    relFreeCons = set(self.knownFreeCons).intersection(self.relFeats)
+    relLockedCons = set(self.knownLockedCons).intersection(self.initRelFeats)
+    relFreeCons = set(self.knownFreeCons).intersection(self.initRelFeats)
 
     qAndV = self.getQueryAndValue(relLockedCons, relFreeCons)
     assert qAndV != None
