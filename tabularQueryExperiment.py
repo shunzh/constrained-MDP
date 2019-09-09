@@ -159,6 +159,7 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1, consPro
         assert agent.safePolicyExist()
         valuesOfSafePis[method] = agent.safePolicyValue()
 
+      # FIXME why list?
       times[method].append(end - start)
 
     print 'queries', queries
@@ -298,7 +299,7 @@ if __name__ == '__main__':
   # the domain is size x size
   from config import size
 
-  numOfCarpets = 20
+  numOfCarpets = 14
   numOfSwitches = 1
   numOfWalls = 5
 

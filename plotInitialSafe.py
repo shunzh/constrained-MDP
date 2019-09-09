@@ -18,13 +18,12 @@ from config import methods
 if 'random' in methods: methods.remove('random')
 print methods
 
-#baseline = 'opt'
-baseline = 'oracle'
+baseline = 'opt'
 
 markers = {'oracle': 'r*--',
            'opt': 'r*-',
            'iisAndRelpi': 'bo-', 'iisAndRelpi1': 'bs-', 'iisAndRelpi2': 'bd-',
-           'iisOnly': 'bo--', 'relpiOnly': 'bo-.',
+           'iisOnly': 'bo--', 'relpiOnly': 'bo:',
            'iisAndRelpi3': 'bv-',
            'iisOnly3': 'bv--', 'relpiOnly3': 'bv-.',
            'iisAndRelpi4': 'bs-',
@@ -34,11 +33,11 @@ markers = {'oracle': 'r*--',
 names = {'oracle': 'Oracle',
          'opt': 'Optimal',
          'iisAndRelpi': '$h_{SC}$',
-         'iisOnly': '$h_{SC}$ (IIS)', 'relpiOnly': '$h_{SC}$ (rel. feat.)',
+         'iisOnly': '$h_{SC}$ (IIS)', 'relpiOnly': '$h_{SC}$ (rel)',
          'iisAndRelpi1': '$h_{SC}$ est',
-         'iisAndRelpi3': '$h_{CR}$',
+         'iisAndRelpi3': '$h_{ICR}$',
          'iisOnly3': '$h_{CR}$ (IIS)', 'relpiOnly3': '$h_{CR}$ (rel. feat.)',
-         'maxProb': 'Greed. Prob.', 'maxProbF': 'Greed. Prob. $\\top$', 'maxProbIF': 'Greed. Prob. $\\bot$',
+         'maxProb': 'Prob. Max.', 'maxProbF': 'Prob. Max. ($\\top$)', 'maxProbIF': 'Prob. Max. ($\\bot$)',
          'piHeu': 'Most-Likely', 'random': 'Descending',
          'setcoverWithValue': 'Weighted Set Cover', 'piHeuWithValue': 'Most-Likely with Value'}
 
@@ -48,7 +47,7 @@ vectorDiff = lambda v1, v2: map(lambda e1, e2: e1 - e2, v1, v2)
 vectorDivide = lambda v1, v2: map(lambda e1, e2: 1.0 * e1 / e2, v1, v2)
 
 
-def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False, xAxis=None):
+def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False, xAxis=None, ylim=None):
   """
   plot data.
 
@@ -71,14 +70,20 @@ def plot(x, y, methods, xlabel, ylabel, filename, integerAxis=False, xAxis=None)
   print xlabel, ylabel
   for method in methods:
     print method, yMean(method), yCI(method)
-    ax.errorbar(xAxis, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
+    ax.errorbar(xAxis, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method],
+                markersize=15, capsize=10,  linewidth=2)
 
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
 
-  if integerAxis:
+  if intXAxis:
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+  if intYAxis:
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+  if ylim is not None:
+    pylab.ylim(ylim)
 
+  pylab.gcf().subplots_adjust(bottom=0.15, left=0.15)
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
 
   plotLegend()
@@ -92,7 +97,7 @@ def printTex(head, data):
 
 def plotLegend():
   ax = pylab.gca()
-  figLegend = pylab.figure(figsize=(3, 2.3))
+  figLegend = pylab.figure(figsize=(3.5, 4))
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
@@ -144,7 +149,7 @@ def plotRatioOfMeanDiffWrtBaseline(x, y, methods, xlabel, ylabel, filename, inte
   for method in methods:
     #print method, yMean(method), yCI(method)
     ax.errorbar(x, vectorDivide(yMean(method), yMean(baseline)), vectorDivide(yCI(method), yMean(baseline)),
-                fmt=markers[method], mfc='none', label=names[method], markersize=10, capsize=5)
+                fmt=markers[method], mfc='none', label=names[method], markersize=15, capsize=5)
 
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
@@ -237,13 +242,11 @@ def plotNumVsProportion(carpetNum, wallNum, pfRange, pfStep):
   y = lambda method, pf: lensOfQ[method, pf]
   plot(x, y, methods, '$p_f$', '# of Queried Features',
        'lensOfQPf' + str(carpetNum) + '_' + str(wallNum) + '_' + str(pfStep),
-       xAxis=xAxis)
-  plotMeanOfRatioWrtBaseline(x, y, methods, '$p_f$', '# of Queried Features / Optimal',
-                             'lensOfQPf_meanOfRatio_' + str(carpetNum) + '_' + str(wallNum) + '_' + str(pfStep),
-                             xAxis=xAxis)
+       xAxis=xAxis, intYAxis=True, ylim=[1.6, 4])
+  #plotMeanOfRatioWrtBaseline(x, y, methods, '$p_f$', '# of Queried Features / Optimal',
+  #                           'lensOfQPf_meanOfRatio_' + str(carpetNum) + '_' + str(wallNum) + '_' + str(pfStep),
+  #                           xAxis=xAxis)
 
-  y = lambda method, pf: times[method, pf]
-  plot(x, y, methods, '$p_f$', 'Computation Time (sec.)', 'timesPf_' + str(carpetNum) + '_' + str(wallNum), xAxis=xAxis)
 
 def plotNumVsCarpets(carpetNums, wallNum):
   """
@@ -299,7 +302,7 @@ def plotNumVsCarpets(carpetNums, wallNum):
         lensOfQRelPhi[method, relFeats].append(len(data['q'][method]))
         if 'valuesOfSafePis' in data.keys() and len(data['valuesOfSafePis']) > 0:
           safePiValues[method, carpetNum].append(data['valuesOfSafePis'][method])
-        times[method, carpetNum].append(data['t'][method])
+        times[method, carpetNum].append(data['t'][method][0])
 
       iiss[carpetNum].append(len(data['iiss']))
       domPis[carpetNum].append(len(data['relFeats']))
@@ -309,8 +312,8 @@ def plotNumVsCarpets(carpetNums, wallNum):
       if data['solvable']: solvableIns[carpetNum].append(rnd)
 
       # print the case where ouralg is suboptimal for analysis
-      if len(data['q']['iisAndRelpi3']) - len(data['q']['iisAndRelpi']) > 0: print rnd, carpetNum, 'cr better than sc'
-      if len(data['q']['opt']) - len(data['q']['iisAndRelpi3']) > 0: print rnd, carpetNum, 'opt better than cr'
+      #if len(data['q']['iisAndRelpi']) - len(data['q']['iisAndRelpi3']) > 0: print rnd, carpetNum, 'cr better than sc'
+      #if len(data['q']['iisAndRelpi3']) - len(data['q']['opt']) > 0: print rnd, carpetNum, 'opt better than cr'
 
   """
   printTex('\\# of trials w/ no initial safe policies',
@@ -327,15 +330,16 @@ def plotNumVsCarpets(carpetNums, wallNum):
   x = carpetNums
   # absolute number of queried features
   y = lambda method, carpetNum: lensOfQ[method, carpetNum]
-  plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets_' + str(wallNum),)
-  plotMeanOfRatioWrtBaseline(x, y, methods, '# of Carpets', '# of Queried Features / Optimal',
-                             'lensOfQCarpets_meanOfRatio_' + str(wallNum), integerAxis=True)
+  plot(x, y, methods, '# of Carpets', '# of Queried Features', 'lensOfQCarpets_' + str(wallNum), intXAxis=True)
+  #plotMeanOfRatioWrtBaseline(x, y, methods, '# of Carpets', '# of Queried Features / Optimal',
+  #                           'lensOfQCarpets_meanOfRatio_' + str(wallNum), integerAxis=True)
 
   #y = lambda method, carpetNum: safePiValues[method, carpetNum]
   #plot(x, y, methods, '# of Carpets', 'Values of Safe Policy', 'safePiValuesCarpets')
 
-  y = lambda method, carpetNum: times[method, carpetNum]
-  plot(x, y, methods, '# of Carpets', 'Computation Time (sec.)', 'timesCarpets_' + str(wallNum))
+  y = lambda method, carpetNum: [time / numQ for (time, numQ) in zip(times[method, carpetNum], lensOfQ[method, carpetNum])]
+  plot(x, y, methods, '# of Carpets', 'Computation Time (sec.) per Q.', 'timesCarpets_' + str(wallNum),
+       intXAxis=True, intYAxis=True, ylim=[-1, 12])
 
   # plot num of features queried based on the num of dom pis
   #x = range(max(carpetNums))
@@ -344,7 +348,7 @@ def plotNumVsCarpets(carpetNums, wallNum):
   #                           'lensOfQCarpets_rel_meanOfRatio', integerAxis=True)
 
 if __name__ == '__main__':
-  font = {'size': 13}
+  font = {'size': 19}
   matplotlib.rc('font', **font)
 
   from config import settingCandidates

@@ -315,8 +315,11 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
         if self.heuristicID == 0:
           # original heuristic, h_{SC}
           #score[con] = self.consProbs[con] * iisNumWhenFree + (1 - self.consProbs[con]) * relNumWhenLocked
-          score[con] = (self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) / len(self.iiss)
-                     + (1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) / len(self.domPiFeats))
+          score[con] = 0
+          if self.useIIS:
+            score[con] += self.useIIS * self.consProbs[con] * numOfSetsContainFeat(con, self.iiss) / len(self.iiss)
+          if self.useRelPi:
+            score[con] += self.useRelPi * (1 - self.consProbs[con]) * numOfSetsContainFeat(con, self.domPiFeats) / len(self.domPiFeats)
         elif self.heuristicID == 1:
           score[con] = self.consProbs[con] * probSafePiExist * numOfSetsContainFeat(con, self.iiss)\
                      + (1 - self.consProbs[con]) * (1 - probSafePiExist) * numOfSetsContainFeat(con, self.domPiFeats)
@@ -415,13 +418,15 @@ class MaxProbSafePolicyExistAgent(InitialSafePolicyAgent):
     # the probability that either
     termProbs = {}
     for con in relFeats:
+      termProbs[con] = 0
       # the prob that safe policies exist when con is free
-      probExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
-      probNotExistWhenLocked = 1 - self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
+      if self.tryFeasible:
+        probExistWhenFree = self.getProbOfExistenceOfSafePolicies(self.knownLockedCons, self.knownFreeCons + [con])
+        termProbs[con] += self.tryFeasible * self.consProbs[con] * probExistWhenFree
 
-      # a mixed objective, tryFeasible and tryInfeasible determine which parts are included in obj
-      termProbs[con] = self.tryFeasible * self.consProbs[con] * probExistWhenFree +\
-                       self.tryInfeasible * (1 - self.consProbs[con]) * probNotExistWhenLocked
+      if self.tryInfeasible:
+        probNotExistWhenLocked = 1 - self.getProbOfExistenceOfSafePolicies(self.knownLockedCons + [con], self.knownFreeCons)
+        termProbs[con] += self.tryInfeasible * (1 - self.consProbs[con]) * probNotExistWhenLocked
 
     # there should be unqueried features
     assert len(termProbs) > 0
