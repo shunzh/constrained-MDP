@@ -3,19 +3,27 @@ class SimpleMDP:
   """
   An MDP object. All fields are initialized in __init__.
   """
-  def __init__(self, S=[], A=[], T=None, r=None, alpha=None, terminal=lambda _: False, gamma=1, psi=[1]):
+  def __init__(self, S=[], A=[], T=None, r=None, rSet=None, alpha=None, terminal=lambda _: False, gamma=1, psi=[1]):
     self.S = S
     self.A = A
     self.T = T
-    self.r = r
     self.alpha = alpha
     self.terminal = terminal
     self.gamma = gamma
     self.psi = psi
 
+    if r is not None:
+      self.r = r
+    elif rSet is not None:
+      self.r = lambda s, a: sum(rFunc(s, a) * prob for (rFunc, prob) in rSet)
+    else:
+      raise Exception('need to specify at least one of r and rSet')
+
+    # (s, a) -> s'. convenient for deterministic transition functions
+    self.transit = None
     # the invert transition function. don't compute this by default
     self.invertT = None
-  
+
   def resetInitialState(self, initS):
     """
     reset the initial state distribution to be deterministically starting from initS
@@ -36,13 +44,10 @@ def constructDeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma=1, t
   # transit(s, a) -> s'
   # the i-th component of s' is determined by tFunc[i]
   transit = lambda state, action: tuple([t(state, action) for t in tFunc])
-  # transFunc(s, a, sp) -> prob
-  def transFunc(state, action, sp=None):
-    if sp == None:
-      return transit(state, action)
-    else:
-      return 1 if sp == transit(state, action) else 0
-  mdp.T = transFunc
+  # transit(s, a) -> sp
+  mdp.transit = transit
+  # T(s, a, sp) -> prob
+  mdp.T = lambda state, action, sp: 1 if sp == transit(state, action) else 0
 
   mdp.alpha = lambda s: s == s0 # assuming there is only one starting state
 
@@ -78,3 +83,32 @@ def constructDeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma=1, t
         mdp.invertT[sp].append((s, a))
 
   return mdp
+
+
+def encodeConstraintIntoTransition(mdp, cons, pfs):
+  """
+  Add a sink state with 0 reward.
+  for each feature, with prob. 1 - pf(\phi), the transition goes to the sink state (meaning the current action is not feasible)
+  here assume rewards are non-negative: so going to the sink with reward 0 is bad.
+
+  :param mdp: a SimpleMDP objective
+  :param cons: lists of sets of states that should not be visited
+  :return:
+  """
+  transitSuccesDict = {}
+
+  for s in mdp.S:
+    for a in mdp.A:
+      sp = mdp.transit(s, a)
+      probTransitSuccess = 1
+      for consStates, pf in zip(cons, pfs):
+        if sp in consStates: probTransitSuccess *= pf
+      transitSuccesDict[(s, a)] = probTransitSuccess
+
+  mdp.S.append('sink')
+  def newTransFunc(s, a, sp):
+    if sp == mdp.transit(s, a): return transitSuccesDict[(s, a)]
+    elif sp == 'sink': return 1 - transitSuccesDict[(s, a)]
+    else: return 0
+
+  mdp.T = newTransFunc

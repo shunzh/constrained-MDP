@@ -189,7 +189,6 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1, consPro
     # when initial safe policies exist, we want to improve such a safe policy using batch queries
     print 'initial policy exists'
     #FIXME do not care about policy improvement for now
-    return
 
     agent = SafeImproveAgent(mdp, consStates)
 
