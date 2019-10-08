@@ -7,37 +7,17 @@ import copy
 
 
 class GreedyConstructionPiAgent(QTPAgent):
-  def __init__(self, cmp, rewardSet, initialPhi, queryType, gamma):
+  def __init__(self, mdp, queryType):
     """
     qi: query iteration
     """
-    QTPAgent.__init__(self, cmp, rewardSet, initialPhi, queryType, gamma)
-
     if hasattr(self, 'computePiValue'):
       # policy gradient agent has different ways to compute values..
       self.computeV = lambda pi, S, A, r, horizon: self.computePiValue(pi, r, horizon)
     else:
       self.computeV = lambda pi, S, A, r, horizon: lp.computeValue(pi, r, S, A)
 
-  def computeDominatingPis(self, args, q):
-    """
-    args, q: from context in learn
-    policyBins[idx][i] == 1 iff i-th policy dominates reward idx
-    """
-    policyBins = util.Counter()
-    rewardCandNum = len(args['R'])
-    for rewardId in xrange(rewardCandNum):
-      # the values of the policies in the query under this reward candidate
-      piValues = {idx: self.computeV(q[idx], args['S'], args['A'], args['R'][rewardId], self.cmp.horizon) for idx in
-                  xrange(len(q))}
-      maxValue = max(piValues.values())
-      # we assumed the first consistent response is returned
-      maxIdx = piValues.values().index(maxValue)
-      policyBins[rewardId] = [1 if idx == maxIdx else 0 for idx in xrange(len(q))]
-    return policyBins
-
   def learn(self):
-    args = easyDomains.convert(self.cmp, self.rewardSet, self.phi)
     self.args = args  # save a copy
     horizon = self.cmp.horizon
     terminalReward = self.cmp.terminalReward
@@ -64,10 +44,6 @@ class GreedyConstructionPiAgent(QTPAgent):
       if config.VERBOSE: print 'iter.', i
       x = self.findNextPolicy(**args)
       q.append(x)
-
-      # query iteration
-      # for each x \in q, what is q -> x; \psi? replace x with the optimal posterior policy
-      if self.qi: q, objValue = self.queryIteration(args, q)
 
       args['q'] = q
 

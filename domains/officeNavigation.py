@@ -178,7 +178,7 @@ def parameterizedSokobanWorld(size, numOfBoxes):
   return Spec(width, height, robot, switches, walls, doors, boxes, carpets, horizon)
 
 
-def officeNavigation(spec, gamma=.9):
+def officeNavigation(spec, rewardProbs=[1], gamma=.9):
   """
   spec: specification of the factored mdp
   gamma: discounting factor
@@ -192,12 +192,12 @@ def officeNavigation(spec, gamma=.9):
   dIndices = range(dIndexStart, dIndexStart + dSize)
 
   # box indices
-  bIndexStart = dIndexStart + dSize
+  bIndexStart = dIndices[-1] + 1
   bSize = len(spec.boxes)
   bIndices = range(bIndexStart, bIndexStart + bSize)
 
   # switch indices
-  sIndexStart = bIndexStart + bSize
+  sIndexStart = bIndices[-1] + 1
   sSize = len(spec.switches)
   sIndices = range(sIndexStart, sIndexStart + sSize)
 
@@ -334,66 +334,20 @@ def officeNavigation(spec, gamma=.9):
     # let the episode end when any switch is off
     terminal = lambda s: any(s[sIndex] == OFF for sIndex in sIndices)
 
-  """
-  possible reward functions
-  """
-  # reward of turning off each switch
-  # same rewards for all switches
-  switchRewards = [1 for _ in sIndices]
-  # random rewards for all switches, between 0 and 1
-  #switchRewards = [random.random() for _ in sIndices]
-
   # an intuitive one, give reward when and only when the switch is turned off
   # note that the robot does not have the action to turn the switch on
-  def oldReward(s, a):
-    loc = s[locIndex]
-    # if the robot is at a switch and the action is to turn off
-    if loc in spec.switches and a == TURNOFFSWITCH:
-      thisSwitchIndex = spec.switches.index(loc)
-      # check if the current switch is currently on
-      if s[sIndexStart + thisSwitchIndex] == ON:
-        return switchRewards[thisSwitchIndex]
-
-    return 0
-
-  # TODO these reward functions are implemented for a single switch.
-  # the absolute value of the negative reward is smaller near the initial loc of robot and larger around the switch
-  # just to create a difference between rewards over the whole space, not effective as locationReward below empirically
-  def gradientReward(s, a):
-    if s[sIndex] == ON:
-      if s[locIndex] in spec.carpets:
-        return 0
-      else:
-        x, y = s[locIndex]
-        return -(x + y)
-    else:
-      return 0
-
-  # using this reward in the IJCAI paper, where the difference between our algorithm and baselines are maximized
-  # because there are different costs of locations where carpets are not covered, so it is crucial to decide which states should avoid blah blah
-  # the reward is 0 when the robot is on a carpet, and a pre-specified random reward otherwise.
-  locationRewardDict = {(x, y): -random.random() for x in range(spec.width) for y in range(spec.height)}
-  def locationReward(s, a):
-    if s[sIndex] == ON:
-      if s[locIndex] in spec.carpets:
-        return 0
-      else:
-        return locationRewardDict[s[locIndex]]
-    else:
-      return 0
-  
-  # reward based on whether the constraints (goalCons) are satisfied
-  # reward = 1 if the robot takes a termination action and the current state satisfies the constraints.
-  def goalConstrainedReward(goalCons):
-    def reward(s, a):
-      if a == TERMINATE and goalCons(s):
+  def rewardFuncGen(switchIndex):
+    def rFunc(s, a):
+      loc = s[locIndex]
+      # if the robot is at a switch and the action is to turn off
+      if loc == spec.switches[switchIndex - sIndexStart] and s[switchIndex] == ON and a == TURNOFFSWITCH:
         return 1
       else:
         return 0
-    
-    return reward
- 
-  rFunc = oldReward
+    return rFunc
+
+  # create the list of reward candidates, in the form of [(reward_func, prob)]
+  rFunc = [(rewardFuncGen(sIdx), rewardProbs[sIdx - sIndexStart]) for sIdx in sIndices]
 
   mdp = domainConstructors.constructDeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma, terminal)
 

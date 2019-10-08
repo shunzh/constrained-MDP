@@ -3,26 +3,32 @@ class SimpleMDP:
   """
   An MDP object. All fields are initialized in __init__.
   """
-  def __init__(self, S=[], A=[], T=None, r=None, rSet=None, alpha=None, terminal=lambda _: False, gamma=1, psi=[1]):
+  def __init__(self, S=[], A=[], T=None, r=None, alpha=None, terminal=lambda _: False, gamma=1):
+    """
+    r is set if reward function is known, otherwise rSet = [(reward_function, prob)]
+    """
     self.S = S
     self.A = A
     self.T = T
     self.alpha = alpha
     self.terminal = terminal
     self.gamma = gamma
-    self.psi = psi
-
-    if r is not None:
-      self.r = r
-    elif rSet is not None:
-      self.r = lambda s, a: sum(rFunc(s, a) * prob for (rFunc, prob) in rSet)
-    else:
-      raise Exception('need to specify at least one of r and rSet')
+    if r is not None: self.setReward(r)
 
     # (s, a) -> s'. convenient for deterministic transition functions
     self.transit = None
     # the invert transition function. don't compute this by default
     self.invertT = None
+
+  def setReward(self, r):
+    if callable(r):
+      self.r = r
+      self.rSet = [(r, 1)]
+    elif type(r) is list:
+      self.r = lambda s, a: sum(rFunc(s, a) * prob for (rFunc, prob) in r)
+      self.rSet = r
+    else:
+      raise Exception('unknown type of r ' + str(type(r)))
 
   def resetInitialState(self, initS):
     """
@@ -39,7 +45,7 @@ def constructDeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma=1, t
   # factored reward function
   #mdp.r = lambda state, action: sum(r(s, a) for s, r in zip(state, rFunc))
   # nonfactored reward function
-  mdp.r = rFunc
+  mdp.setReward(rFunc)
 
   # transit(s, a) -> s'
   # the i-th component of s' is determined by tFunc[i]
@@ -93,9 +99,9 @@ def encodeConstraintIntoTransition(mdp, cons, pfs):
 
   :param mdp: a SimpleMDP objective
   :param cons: lists of sets of states that should not be visited
-  :return:
+  :return: None, mdp.T is changed in place
   """
-  transitSuccesDict = {}
+  transitSuccessDict = {}
 
   for s in mdp.S:
     for a in mdp.A:
@@ -103,12 +109,12 @@ def encodeConstraintIntoTransition(mdp, cons, pfs):
       probTransitSuccess = 1
       for consStates, pf in zip(cons, pfs):
         if sp in consStates: probTransitSuccess *= pf
-      transitSuccesDict[(s, a)] = probTransitSuccess
+      transitSuccessDict[(s, a)] = probTransitSuccess
 
   mdp.S.append('sink')
   def newTransFunc(s, a, sp):
-    if sp == mdp.transit(s, a): return transitSuccesDict[(s, a)]
-    elif sp == 'sink': return 1 - transitSuccesDict[(s, a)]
+    if sp == mdp.transit(s, a): return transitSuccessDict[(s, a)]
+    elif sp == 'sink': return 1 - transitSuccessDict[(s, a)]
     else: return 0
 
   mdp.T = newTransFunc
