@@ -1,4 +1,3 @@
-from QTPAgent import QTPAgent
 import util
 import config
 import numpy
@@ -7,10 +6,13 @@ import copy
 
 
 class GreedyConstructionPiAgent(QTPAgent):
-  def __init__(self, mdp, queryType):
+  def __init__(self, mdp, k):
     """
     qi: query iteration
     """
+    self.mdp = mdp
+    self.k = k
+
     if hasattr(self, 'computePiValue'):
       # policy gradient agent has different ways to compute values..
       self.computeV = lambda pi, S, A, r, horizon: self.computePiValue(pi, r, horizon)
@@ -21,11 +23,6 @@ class GreedyConstructionPiAgent(QTPAgent):
     self.args = args  # save a copy
     horizon = self.cmp.horizon
     terminalReward = self.cmp.terminalReward
-
-    if self.queryType == QueryType.ACTION:
-      k = len(args['A'])
-    else:
-      k = config.NUMBER_OF_RESPONSES
 
     # now q is a set of policy queries
     bestQ = None

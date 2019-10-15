@@ -224,13 +224,15 @@ def rewardQuery(mdp, consStates, k, rnd, consProbs):
   encodeConstraintIntoTransition(mdp, consStates, consProbs)
 
   agent = MILPAgent()
+  agent.learn()
 
-def improveSafePolicyBayesian(mdp, consStates, k, rnd, consProbs):
+def jointUncertaintyQuery(mdp, consStates, k, rnd, consProbs):
+  """
+  Query under both reward uncertainty and safety constraint uncertainty.
   """
 
-  """
 
-def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1, consProbs=None):
+def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=None):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
@@ -241,31 +243,33 @@ def experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1, consPro
     If None (by default), set randomly
   """
   numOfCons = len(consStates)
+  # consProbs is None then it's Bayesian setting, otherwise MMR
   if consProbs is None: consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
-
   print 'consProbs', zip(range(numOfCons), consProbs)
-
-  agent = ConsQueryAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
 
   # true free features, randomly generated
   trueFreeFeatures = filter(lambda idx: random.random() < consProbs[idx], range(numOfCons))
-  # if require existence of safe policies after querying: setting relevant features of a dominating policy to be free features
-  #relFeats, domPis = agent.findRelevantFeaturesAndDomPis()
-  #trueFreeFeatures = agent.findViolatedConstraints(random.choice(domPis))
   # or hand designed
   print 'true free features', trueFreeFeatures
 
+  # build a cons query agent just for determining if any safe policy exists
+  agent = ConsQueryAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
   if not agent.initialSafePolicyExists():
-    # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
     print 'initial safe policy does not exist'
+
+    # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
     findInitialSafePolicy(mdp, consStates, goalStates, trueFreeFeatures, rnd, consProbs)
   else:
-    # when initial safe policies exist, we want to improve such a safe policy using batch queries
     print 'initial policy exists'
-    if len(mdp.rSet) == 1:
-      improveSafePolicyMMR(mdp, consStates, k, rnd)
-    else:
-      rewardQuery(mdp, consStates, k, rnd, consProbs)
+
+    # IJCAI'18 paper: when initial safe policies exist, we want to improve such a safe policy using batch queries
+    #improveSafePolicyMMR(mdp, consStates, k, rnd)
+
+    # ICAPS'17 paper: improve value of a (safe) policy
+    rewardQuery(mdp, consStates, k, rnd, consProbs)
+
+    # under joint uncertainty:
+    jointUncertaintyQuery(mdp, consStates, k, rnd, consProbs)
 
 
 def setRandomSeed(rnd):
