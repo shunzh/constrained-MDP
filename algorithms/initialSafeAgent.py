@@ -7,7 +7,7 @@ from itertools import combinations
 import config
 from algorithms import lp
 from algorithms.consQueryAgents import ConsQueryAgent, NOTEXIST, EXIST
-from algorithms.setcover import coverFeat, removeFeat, leastNumElemSetsWithoutFeat, killSupersets, numOfSetsContainFeat
+from algorithms.setcover import coverFeat, removeFeat, killSupersets, numOfSetsContainFeat
 from operator import mul
 
 from util import powerset

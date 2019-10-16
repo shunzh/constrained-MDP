@@ -5,7 +5,7 @@ import lp
 import copy
 
 
-class GreedyConstructionPiAgent(QTPAgent):
+class GreedyConstructionPiAgent:
   def __init__(self, mdp, k):
     """
     qi: query iteration
