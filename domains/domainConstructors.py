@@ -5,7 +5,8 @@ class SimpleMDP:
   """
   def __init__(self, S=[], A=[], T=None, r=None, alpha=None, terminal=lambda _: False, gamma=1):
     """
-    r is set if reward function is known, otherwise rSet[reward_function] = prob
+    r is set if reward function is known,
+    otherwise rSetAndProb = [(reward_function, prob), ...]
     """
     self.S = S
     self.A = A
@@ -13,6 +14,7 @@ class SimpleMDP:
     self.alpha = alpha
     self.terminal = terminal
     self.gamma = gamma
+
     if r is not None: self.setReward(r)
 
     # (s, a) -> s'. convenient for deterministic transition functions
@@ -23,10 +25,10 @@ class SimpleMDP:
   def setReward(self, r):
     if callable(r):
       self.r = r
-      self.rSet = {r: 1}
+      self.rSetAndProb = [(r, 1)]
     elif type(r) is list:
       self.r = lambda s, a: sum(rFunc(s, a) * prob for (rFunc, prob) in r.items())
-      self.rSet = r
+      self.rSetAndProb = r
     else:
       raise Exception('unknown type of r ' + str(type(r)))
 

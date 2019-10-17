@@ -12,6 +12,8 @@ import scipy
 from algorithms.consQueryAgents import ConsQueryAgent, EXIST, NOTEXIST
 from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyAgent, \
   MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent, OracleSafetyAgent
+from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent, \
+  JointUncertaintyQueryBySamplingDomPisAgent
 from algorithms.rewardQueryAgents import MILPAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigation, squareWorld, carpetsAndWallsDomain
@@ -216,20 +218,46 @@ def improveSafePolicyMMR(mdp, consStates, k, rnd):
 
     print mrk, regret, runTime
 
-def rewardQuery(mdp, consStates, k, rnd, consProbs):
+def rewardQuery(mdp, consStates, k, consProbs):
   """
   Use the algorithm in ICAPS paper.
   """
   mdp = copy.deepcopy(mdp)
   encodeConstraintIntoTransition(mdp, consStates, consProbs)
 
-  agent = MILPAgent()
+  agent = MILPAgent(mdp, k)
   agent.learn()
 
-def jointUncertaintyQuery(mdp, consStates, k, rnd, consProbs):
+def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFeatures, k):
   """
   Query under both reward uncertainty and safety constraint uncertainty.
+
+  For now, assume initial safe policies exist and the robot can pose at most k queries
   """
+  methods = ['myopic', 'dompi']
+
+  for method in methods:
+    if method == 'myopic':
+      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdp, consStates, consProbs)
+    elif methods == 'dompi':
+      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdp, consStates, consProbs)
+    else:
+      raise Exception('unknown method ' + str(method))
+
+    for queryIdx in range(k):
+      (qType, query) = agent.findQuery()
+      if qType == 'F':
+        # a feature query
+        if query in trueFreeFeatures:
+          agent.updateFeats(newFreeCon=query)
+        else:
+          agent.updateFeats(newLockedCon=query)
+      elif qType == 'R':
+        if trueRewardIdx in query:
+          agent.updateReward(query)
+        else:
+          allRewardIdx = range(len(mdp.rSetAndProb))
+          agent.updateReward(set(allRewardIdx) - set(query))
 
 
 def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=None):
@@ -243,14 +271,22 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=No
     If None (by default), set randomly
   """
   numOfCons = len(consStates)
+  numOfRewards = len(mdp.rSetAndProb)
+
   # consProbs is None then it's Bayesian setting, otherwise MMR
   if consProbs is None: consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
   print 'consProbs', zip(range(numOfCons), consProbs)
 
   # true free features, randomly generated
   trueFreeFeatures = filter(lambda idx: random.random() < consProbs[idx], range(numOfCons))
+
+  print range(numOfRewards)
+  print mdp.rSetAndProb
+  trueRewardFuncIdx = numpy.random.choice(range(numOfRewards), p=map(lambda _: _[1], mdp.rSetAndProb))
+
   # or hand designed
   print 'true free features', trueFreeFeatures
+  print 'true reward function index', trueRewardFuncIdx
 
   # build a cons query agent just for determining if any safe policy exists
   agent = ConsQueryAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
@@ -266,10 +302,10 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=No
     #improveSafePolicyMMR(mdp, consStates, k, rnd)
 
     # ICAPS'17 paper: improve value of a (safe) policy
-    rewardQuery(mdp, consStates, k, rnd, consProbs)
+    #rewardQuery(mdp, consStates, k, consProbs)
 
     # under joint uncertainty:
-    jointUncertaintyQuery(mdp, consStates, k, rnd, consProbs)
+    jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, k)
 
 
 def setRandomSeed(rnd):
@@ -288,7 +324,7 @@ if __name__ == '__main__':
   from config import size
 
   numOfCarpets = 14
-  numOfSwitches = 1
+  numOfSwitches = 2
   numOfWalls = 5
 
   rnd = 0 # set a dummy random seed if no -r argument
@@ -319,37 +355,28 @@ if __name__ == '__main__':
     else:
       raise Exception('unknown argument')
 
-  def featureQueryExp():
-    if batch:
-      from config import trialsStart, trialsEnd, settingCandidates
+  if batch:
+    from config import trialsStart, trialsEnd, settingCandidates
 
-      for rnd in range(trialsStart, trialsEnd):
-        for (carpetNums, wallNums, pfRange, pfStep) in settingCandidates:
-          for carpetNum in carpetNums:
-            for wallNum in wallNums:
-              for pf in pfRange:
-                # reset random seed in each iteration
-                setRandomSeed(rnd)
+    for rnd in range(trialsStart, trialsEnd):
+      for (carpetNums, wallNums, pfRange, pfStep) in settingCandidates:
+        for carpetNum in carpetNums:
+          for wallNum in wallNums:
+            for pf in pfRange:
+              # reset random seed in each iteration
+              setRandomSeed(rnd)
 
-                spec = squareWorld(size=size, numOfCarpets=carpetNum, numOfWalls=wallNum)
-                mdp, consStates, goalStates = officeNavigation(spec)
-                experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
-    else:
-      #spec = carpetsAndWallsDomain()
-      spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls)
-
-      #spec = toySokobanWorld()
-      #spec = sokobanWorld()
-
-      mdp, consStates, goalStates = officeNavigation(spec)
-      experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1)
-
-  def rewardAndFeatureQueryExp():
+              spec = squareWorld(size=size, numOfCarpets=carpetNum, numOfWalls=wallNum)
+              mdp, consStates, goalStates = officeNavigation(spec)
+              experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
+  else:
+    #spec = carpetsAndWallsDomain()
     spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
+
+    #spec = toySokobanWorld()
+    #spec = sokobanWorld()
+
     # use uniform reward uncertainty
     rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
     mdp, consStates, goalStates = officeNavigation(spec, rewardProbs)
-    experiment(mdp, consStates, goalStates, k, dry, rnd, pf=0, pfStep=1)
-
-  #featureQueryExp()
-  rewardAndFeatureQueryExp()
+    experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1)

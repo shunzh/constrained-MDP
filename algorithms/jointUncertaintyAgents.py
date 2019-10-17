@@ -1,6 +1,7 @@
 import copy
 from operator import mul
 
+import numpy
 from numpy import random
 
 from algorithms.consQueryAgents import ConsQueryAgent
@@ -13,7 +14,7 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   def __init__(self, mdp, consStates, consProbs):
     ConsQueryAgent.__init__(mdp, consStates, consProbs=consProbs)
 
-  def updateCons(self, newFreeCon=None, newLockedCon=None):
+  def updateFeats(self, newFreeCon=None, newLockedCon=None):
     #FIXME share some code as InitialSafeAgent, but I don't want to make this class a subclass of that
     if newFreeCon is not None:
       self.unknownCons.remove(newFreeCon)
@@ -22,8 +23,19 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
       self.unknownCons.remove(newLockedCon)
       self.knownLockedCons.append(newLockedCon)
 
-  def updateReward(self, possibleTrueRewards):
-    self.mdp.setReward(possibleTrueRewards)
+  def updateReward(self, possibleTrueRewardsIndices):
+    sumOfProbs = 0
+    for rIdx in range(len(self.mdp.rSetAndProb)):
+      if rIdx not in possibleTrueRewardsIndices:
+        self.mdp.rSetAndProb[rIdx] = (self.mdp.rSetAndProb[rIdx][0], 0)
+      sumOfProbs += self.mdp.rSetAndProb[rIdx][1]
+
+    # you can't get 0 prob mass
+    assert sumOfProbs > 0
+
+    # normalize reward probs
+    for rIdx in  range(len(self.mdp.rSetAndProb)):
+      self.mdp.rSetAndProb[rIdx] = (self.mdp.rSetAndProb[rIdx][0], self.mdp.rSetAndProb[rIdx][1] / sumOfProbs)
 
 
 class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
@@ -57,13 +69,14 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     # aim to show that objectReardFunc is the true reward function, and objectDomPi is the safely-optimal policy
     self.objectDomPi = None
 
-  def updateCons(self, newFreeCon=None, newLockedCon=None):
-    JointUncertaintyQueryAgent.updateCons(self, newFreeCon=newFreeCon, newLockedCon=newLockedCon)
+  def updateFeats(self, newFreeCon=None, newLockedCon=None):
+    JointUncertaintyQueryAgent.updateFeats(self, newFreeCon=newFreeCon, newLockedCon=newLockedCon)
 
     # if the response is inconsistent with self.objectDomPi,
     # we void the current object dom pi, findQuery will recompute the object dom pi
+    rSet = map(lambda _: _[0], self.mdp.rSetAndProb)
     if len(set(self.knownLockedCons).intersection(self.domPisData[self.objectDomPi].violatedCons)) > 0\
-      or len(set(self.mdp.rSet.keys()).intersection(self.domPisData[self.objectDomPi].optimizedRewards)) == 0:
+      or len(set(rSet).intersection(self.domPisData[self.objectDomPi].optimizedRewards)) == 0:
       self.objectDomPi = None
 
   def findDomPi(self):
@@ -73,7 +86,9 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     """
     self.domPisData = {}
 
-    for (r, rProb) in self.mdp.rSet.items():
+    for rIdx in range(len(self.mdp.rSetAndProb)):
+      (r, rProb) = self.mdp.rSetAndProb[rIdx]
+
       rewardCertainMDP = copy.deepcopy(self.mdp)
       rewardCertainMDP.setReward(r)
 
@@ -90,7 +105,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
           self.domPisData[domPi].violatedCons = relFeats
 
         self.domPisData[domPi].weightedValue += safeProb * rProb * piValue
-        self.domPisData[domPi].optimizedRewards.append(r)
+        self.domPisData[domPi].optimizedRewards.append(rIdx)
 
     # normalize values
     sumOfAllValues = sum([data.weightedValue for data in self.domPisData.values()])
@@ -98,7 +113,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       self.domPisData[domPi].weightedValue /= sumOfAllValues
 
   def sampleDomPi(self):
-    return random.choice(self.domPisData.keys(), [data.weightedValue for data in self.domPisData.values()])
+    return numpy.random.choice(self.domPisData.keys(), p=[data.weightedValue for data in self.domPisData.values()])
 
   def findQuery(self):
     """
@@ -116,4 +131,5 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       return ('F', random.choice(unknownRelFeats))
     else:
       # pose reward queries aiming to show that the rewards it optimize is correct
-      return ('R', set(self.domPisData[self.objectDomPi].optimizedRewards).intersection(self.mdp.rSet.keys()))
+      rSet = map(lambda _: _[0], self.mdp.rSetAndProb)
+      return ('R', set(self.domPisData[self.objectDomPi].optimizedRewards).intersection(rSet))

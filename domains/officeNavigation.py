@@ -192,12 +192,12 @@ def officeNavigation(spec, rewardProbs=[1], gamma=.9):
   dIndices = range(dIndexStart, dIndexStart + dSize)
 
   # box indices
-  bIndexStart = dIndices[-1] + 1
+  bIndexStart = dIndexStart + dSize
   bSize = len(spec.boxes)
   bIndices = range(bIndexStart, bIndexStart + bSize)
 
   # switch indices
-  sIndexStart = bIndices[-1] + 1
+  sIndexStart = bIndexStart + bSize
   sSize = len(spec.switches)
   sIndices = range(sIndexStart, sIndexStart + sSize)
 
