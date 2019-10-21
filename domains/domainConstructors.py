@@ -27,7 +27,7 @@ class SimpleMDP:
       self.r = r
       self.rSetAndProb = [(r, 1)]
     elif type(r) is list:
-      self.r = lambda s, a: sum(rFunc(s, a) * prob for (rFunc, prob) in r.items())
+      self.r = lambda s, a: sum(rFunc(s, a) * prob for (rFunc, prob) in r)
       self.rSetAndProb = r
     else:
       raise Exception('unknown type of r ' + str(type(r)))

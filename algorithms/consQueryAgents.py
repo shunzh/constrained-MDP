@@ -122,6 +122,7 @@ class ConsQueryAgent():
 
       # it will enforce activeCons and known locked features (inside)
       sol = self.findConstrainedOptPi(activeCons)
+      print sol
       if sol['feasible']:
         x = sol['pi']
         if config.DEBUG:

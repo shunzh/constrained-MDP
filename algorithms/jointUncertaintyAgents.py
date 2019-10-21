@@ -11,8 +11,8 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   """
   Querying under reward uncertainty and safety-constraint uncertainty
   """
-  def __init__(self, mdp, consStates, consProbs):
-    ConsQueryAgent.__init__(mdp, consStates, consProbs=consProbs)
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
+    ConsQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs)
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
     #FIXME share some code as InitialSafeAgent, but I don't want to make this class a subclass of that
@@ -63,8 +63,11 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
   Sample a set of dominating policies according to their probabilities of being free and their values.
   Then query the features that would make them safely-optimal.
   """
-  def __init__(self, mdp, consStates, consProbs):
-    JointUncertaintyQueryAgent.__init__(self, mdp, consStates, consProbs)
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
+    JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs)
+
+    # pre-compute all dominating policies
+    self.findDomPis()
 
     # aim to show that objectReardFunc is the true reward function, and objectDomPi is the safely-optimal policy
     self.objectDomPi = None
@@ -79,7 +82,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       or len(set(rSet).intersection(self.domPisData[self.objectDomPi].optimizedRewards)) == 0:
       self.objectDomPi = None
 
-  def findDomPi(self):
+  def findDomPis(self):
     """
     find all dominating policies given reward and safety uncertainty
     stored in self.dompis = [(dompi, weighted_prob)]
@@ -92,7 +95,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       rewardCertainMDP = copy.deepcopy(self.mdp)
       rewardCertainMDP.setReward(r)
 
-      rewardCertainConsAgent = ConsQueryAgent(rewardCertainMDP, self.consStates)
+      rewardCertainConsAgent = ConsQueryAgent(rewardCertainMDP, self.consStates, goalStates=self.goalCons, consProbs=self.consProbs)
       _, domPis = rewardCertainConsAgent.findRelevantFeaturesAndDomPis()
 
       for domPi in domPis:

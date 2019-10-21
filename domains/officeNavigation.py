@@ -104,9 +104,7 @@ A list of toy domains.
 """
 def carpetsAndWallsDomain():
   # example on notes
-  map = [[_, W, _, W, _],
-         [_, W, _, C, _],
-         [R, C, _, C, S]]
+  map = [[R, C, S]]
   return toyWorldConstructor(map)
 
 # some toy domains for need-to-be-reverted features (boxes)
@@ -364,6 +362,6 @@ def officeNavigation(spec, rewardProbs=[1], gamma=.9):
 
   # goal states are that the switch needs to be turned off in the end
   goalStates = [s for s in mdp.S for sIndex in sIndices if s[sIndex] == OFF]
-  print goalStates
+  print 'goals', goalStates
 
   return mdp, consStates, goalStates

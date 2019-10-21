@@ -228,36 +228,40 @@ def rewardQuery(mdp, consStates, k, consProbs):
   agent = MILPAgent(mdp, k)
   agent.learn()
 
-def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFeatures, k):
+def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx, trueFreeFeatures, k):
   """
   Query under both reward uncertainty and safety constraint uncertainty.
 
   For now, assume initial safe policies exist and the robot can pose at most k queries
   """
-  methods = ['myopic', 'dompi']
+  methods = ['dompi']
 
   for method in methods:
     if method == 'myopic':
-      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdp, consStates, consProbs)
-    elif methods == 'dompi':
-      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdp, consStates, consProbs)
+      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdp, consStates, consProbs=consProbs)
+    elif method == 'dompi':
+      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdp, consStates, consProbs=consProbs)
     else:
       raise Exception('unknown method ' + str(method))
 
     for queryIdx in range(k):
-      (qType, query) = agent.findQuery()
-      if qType == 'F':
-        # a feature query
-        if query in trueFreeFeatures:
-          agent.updateFeats(newFreeCon=query)
-        else:
-          agent.updateFeats(newLockedCon=query)
-      elif qType == 'R':
-        if trueRewardIdx in query:
-          agent.updateReward(query)
-        else:
-          allRewardIdx = range(len(mdp.rSetAndProb))
-          agent.updateReward(set(allRewardIdx) - set(query))
+      query = agent.findQuery()
+      if query is not None:
+        print query
+
+        (qType, qContent) = query
+        if qType == 'F':
+          # a feature query
+          if qContent in trueFreeFeatures:
+            agent.updateFeats(newFreeCon=qContent)
+          else:
+            agent.updateFeats(newLockedCon=qContent)
+        elif qType == 'R':
+          if trueRewardIdx in qContent:
+            agent.updateReward(qContent)
+          else:
+            allRewardIdx = range(len(mdp.rSetAndProb))
+            agent.updateReward(set(allRewardIdx) - set(qContent))
 
 
 def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=None):
@@ -280,16 +284,16 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=No
   # true free features, randomly generated
   trueFreeFeatures = filter(lambda idx: random.random() < consProbs[idx], range(numOfCons))
 
-  print range(numOfRewards)
-  print mdp.rSetAndProb
   trueRewardFuncIdx = numpy.random.choice(range(numOfRewards), p=map(lambda _: _[1], mdp.rSetAndProb))
 
   # or hand designed
   print 'true free features', trueFreeFeatures
   print 'true reward function index', trueRewardFuncIdx
 
+  """
   # build a cons query agent just for determining if any safe policy exists
   agent = ConsQueryAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
+  
   if not agent.initialSafePolicyExists():
     print 'initial safe policy does not exist'
 
@@ -299,13 +303,14 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=No
     print 'initial policy exists'
 
     # IJCAI'18 paper: when initial safe policies exist, we want to improve such a safe policy using batch queries
-    #improveSafePolicyMMR(mdp, consStates, k, rnd)
+    improveSafePolicyMMR(mdp, consStates, k, rnd)
 
     # ICAPS'17 paper: improve value of a (safe) policy
     #rewardQuery(mdp, consStates, k, consProbs)
+  """
 
-    # under joint uncertainty:
-    jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, k)
+  # under joint uncertainty:
+  jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardFuncIdx, trueFreeFeatures, k)
 
 
 def setRandomSeed(rnd):
@@ -370,13 +375,14 @@ if __name__ == '__main__':
               mdp, consStates, goalStates = officeNavigation(spec)
               experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
-    #spec = carpetsAndWallsDomain()
-    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
+    spec = carpetsAndWallsDomain()
+    #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()
 
     # use uniform reward uncertainty
+    numOfSwitches = len(spec.switches)
     rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
-    mdp, consStates, goalStates = officeNavigation(spec, rewardProbs)
+    mdp, consStates, goalStates = officeNavigation(spec, rewardProbs=rewardProbs, gamma=0.9)
     experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1)
