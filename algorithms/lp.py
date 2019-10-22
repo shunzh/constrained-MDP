@@ -40,6 +40,7 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
   r should be a reward function, not a reward parameter.
   """
   if len(positiveConstraints) == 0 and positiveConstraintsOcc > 0:
+    print 'returned here'
     return {'feasible': False}
 
   S = mdp.S

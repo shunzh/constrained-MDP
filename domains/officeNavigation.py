@@ -104,7 +104,8 @@ A list of toy domains.
 """
 def carpetsAndWallsDomain():
   # example on notes
-  map = [[R, C, S]]
+  map = [[_, C, S],
+         [R, C, S]]
   return toyWorldConstructor(map)
 
 # some toy domains for need-to-be-reverted features (boxes)

@@ -322,7 +322,7 @@ def setRandomSeed(rnd):
 if __name__ == '__main__':
   # default values
   method = None
-  k = 1 # dummy for sequential queries?
+  k = 4 # dummy for sequential queries?
   dry = False # do not save to files if dry run
 
   # the domain is size x size

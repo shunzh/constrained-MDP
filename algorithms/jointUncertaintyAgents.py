@@ -11,11 +11,12 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   """
   Querying under reward uncertainty and safety-constraint uncertainty
   """
+
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
     ConsQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs)
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
-    #FIXME share some code as InitialSafeAgent, but I don't want to make this class a subclass of that
+    # FIXME share some code as InitialSafeAgent, but I don't want to make this class a subclass of that
     if newFreeCon is not None:
       self.unknownCons.remove(newFreeCon)
       self.knownFreeCons.append(newFreeCon)
@@ -34,60 +35,52 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     assert sumOfProbs > 0
 
     # normalize reward probs
-    for rIdx in  range(len(self.mdp.rSetAndProb)):
+    for rIdx in range(len(self.mdp.rSetAndProb)):
       self.mdp.rSetAndProb[rIdx] = (self.mdp.rSetAndProb[rIdx][0], self.mdp.rSetAndProb[rIdx][1] / sumOfProbs)
+
+  def computeConsistentRewardIndices(self):
+    return filter(lambda rIdx: self.mdp.rSetAndProb[rIdx][1] > 0, range(len(self.mdp.rSetAndProb)))
 
 
 class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
   """
   Planning several steps into the future
   """
+
   def findQuery(self):
     pass
 
 
-class DomPiData:
-  """
-  Used by the querying agent that samples dominating policies
-  For a dominating policy, we want to keep its weighted value
-  (prob that it is safe, prob that the reward it optimizes is the true reward, and the value of the policy),
-  the rewards it optimizes, and the constraints that it violates
-  """
-  def __init__(self):
-    self.weightedValue = 0
-    self.optimizedRewards = []
-    self.violatedCons = None
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
   """
   Sample a set of dominating policies according to their probabilities of being free and their values.
   Then query the features that would make them safely-optimal.
   """
+  class DomPiData:
+    """
+    For a dominating policy, we want to keep its weighted value
+    (prob that it is safe, prob that the reward it optimizes is the true reward, and the value of the policy),
+    the rewards it optimizes, and the constraints that it violates
+    """
+    def __init__(self):
+      self.weightedValue = 0
+      self.optimizedRewards = []
+      self.violatedCons = None
+
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
     JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
-    # pre-compute all dominating policies
-    self.findDomPis()
-
-    # aim to show that objectReardFunc is the true reward function, and objectDomPi is the safely-optimal policy
+    # initialize objectDomPi to be None, will be computed in findQuery
     self.objectDomPi = None
 
-  def updateFeats(self, newFreeCon=None, newLockedCon=None):
-    JointUncertaintyQueryAgent.updateFeats(self, newFreeCon=newFreeCon, newLockedCon=newLockedCon)
-
-    # if the response is inconsistent with self.objectDomPi,
-    # we void the current object dom pi, findQuery will recompute the object dom pi
-    rSet = map(lambda _: _[0], self.mdp.rSetAndProb)
-    if len(set(self.knownLockedCons).intersection(self.domPisData[self.objectDomPi].violatedCons)) > 0\
-      or len(set(rSet).intersection(self.domPisData[self.objectDomPi].optimizedRewards)) == 0:
-      self.objectDomPi = None
-
-  def findDomPis(self):
+  def sampleDomPi(self):
     """
-    find all dominating policies given reward and safety uncertainty
+    (re)compute all dominating policies given reward and safety uncertainty
+    and then sample one
     stored in self.dompis = [(dompi, weighted_prob)]
     """
-    self.domPisData = {}
+    domPisData = {}
 
     for rIdx in range(len(self.mdp.rSetAndProb)):
       (r, rProb) = self.mdp.rSetAndProb[rIdx]
@@ -95,7 +88,8 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       rewardCertainMDP = copy.deepcopy(self.mdp)
       rewardCertainMDP.setReward(r)
 
-      rewardCertainConsAgent = ConsQueryAgent(rewardCertainMDP, self.consStates, goalStates=self.goalCons, consProbs=self.consProbs)
+      rewardCertainConsAgent = ConsQueryAgent(rewardCertainMDP, self.consStates, goalStates=self.goalCons,
+                                              consProbs=self.consProbs)
       _, domPis = rewardCertainConsAgent.findRelevantFeaturesAndDomPis()
 
       for domPi in domPis:
@@ -103,20 +97,34 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
         relFeats = rewardCertainConsAgent.findViolatedConstraints(domPi)
         safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
 
-        if domPi not in self.domPisData.keys():
-          self.domPisData[domPi] = DomPiData()
-          self.domPisData[domPi].violatedCons = relFeats
+        domPiHashable = frozenset(domPi.items())
+        if domPiHashable not in domPisData.keys():
+          domPisData[domPiHashable] = self.DomPiData()
+          domPisData[domPiHashable].violatedCons = relFeats
 
-        self.domPisData[domPi].weightedValue += safeProb * rProb * piValue
-        self.domPisData[domPi].optimizedRewards.append(rIdx)
+        domPisData[domPiHashable].weightedValue += safeProb * rProb * piValue
+        domPisData[domPiHashable].optimizedRewards.append(rIdx)
 
     # normalize values
-    sumOfAllValues = sum([data.weightedValue for data in self.domPisData.values()])
-    for domPi in self.domPisData.keys():
-      self.domPisData[domPi].weightedValue /= sumOfAllValues
+    sumOfAllValues = sum([data.weightedValue for data in domPisData.values()])
+    for domPiHashable in domPisData.keys():
+      domPisData[domPiHashable].weightedValue /= sumOfAllValues
 
-  def sampleDomPi(self):
-    return numpy.random.choice(self.domPisData.keys(), p=[data.weightedValue for data in self.domPisData.values()])
+    self.objectDomPi = numpy.random.choice(domPisData.keys(), p=[data.weightedValue for data in domPisData.values()])
+    self.objectDomPiData = copy.copy(domPisData[self.objectDomPi]) # hopefully python will then free domPisData
+
+  def objectDomPiIsConsistent(self):
+    """
+    If the reward functions the current objectDomPi optimize are ruled out, or the current objectDomPi is knwon to be unsafe,
+    then re-compute the set of dominating policies
+    """
+    # if the response is inconsistent with self.objectDomPi,
+    # we void the current object dom pi, findQuery will recompute the object dom pi
+    consistentRewardIndices = self.computeConsistentRewardIndices()
+    #print 'known locked cons', self.knownLockedCons
+    #print 'consistent reward indices', consistentRewardIndices
+    return len(set(self.knownLockedCons).intersection(self.objectDomPiData.violatedCons)) == 0 \
+      and len(set(consistentRewardIndices).intersection(self.objectDomPiData.optimizedRewards)) > 0
 
   def findQuery(self):
     """
@@ -124,15 +132,15 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     :return: (query type, query)
     """
     # sample dom pis, find what can make them be the safely optimal one
-    if self.objectDomPi is None:
-      self.objectDomPi = self.sampleDomPi()
+    if self.objectDomPi is None or not self.objectDomPiIsConsistent():
+      self.sampleDomPi()
 
-    relFeats = self.domPisData[self.objectDomPi].violatedCons
-    unknownRelFeats =  set(relFeats).intersection(self.unknownCons)
+    relFeats = self.objectDomPiData.violatedCons
+    unknownRelFeats = set(relFeats).intersection(self.unknownCons)
     if len(unknownRelFeats) > 0:
       # pose constraint queries if any relevant features are unknown
-      return ('F', random.choice(unknownRelFeats))
+      return ('F', random.choice(list(unknownRelFeats)))
     else:
       # pose reward queries aiming to show that the rewards it optimize is correct
-      rSet = map(lambda _: _[0], self.mdp.rSetAndProb)
-      return ('R', set(self.domPisData[self.objectDomPi].optimizedRewards).intersection(rSet))
+      consistentRewardIndices = self.computeConsistentRewardIndices()
+      return ('R', set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices))

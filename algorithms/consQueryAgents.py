@@ -59,8 +59,7 @@ class ConsQueryAgent():
     zeroConstraints = self.constructConstraints(tuple(activeCons) + tuple(self.knownLockedCons))
 
     if config.METHOD == 'gurobi':
-      return lpDualGurobi(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons,
-                          positiveConstraintsOcc=0.1)
+      return lpDualGurobi(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)
     elif config.METHOD == 'cplex':
       # not using this. only for comparision
       return lpDualCPLEX(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)
@@ -122,7 +121,6 @@ class ConsQueryAgent():
 
       # it will enforce activeCons and known locked features (inside)
       sol = self.findConstrainedOptPi(activeCons)
-      print sol
       if sol['feasible']:
         x = sol['pi']
         if config.DEBUG:
