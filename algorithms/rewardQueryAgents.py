@@ -24,18 +24,19 @@ class GreedyConstructRewardAgent:
     # start adding following policies
     for i in range(1, self.k):
       if config.VERBOSE: print 'iter.', i
-      x = self.findNextPolicy(self.mdp, q)
+      x = self.findNextPolicy(q)
       q.append(x)
 
     # if asking policies directly, then return q
     # return q, objValue # THIS RETURNS EUS, NOT EPU
     return q, objValue
 
-  def findNextPolicy(self, mdp, q):
+  def findNextPolicy(self, q):
     maxV = []
+    rewardCandNum = len(self.mdp.rSetAndProb)
     for rewardId in xrange(rewardCandNum):
       maxV.append(max([self.computeValue(pi) for pi in q]))
 
     # solve a MILP problem
-    return milp(S, A, R, T, s0, psi, maxV)
+    return milp(self.mdp, maxV)
 
