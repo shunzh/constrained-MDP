@@ -5,6 +5,9 @@ import numpy
 from numpy import random
 
 from algorithms.consQueryAgents import ConsQueryAgent
+from algorithms.initialSafeAgent import GreedyForSafetyAgent
+from algorithms.rewardQueryAgents import MILPAgent
+from domains.domainConstructors import encodeConstraintIntoTransition
 
 
 class JointUncertaintyQueryAgent(ConsQueryAgent):
@@ -16,7 +19,7 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     ConsQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs)
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
-    # FIXME share some code as InitialSafeAgent, but I don't want to make this class a subclass of that
+    # share some code as InitialSafeAgent, but I don't want to make this class a subclass of that
     if newFreeCon is not None:
       self.unknownCons.remove(newFreeCon)
       self.knownFreeCons.append(newFreeCon)
@@ -46,10 +49,35 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
   """
   Planning several steps into the future
   """
+  def findRewardQuery(self):
+    """
+    encode consStates and pf into the transition function,
+    then use greedy construction and projection to find close-to-optimal reward query
+    """
+    mdp = copy.deepcopy(self.mdp)
+    encodeConstraintIntoTransition(mdp, self.consStates, self.consProbs)
+
+    agent = MILPAgent(mdp, 2)
+    agent.learn()
+
+  def findFeatureQuery(self):
+    """
+    use set-cover based algorithm and use the mean reward function (mdp.r does that)
+
+    when safe policies exist, need to modify the original algorithm:
+    computing the set structures by first removing safe dominating policies (set includeSafePolicies to True),
+    that is, we want to minimize the number of queries to find *additional* dominating policies.
+    """
+    agent = GreedyForSafetyAgent(self.mdp, self.consStates, goalStates=self.goalCons, consProbs=self.consProbs,
+                                 includeSafePolicies=True)
+    return agent.findQuery()
 
   def findQuery(self):
-    pass
-
+    """
+    compute the myopically optimal reward query vs feature query, pose the on that has larger EPU value
+    """
+    rewardQuery = self.findRewardQuery()
+    featureQuery = self.findFeatureQuery()
 
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):

@@ -13,13 +13,14 @@ from operator import mul
 from util import powerset
 
 class InitialSafePolicyAgent(ConsQueryAgent):
-  def __init__(self, mdp, consStates, goalStates, consProbs=None, costOfQuery=.5):
+  def __init__(self, mdp, consStates, goalStates, consProbs=None, costOfQuery=.5, includeSafePolicies=False):
     """
     :param costOfQuery: default cost of query is 1 unit
     """
     ConsQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     self.costOfQuery = costOfQuery
+    self.includeSafePolicies = includeSafePolicies
     # counter for the number of queries asked
     self.numOfAskedQueries = 0
 
@@ -107,6 +108,8 @@ class InitialSafePolicyAgent(ConsQueryAgent):
 
     for domPi in domPis:
       feats = self.findViolatedConstraints(domPi)
+      if len(feats) == 0 and not self.includeSafePolicies: continue
+
       domPiFeats.append(feats)
       # FIXME it may be easier to store the values when the dom pis are computed. recomputing here.
       domPiFeatsAndValues[tuple(feats)] = self.computeValue(domPi)
@@ -219,7 +222,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True,
-               optimizeValue=False, heuristicID=0):
+               optimizeValue=False, heuristicID=0, includeSafePolicies=False):
     """
     :param consStates: the set of states that should not be visited
     :param consProbs: the probability that the corresponding constraint is free, None if adversarial setting
@@ -227,14 +230,16 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     :param useRelPi: set cover on relevant features
     :param heuristicID: an hack for trying different heuristics
     :param optimizeValue: True if hoping to find a safe policy with higher values
+    :param includeSafePolicies: True if we want to include safe dominating policies if they exist
+      they should not exist if no safe policies exist. Otherwise will remove them if False.
     """
-    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs)
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs=consProbs, includeSafePolicies=includeSafePolicies)
 
     self.useIIS = useIIS
     self.useRelPi = useRelPi
 
-    self.heuristicID = heuristicID
     self.optimizeValue = optimizeValue
+    self.heuristicID = heuristicID
 
     # find all IISs without knowing any locked or free cons
     if self.useRelPi:

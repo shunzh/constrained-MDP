@@ -218,16 +218,6 @@ def improveSafePolicyMMR(mdp, consStates, k, rnd):
 
     print mrk, regret, runTime
 
-def rewardQuery(mdp, consStates, k, consProbs):
-  """
-  Use the algorithm in ICAPS paper.
-  """
-  mdp = copy.deepcopy(mdp)
-  encodeConstraintIntoTransition(mdp, consStates, consProbs)
-
-  agent = MILPAgent(mdp, k)
-  agent.learn()
-
 def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx, trueFreeFeatures, k):
   """
   Query under both reward uncertainty and safety constraint uncertainty.
@@ -304,9 +294,6 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=No
 
     # IJCAI'18 paper: when initial safe policies exist, we want to improve such a safe policy using batch queries
     improveSafePolicyMMR(mdp, consStates, k, rnd)
-
-    # ICAPS'17 paper: improve value of a (safe) policy
-    #rewardQuery(mdp, consStates, k, consProbs)
   """
 
   # under joint uncertainty:

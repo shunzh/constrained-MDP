@@ -47,7 +47,7 @@ class ConsQueryAgent():
 
     return statusObj['feasible']
 
-  def findConstrainedOptPi(self, activeCons):
+  def findConstrainedOptPi(self, activeCons=()):
     """
     :param activeCons:  constraints that should be followed
     :return: {'feasible': if solution exists; if not exists, this is the only property,

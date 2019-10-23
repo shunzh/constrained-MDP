@@ -151,6 +151,64 @@ def lpDualCPLEX(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstra
   return {'feasible': True, 'obj': obj, 'pi': {(S[s], A[a]): m[x][s, a] for s in Sr for a in Ar}}
 
 
+def milp(S, A, R, T, s0, psi, maxV):
+  """
+  Solve the MILP problem in greedy construction of policy query
+
+  Args:
+    S: state set
+    A: action set
+    R: reward candidate set
+    T: transition function
+    s0: init state
+    psi: prior belief on rewards
+    maxV: maxV[i] = max_{\pi \in q} V_{r_i}^\pi
+  """
+  m = CPlexModel()
+  if not config.VERBOSE: m.setVerbosity(0)
+
+  # useful constants
+  rLen = len(R)
+  M = 10000  # a large number
+  Sr = range(len(S))
+  Ar = range(len(A))
+
+  # decision variables
+  # FIXME i removed upper bound of x. it shoundn't have such bound without transient-state assumption, right?
+  x = m.new((len(S), len(A)), lb=0, name='x')
+  z = m.new(rLen, vtype=bool, name='z')
+  y = m.new(rLen, name='y')
+
+  # constraints on y
+  m.constrain([y[i] <= sum([x[s, a] * R[i](S[s], A[a]) for s in Sr for a in Ar]) - maxV[i] + (1 - z[i]) * M for i in
+               xrange(rLen)])
+  m.constrain([y[i] <= z[i] * M for i in xrange(rLen)])
+
+  # constraints on x (valid occupancy)
+  for sp in Sr:
+    if S[sp] == s0:
+      m.constrain(sum([x[sp, ap] for ap in Ar]) == 1)
+    else:
+      m.constrain(sum([x[sp, ap] for ap in Ar]) == sum([x[s, a] * T(S[s], A[a], S[sp]) for s in Sr for a in Ar]))
+
+  # obj
+  obj = m.maximize(sum([psi[i] * y[i] for i in xrange(rLen)]))
+
+  if config.VERBOSE:
+    print 'obj', obj
+    print 'x', m[x]
+    print 'y', m[y]
+    print 'z', m[z]
+
+  # build occupancy as S x A -> x[.,.]
+  # z[i] == 1 then this policy is better than maxV on the i-th reward candidate
+  res = util.Counter()
+  for s in Sr:
+    for a in Ar:
+      res[S[s], A[a]] = m[x][s, a]
+  return res
+
+
 #TODO the following functions still use CPLEX.
 
 def lp(S, A, r, T, s0):
@@ -217,63 +275,6 @@ def decomposePiLP(S, A, T, s0, terminal, rawX, x, gamma=1):
   
   # return sigma and the value of y
   return obj, {(S[s], A[a]): m[y][s, a] for s in Sr for a in Ar}
-
-
-def milp(S, A, R, T, s0, psi, maxV):
-  """
-  Solve the MILP problem in greedy construction of policy query
-  
-  Args:
-    S: state set
-    A: action set
-    R: reward candidate set
-    T: transition function
-    s0: init state
-    psi: prior belief on rewards
-    maxV: maxV[i] = max_{\pi \in q} V_{r_i}^\pi
-  """
-  m = CPlexModel()
-  if not config.VERBOSE: m.setVerbosity(0)
-
-  # useful constants
-  rLen = len(R)
-  M = 10000 # a large number
-  Sr = range(len(S))
-  Ar = range(len(A))
-  
-  # decision variables
-  # FIXME i removed upper bound of x. it shoundn't have such bound without transient-state assumption, right?
-  x = m.new((len(S), len(A)), lb=0, name='x')
-  z = m.new(rLen, vtype=bool, name='z')
-  y = m.new(rLen, name='y')
-
-  # constraints on y
-  m.constrain([y[i] <= sum([x[s, a] * R[i](S[s], A[a]) for s in Sr for a in Ar]) - maxV[i] + (1 - z[i]) * M for i in xrange(rLen)])
-  m.constrain([y[i] <= z[i] * M for i in xrange(rLen)])
-  
-  # constraints on x (valid occupancy)
-  for sp in Sr:
-    if S[sp] == s0:
-      m.constrain(sum([x[sp, ap] for ap in Ar]) == 1)
-    else:
-      m.constrain(sum([x[sp, ap] for ap in Ar]) == sum([x[s, a] * T(S[s], A[a], S[sp]) for s in Sr for a in Ar]))
-  
-  # obj
-  obj = m.maximize(sum([psi[i] * y[i] for i in xrange(rLen)]))
-
-  if config.VERBOSE:
-    print 'obj', obj
-    print 'x', m[x]
-    print 'y', m[y]
-    print 'z', m[z]
-  
-  # build occupancy as S x A -> x[.,.]
-  # z[i] == 1 then this policy is better than maxV on the i-th reward candidate
-  res = util.Counter()
-  for s in Sr:
-    for a in Ar:
-      res[S[s], A[a]] = m[x][s, a] 
-  return res
 
 
 def domPiMilp(S, A, r, T, s0, terminal, domPis, consIdx, gamma=1):
