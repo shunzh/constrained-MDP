@@ -14,6 +14,11 @@ import pickle
 import numpy as np
 from numpy import std, sqrt
 
+def normalize(vec):
+  sumOfMass = sum(vec)
+  assert sumOfMass > 0
+  map(lambda _: _ / sumOfMass, vec)
+
 def standardErr(data):
   return std(data) / sqrt(len(data))
 
@@ -390,25 +395,6 @@ def raiseNotDefined():
   print "Method not implemented: %s" % inspect.stack()[1][3]    
   sys.exit(1)
 
-def normalize(vectorOrCounter):
-  """
-  normalize a vector or counter by dividing each value by the sum of all values
-  """
-  normalizedCounter = Counter()
-  if type(vectorOrCounter) == type(normalizedCounter):
-    counter = vectorOrCounter
-    total = float(counter.totalCount())
-    if total == 0: return counter
-    for key in counter.keys():
-      value = counter[key]
-      normalizedCounter[key] = value / total
-    return normalizedCounter
-  else:
-    vector = vectorOrCounter
-    s = float(sum(vector))
-    if s == 0: return vector
-    return [el / s for el in vector]
-                
 def nSample(distribution, values, n):
   if sum(distribution) != 1:
     distribution = normalize(distribution)

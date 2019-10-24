@@ -14,7 +14,6 @@ from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyA
   MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent, OracleSafetyAgent
 from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent, \
   JointUncertaintyQueryBySamplingDomPisAgent
-from algorithms.rewardQueryAgents import MILPAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigation, squareWorld, carpetsAndWallsDomain
 from domains.domainConstructors import encodeConstraintIntoTransition
@@ -224,7 +223,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx,
 
   For now, assume initial safe policies exist and the robot can pose at most k queries
   """
-  methods = ['dompi']
+  methods = ['myopic', 'dompi']
 
   for method in methods:
     if method == 'myopic':
@@ -265,7 +264,7 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=No
     If None (by default), set randomly
   """
   numOfCons = len(consStates)
-  numOfRewards = len(mdp.rSetAndProb)
+  numOfRewards = len(mdp.psi)
 
   # consProbs is None then it's Bayesian setting, otherwise MMR
   if consProbs is None: consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
@@ -274,7 +273,7 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=No
   # true free features, randomly generated
   trueFreeFeatures = filter(lambda idx: random.random() < consProbs[idx], range(numOfCons))
 
-  trueRewardFuncIdx = numpy.random.choice(range(numOfRewards), p=map(lambda _: _[1], mdp.rSetAndProb))
+  trueRewardFuncIdx = numpy.random.choice(range(numOfRewards), p=mdp.psi)
 
   # or hand designed
   print 'true free features', trueFreeFeatures

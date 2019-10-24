@@ -6,8 +6,9 @@ from numpy import random
 
 from algorithms.consQueryAgents import ConsQueryAgent
 from algorithms.initialSafeAgent import GreedyForSafetyAgent
-from algorithms.rewardQueryAgents import MILPAgent
+from algorithms.rewardQueryAgents import GreedyConstructRewardAgent
 from domains.domainConstructors import encodeConstraintIntoTransition
+from util import normalize
 
 
 class JointUncertaintyQueryAgent(ConsQueryAgent):
@@ -15,34 +16,47 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   Querying under reward uncertainty and safety-constraint uncertainty
   """
 
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=1):
     ConsQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs)
+
+    self.costOfQuery = costOfQuery
+
+    # maintained after querying
+    self.updatedConsProbs = copy.copy(consProbs)
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
     # share some code as InitialSafeAgent, but I don't want to make this class a subclass of that
     if newFreeCon is not None:
       self.unknownCons.remove(newFreeCon)
       self.knownFreeCons.append(newFreeCon)
+      self.updatedConsProbs[newFreeCon] = 1
     if newLockedCon is not None:
       self.unknownCons.remove(newLockedCon)
       self.knownLockedCons.append(newLockedCon)
+      self.updatedConsProbs[newLockedCon] = 0
 
-  def updateReward(self, possibleTrueRewardsIndices):
-    sumOfProbs = 0
-    for rIdx in range(len(self.mdp.rSetAndProb)):
+  def updateReward(self, possibleTrueRewardsIndices, psi=None):
+    print self.mdp.psi, possibleTrueRewardsIndices
+
+    if psi is None: psi = self.mdp.psi
+    for rIdx in range(len(psi)):
       if rIdx not in possibleTrueRewardsIndices:
-        self.mdp.rSetAndProb[rIdx] = (self.mdp.rSetAndProb[rIdx][0], 0)
-      sumOfProbs += self.mdp.rSetAndProb[rIdx][1]
-
-    # you can't get 0 prob mass
-    assert sumOfProbs > 0
-
-    # normalize reward probs
-    for rIdx in range(len(self.mdp.rSetAndProb)):
-      self.mdp.rSetAndProb[rIdx] = (self.mdp.rSetAndProb[rIdx][0], self.mdp.rSetAndProb[rIdx][1] / sumOfProbs)
+        psi[rIdx] = 0
+    normalize(psi)
 
   def computeConsistentRewardIndices(self):
-    return filter(lambda rIdx: self.mdp.rSetAndProb[rIdx][1] > 0, range(len(self.mdp.rSetAndProb)))
+    return filter(lambda rIdx: self.mdp.psi > 0, range(len(self.mdp.psi)))
+
+
+class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
+  def computeOptimalQueries(self):
+    """
+    find the optimal query policy by evaluating all possible query policies
+    """
+    pass
+
+  def findQuery(self):
+    pass
 
 
 class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
@@ -57,8 +71,8 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     mdp = copy.deepcopy(self.mdp)
     encodeConstraintIntoTransition(mdp, self.consStates, self.consProbs)
 
-    agent = MILPAgent(mdp, 2)
-    agent.learn()
+    agent = GreedyConstructRewardAgent(mdp, 2)
+    return agent.findBinaryResponseRewardSetQuery()
 
   def findFeatureQuery(self):
     """
@@ -69,15 +83,46 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     that is, we want to minimize the number of queries to find *additional* dominating policies.
     """
     agent = GreedyForSafetyAgent(self.mdp, self.consStates, goalStates=self.goalCons, consProbs=self.consProbs,
-                                 includeSafePolicies=True)
+                                 includeSafePolicies=False)
     return agent.findQuery()
+
+  def computeEPU(self, query):
+    (qType, qContent) = query
+    if qType == 'F':
+      feat = qContent
+      return self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat,})\
+           + (1 - self.consProbs[feat]) * self.findConstrainedOptPi(activeCons=self.unknownCons)
+    elif qType == 'R':
+      rIndices = qContent
+
+      mdpIfTrueReward = copy.copy(self.mdp)
+      self.updateReward(rIndices, psi=mdpIfTrueReward.psi)
+
+      mdpIfFalseReward = copy.copy(self.mdp)
+      self.updateReward(set(range(len(self.mdp.psi))) - set(rIndices), psi=mdpIfTrueReward.psi)
+
+      return sum(self.mdp.psi[_] for _ in rIndices) * self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward) +\
+           + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)
+    else:
+      raise Exception('unknown query ' + query)
 
   def findQuery(self):
     """
     compute the myopically optimal reward query vs feature query, pose the on that has larger EPU value
     """
-    rewardQuery = self.findRewardQuery()
-    featureQuery = self.findFeatureQuery()
+    rewardQuery = ('R', self.findRewardQuery())
+    featureQuery = ('F', self.findFeatureQuery())
+
+    rewardQEPU = self.computeEPU(rewardQuery)
+    featureQEPU = self.computeEPU(featureQuery)
+
+    if rewardQEPU < self.costOfQuery and featureQEPU < self.costOfQuery:
+      # stop querying
+      return None
+    elif rewardQEPU > featureQEPU:
+      return rewardQuery
+    else:
+      return featureQuery
 
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
@@ -85,6 +130,13 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
   Sample a set of dominating policies according to their probabilities of being free and their values.
   Then query the features that would make them safely-optimal.
   """
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=1):
+    JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs,
+                                        costOfQuery=costOfQuery)
+
+    # initialize objectDomPi to be None, will be computed in findQuery
+    self.objectDomPi = None
+
   class DomPiData:
     """
     For a dominating policy, we want to keep its weighted value
@@ -96,11 +148,6 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       self.optimizedRewards = []
       self.violatedCons = None
 
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
-    JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs)
-
-    # initialize objectDomPi to be None, will be computed in findQuery
-    self.objectDomPi = None
 
   def sampleDomPi(self):
     """
@@ -110,8 +157,9 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     """
     domPisData = {}
 
-    for rIdx in range(len(self.mdp.rSetAndProb)):
-      (r, rProb) = self.mdp.rSetAndProb[rIdx]
+    for rIdx in range(len(self.mdp.rewardFuncs)):
+      r = self.mdp.rewardFuncs[rIdx]
+      rProb = self.mdp.psi[rIdx]
 
       rewardCertainMDP = copy.deepcopy(self.mdp)
       rewardCertainMDP.setReward(r)

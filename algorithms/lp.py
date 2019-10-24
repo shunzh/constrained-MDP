@@ -1,13 +1,8 @@
 import config
 import util
 
-if config.METHOD == 'gurobi':
-  from gurobipy import *
-elif config.METHOD == 'cplex':
-  from pycpx import CPlexModel, CPlexException, CPlexNoSolution
-else:
-  raise Exception('dont know what optimization package to use.')
-
+from gurobipy import *
+from pycpx import CPlexModel, CPlexException, CPlexNoSolution
 
 def linearRegression(A, b):
   """
@@ -154,6 +149,7 @@ def lpDualCPLEX(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstra
 def milp(mdp, maxV):
   """
   Solve the MILP problem in greedy construction of policy query
+  FIXME change this to gurobi
 
   Args:
     S: state set
@@ -167,6 +163,14 @@ def milp(mdp, maxV):
   m = CPlexModel()
   if not config.VERBOSE: m.setVerbosity(0)
 
+  # convert notation to previous implementation
+  S = mdp.S
+  A = mdp.A
+  R = mdp.rewardFuncs
+  psi = mdp.psi
+  T = mdp.T
+  alpha = mdp.alpha
+
   # useful constants
   rLen = len(R)
   M = 10000  # a large number
@@ -174,7 +178,6 @@ def milp(mdp, maxV):
   Ar = range(len(A))
 
   # decision variables
-  # FIXME i removed upper bound of x. it shoundn't have such bound without transient-state assumption, right?
   x = m.new((len(S), len(A)), lb=0, name='x')
   z = m.new(rLen, vtype=bool, name='z')
   y = m.new(rLen, name='y')
@@ -186,10 +189,12 @@ def milp(mdp, maxV):
 
   # constraints on x (valid occupancy)
   for sp in Sr:
-    if S[sp] == s0:
+    if alpha(sp) == 1:
       m.constrain(sum([x[sp, ap] for ap in Ar]) == 1)
-    else:
+    elif alpha(sp) == 0:
       m.constrain(sum([x[sp, ap] for ap in Ar]) == sum([x[s, a] * T(S[s], A[a], S[sp]) for s in Sr for a in Ar]))
+    else:
+      raise Exception('did not implement general initial state distribution')
 
   # obj
   obj = m.maximize(sum([psi[i] * y[i] for i in xrange(rLen)]))

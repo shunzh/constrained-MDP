@@ -47,14 +47,15 @@ class ConsQueryAgent():
 
     return statusObj['feasible']
 
-  def findConstrainedOptPi(self, activeCons=()):
+  def findConstrainedOptPi(self, activeCons=(), mdp=None):
     """
     :param activeCons:  constraints that should be followed
+    :param mdp: use mdp.r by default
     :return: {'feasible': if solution exists; if not exists, this is the only property,
               'obj': the objective value,
               'pi': the policy found}
     """
-    mdp = copy.copy(self.mdp)
+    if mdp is None: mdp = self.mdp
 
     zeroConstraints = self.constructConstraints(tuple(activeCons) + tuple(self.knownLockedCons))
 
@@ -70,8 +71,10 @@ class ConsQueryAgent():
   """
   Methods for finding dominating policies and relevant features
   """
-  #FIXME what is this for?? just to check the computation time?
   def findRelevantFeaturesBruteForce(self):
+    """
+    a method simply to measure the time needed to compute all dominating policies
+    """
     allConsPowerset = set(powerset(self.unknownCons))
 
     for subsetsToConsider in allConsPowerset:

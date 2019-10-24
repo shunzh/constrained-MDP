@@ -10,16 +10,16 @@ class GreedyConstructRewardAgent:
     self.mdp = mdp
     self.k = k
 
-  def computeValue(self, x):
+  def computeValue(self, x, r=None):
     """
     compute the value of policy x. it computes the dot product between x and r
     """
-    return computeValue(x, self.mdp.r, self.mdp.S, self.mdp.A)
+    if r is None: r = self.mdp.r
+    return computeValue(x, r, self.mdp.S, self.mdp.A)
 
-  def findQuery(self):
+  def findPolicyQuery(self):
     # start with the prior optimal policy
-    q = [lpDualGurobi(self.mdp)]
-    objValue = None  # k won't be 1, fine
+    q = [lpDualGurobi(self.mdp)['pi']]
 
     # start adding following policies
     for i in range(1, self.k):
@@ -29,14 +29,26 @@ class GreedyConstructRewardAgent:
 
     # if asking policies directly, then return q
     # return q, objValue # THIS RETURNS EUS, NOT EPU
-    return q, objValue
+    return q
 
   def findNextPolicy(self, q):
     maxV = []
-    rewardCandNum = len(self.mdp.rSetAndProb)
-    for rewardId in xrange(rewardCandNum):
-      maxV.append(max([self.computeValue(pi) for pi in q]))
+    rewardCandNum = len(self.mdp.psi)
+    for rewardIdx in xrange(rewardCandNum):
+      maxV.append(max([self.computeValue(pi, r=self.mdp.rewardFuncs[rewardIdx]) for pi in q]))
 
     # solve a MILP problem
     return milp(self.mdp, maxV)
 
+  def findBinaryResponseRewardSetQuery(self):
+    """
+    If we have only one response, find out which reward function is optimized by the first policy in qPi
+    """
+    qPi = self.findPolicyQuery()
+
+    rewardIndicesSet = []
+    for rewardIdx in range(len(self.mdp.psi)):
+      if self.computeValue(qPi[0], r=self.mdp.rewardFuncs[rewardIdx]) > self.computeValue(qPi[1], r=self.mdp.rewardFuncs[rewardIdx]):
+        rewardIndicesSet.append(rewardIdx)
+
+    return rewardIndicesSet
