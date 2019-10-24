@@ -16,7 +16,7 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   Querying under reward uncertainty and safety-constraint uncertainty
   """
 
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=1):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
     ConsQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs)
 
     self.costOfQuery = costOfQuery
@@ -35,14 +35,14 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
       self.knownLockedCons.append(newLockedCon)
       self.updatedConsProbs[newLockedCon] = 0
 
-  def updateReward(self, possibleTrueRewardsIndices, psi=None):
-    print self.mdp.psi, possibleTrueRewardsIndices
+  def updateReward(self, possibleTrueRewardIndices):
+    self.mdp.psi = self.updateARewardDistribution(possibleTrueRewardIndices, self.mdp.psi)
 
-    if psi is None: psi = self.mdp.psi
+  def updateARewardDistribution(self, possibleTrueRewardIndices, psi):
     for rIdx in range(len(psi)):
-      if rIdx not in possibleTrueRewardsIndices:
+      if rIdx not in possibleTrueRewardIndices:
         psi[rIdx] = 0
-    normalize(psi)
+    return normalize(psi)
 
   def computeConsistentRewardIndices(self):
     return filter(lambda rIdx: self.mdp.psi > 0, range(len(self.mdp.psi)))
@@ -77,32 +77,34 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
   def findFeatureQuery(self):
     """
     use set-cover based algorithm and use the mean reward function (mdp.r does that)
+    #fixme assume safe policies exist for now
 
     when safe policies exist, need to modify the original algorithm:
     computing the set structures by first removing safe dominating policies (set includeSafePolicies to True),
     that is, we want to minimize the number of queries to find *additional* dominating policies.
     """
     agent = GreedyForSafetyAgent(self.mdp, self.consStates, goalStates=self.goalCons, consProbs=self.consProbs,
-                                 includeSafePolicies=False)
+                                 improveSafePis=True)
     return agent.findQuery()
 
   def computeEPU(self, query):
     (qType, qContent) = query
     if qType == 'F':
       feat = qContent
-      return self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat,})\
-           + (1 - self.consProbs[feat]) * self.findConstrainedOptPi(activeCons=self.unknownCons)
+      return self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat,})['obj']\
+           + (1 - self.consProbs[feat]) * self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
     elif qType == 'R':
       rIndices = qContent
 
-      mdpIfTrueReward = copy.copy(self.mdp)
-      self.updateReward(rIndices, psi=mdpIfTrueReward.psi)
+      mdpIfTrueReward = copy.deepcopy(self.mdp)
+      mdpIfTrueReward.psi = self.updateARewardDistribution(rIndices, psi=mdpIfTrueReward.psi)
 
-      mdpIfFalseReward = copy.copy(self.mdp)
-      self.updateReward(set(range(len(self.mdp.psi))) - set(rIndices), psi=mdpIfTrueReward.psi)
+      mdpIfFalseReward = copy.deepcopy(self.mdp)
+      mdpIfFalseReward.psi = self.updateARewardDistribution(set(range(len(self.mdp.psi))) - set(rIndices),
+                                                            psi=mdpIfFalseReward.psi)
 
-      return sum(self.mdp.psi[_] for _ in rIndices) * self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward) +\
-           + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)
+      return sum(self.mdp.psi[_] for _ in rIndices) * self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward)['obj'] +\
+           + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
     else:
       raise Exception('unknown query ' + query)
 
@@ -115,6 +117,8 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     rewardQEPU = self.computeEPU(rewardQuery)
     featureQEPU = self.computeEPU(featureQuery)
+
+    print 'epu comparison', rewardQEPU, featureQEPU
 
     if rewardQEPU < self.costOfQuery and featureQEPU < self.costOfQuery:
       # stop querying

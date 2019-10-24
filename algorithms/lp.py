@@ -1,8 +1,12 @@
 import config
 import util
 
-from gurobipy import *
-from pycpx import CPlexModel, CPlexException, CPlexNoSolution
+if config.METHOD == 'gurobi':
+  from gurobipy import *
+elif config.METHOD == 'cplex':
+  from pycpx import CPlexModel, CPlexException, CPlexNoSolution
+else:
+  raise Exception('unknown optimization method ' + config.METHOD)
 
 def linearRegression(A, b):
   """
@@ -149,7 +153,6 @@ def lpDualCPLEX(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstra
 def milp(mdp, maxV):
   """
   Solve the MILP problem in greedy construction of policy query
-  FIXME change this to gurobi
 
   Args:
     S: state set
@@ -160,8 +163,8 @@ def milp(mdp, maxV):
     psi: prior belief on rewards
     maxV: maxV[i] = max_{\pi \in q} V_{r_i}^\pi
   """
-  m = CPlexModel()
-  if not config.VERBOSE: m.setVerbosity(0)
+  m = Model()
+  m.setParam('OutputFlag', False)
 
   # convert notation to previous implementation
   S = mdp.S
@@ -170,6 +173,7 @@ def milp(mdp, maxV):
   psi = mdp.psi
   T = mdp.T
   alpha = mdp.alpha
+  gamma = mdp.gamma
 
   # useful constants
   rLen = len(R)
@@ -178,40 +182,31 @@ def milp(mdp, maxV):
   Ar = range(len(A))
 
   # decision variables
-  x = m.new((len(S), len(A)), lb=0, name='x')
-  z = m.new(rLen, vtype=bool, name='z')
-  y = m.new(rLen, name='y')
+  x = m.addVars(len(S), len(A), lb=0, name='x')
+  z = m.addVars(rLen, vtype='B', name='z')
+  y = m.addVars(rLen, name='y')
 
   # constraints on y
-  m.constrain([y[i] <= sum([x[s, a] * R[i](S[s], A[a]) for s in Sr for a in Ar]) - maxV[i] + (1 - z[i]) * M for i in
-               xrange(rLen)])
-  m.constrain([y[i] <= z[i] * M for i in xrange(rLen)])
+  for i in range(rLen):
+    m.addConstr(y[i] <= sum([x[s, a] * R[i](S[s], A[a]) for s in Sr for a in Ar]) - maxV[i] + (1 - z[i]) * M)
+    m.addConstr(y[i] <= z[i] * M)
 
   # constraints on x (valid occupancy)
   for sp in Sr:
-    if alpha(sp) == 1:
-      m.constrain(sum([x[sp, ap] for ap in Ar]) == 1)
-    elif alpha(sp) == 0:
-      m.constrain(sum([x[sp, ap] for ap in Ar]) == sum([x[s, a] * T(S[s], A[a], S[sp]) for s in Sr for a in Ar]))
-    else:
-      raise Exception('did not implement general initial state distribution')
+    m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
 
   # obj
-  obj = m.maximize(sum([psi[i] * y[i] for i in xrange(rLen)]))
+  m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)]), GRB.MAXIMIZE)
 
-  if config.VERBOSE:
-    print 'obj', obj
-    print 'x', m[x]
-    print 'y', m[y]
-    print 'z', m[z]
+  m.optimize()
 
-  # build occupancy as S x A -> x[.,.]
-  # z[i] == 1 then this policy is better than maxV on the i-th reward candidate
-  res = util.Counter()
-  for s in Sr:
-    for a in Ar:
-      res[S[s], A[a]] = m[x][s, a]
-  return res
+  if m.status == GRB.Status.OPTIMAL:
+    # return feasible being true and the obj value, opt pi
+    # .X attribute is to retrieve the value of the variable
+    return {(S[s], A[a]): x[s, a].X for s in Sr for a in Ar}
+  else:
+    # simply return infeasible
+    raise Exception('milp problem optimal solution not found' + m.status)
 
 
 #TODO the following functions still use CPLEX.

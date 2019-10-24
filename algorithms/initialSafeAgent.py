@@ -13,14 +13,14 @@ from operator import mul
 from util import powerset
 
 class InitialSafePolicyAgent(ConsQueryAgent):
-  def __init__(self, mdp, consStates, goalStates, consProbs=None, costOfQuery=.5, includeSafePolicies=False):
+  def __init__(self, mdp, consStates, goalStates, consProbs=None, costOfQuery=.5, improveSafePis=False):
     """
     :param costOfQuery: default cost of query is 1 unit
     """
     ConsQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs)
 
     self.costOfQuery = costOfQuery
-    self.includeSafePolicies = includeSafePolicies
+    self.improveSafePis = improveSafePis
     # counter for the number of queries asked
     self.numOfAskedQueries = 0
 
@@ -87,7 +87,8 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     """
     None if don't know, otherwise return exists or notExist
     """
-    if self.safePolicyExist(): return EXIST
+    if self.improveSafePis: return None
+    elif self.safePolicyExist(): return EXIST
     elif self.safePolicyNotExist(): return NOTEXIST
     else: return None
 
@@ -108,7 +109,10 @@ class InitialSafePolicyAgent(ConsQueryAgent):
 
     for domPi in domPis:
       feats = self.findViolatedConstraints(domPi)
-      if len(feats) == 0 and not self.includeSafePolicies: continue
+      print 'domPi violates', feats
+      # if this is a known-to-be-safe dom pi and we aim to improve safe policies,
+      # don't add this to the set cover structure
+      if len(feats) == 0 and self.improveSafePis: continue
 
       domPiFeats.append(feats)
       # FIXME it may be easier to store the values when the dom pis are computed. recomputing here.
@@ -222,7 +226,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True,
-               optimizeValue=False, heuristicID=0, includeSafePolicies=False):
+               optimizeValue=False, heuristicID=0, improveSafePis=False):
     """
     :param consStates: the set of states that should not be visited
     :param consProbs: the probability that the corresponding constraint is free, None if adversarial setting
@@ -230,10 +234,10 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     :param useRelPi: set cover on relevant features
     :param heuristicID: an hack for trying different heuristics
     :param optimizeValue: True if hoping to find a safe policy with higher values
-    :param includeSafePolicies: True if we want to include safe dominating policies if they exist
+    :param improveSafePis: True if we want to include safe dominating policies if they exist
       they should not exist if no safe policies exist. Otherwise will remove them if False.
     """
-    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs=consProbs, includeSafePolicies=includeSafePolicies)
+    InitialSafePolicyAgent.__init__(self, mdp, consStates, goalStates, consProbs=consProbs, improveSafePis=improveSafePis)
 
     self.useIIS = useIIS
     self.useRelPi = useRelPi

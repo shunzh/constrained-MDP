@@ -217,7 +217,7 @@ def improveSafePolicyMMR(mdp, consStates, k, rnd):
 
     print mrk, regret, runTime
 
-def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx, trueFreeFeatures, k):
+def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx, trueFreeFeatures, k, costOfQuery=0):
   """
   Query under both reward uncertainty and safety constraint uncertainty.
 
@@ -227,12 +227,13 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx,
 
   for method in methods:
     if method == 'myopic':
-      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdp, consStates, consProbs=consProbs)
+      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdp, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'dompi':
-      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdp, consStates, consProbs=consProbs)
+      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdp, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     else:
       raise Exception('unknown method ' + str(method))
 
+    print method
     for queryIdx in range(k):
       query = agent.findQuery()
       if query is not None:
@@ -251,6 +252,8 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx,
           else:
             allRewardIdx = range(len(mdp.rSetAndProb))
             agent.updateReward(set(allRewardIdx) - set(qContent))
+      else:
+        break
 
 
 def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=None):
