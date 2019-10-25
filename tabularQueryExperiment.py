@@ -217,7 +217,7 @@ def improveSafePolicyMMR(mdp, consStates, k, rnd):
 
     print mrk, regret, runTime
 
-def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx, trueFreeFeatures, k, costOfQuery=0):
+def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx, trueFreeFeatures, k, costOfQuery=0.0):
   """
   Query under both reward uncertainty and safety constraint uncertainty.
 
@@ -226,10 +226,12 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx,
   methods = ['myopic', 'dompi']
 
   for method in methods:
+    # the agent is going to modify mdp.psi, so make copies here
+    mdpForAgent = copy.deepcopy(mdp)
     if method == 'myopic':
-      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdp, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'dompi':
-      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdp, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     else:
       raise Exception('unknown method ' + str(method))
 
@@ -299,7 +301,8 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=No
   """
 
   # under joint uncertainty:
-  jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardFuncIdx, trueFreeFeatures, k)
+  jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardFuncIdx, trueFreeFeatures, k,
+                        costOfQuery=0.01)
 
 
 def setRandomSeed(rnd):

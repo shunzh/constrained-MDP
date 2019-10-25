@@ -48,7 +48,7 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     return normalize(psi)
 
   def computeConsistentRewardIndices(self):
-    return filter(lambda rIdx: self.mdp.psi > 0, range(len(self.mdp.psi)))
+    return filter(lambda rIdx: self.mdp.psi[rIdx] > 0, range(len(self.mdp.psi)))
 
 
 class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
@@ -71,6 +71,13 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     encode consStates and pf into the transition function,
     then use greedy construction and projection to find close-to-optimal reward query
     """
+    psiSupports = filter(lambda _: _ > 0, self.mdp.psi)
+    # psi cannot have 0 support
+    assert len(psiSupports) > 0
+    # if the true reward function is known, no need to pose more reward queries
+    if len(psiSupports) == 1: return None
+
+    # construct an mdp that encodes safety constraints
     mdp = copy.deepcopy(self.mdp)
     encodeConstraintIntoTransition(mdp, self.currentConsStates, self.currentConsProbs)
 
@@ -86,15 +93,19 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     computing the set structures by first removing safe dominating policies (set includeSafePolicies to True),
     that is, we want to minimize the number of queries to find *additional* dominating policies.
     """
-    if len(self.currentConsStates) == 0:
-      return None
-    else:
-      agent = GreedyForSafetyAgent(self.mdp, self.currentConsStates, goalStates=self.goalCons,
-                                   consProbs=self.currentConsProbs, improveSafePis=True)
-      return agent.findQuery()
+    # if no unknown safety constraints, no need to pose more feature queries
+    if len(self.unknownCons) == 0: return None
+
+    agent = GreedyForSafetyAgent(self.mdp, self.currentConsStates, goalStates=self.goalCons,
+                                 consProbs=self.currentConsProbs, improveSafePis=True)
+    return agent.findQuery()
 
   def computeEPU(self, query):
     (qType, qContent) = query
+
+    # if the query gives up, then epu is 0
+    if qContent is None: return 0
+
     if qType == 'F':
       feat = qContent
       return self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat,})['obj']\
@@ -123,8 +134,6 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     rewardQEPU = self.computeEPU(rewardQuery)
     featureQEPU = self.computeEPU(featureQuery)
-
-    print 'epu comparison', rewardQEPU, featureQEPU
 
     if rewardQEPU < self.costOfQuery and featureQEPU < self.costOfQuery:
       # stop querying
@@ -174,8 +183,8 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       rewardCertainMDP = copy.deepcopy(self.mdp)
       rewardCertainMDP.setReward(r)
 
-      rewardCertainConsAgent = ConsQueryAgent(rewardCertainMDP, self.unknownConsStates, goalStates=self.goalCons,
-                                              consProbs=self.unknownConsProbs)
+      rewardCertainConsAgent = ConsQueryAgent(rewardCertainMDP, self.currentConsStates, goalStates=self.goalCons,
+                                              consProbs=self.currentConsProbs)
       _, domPis = rewardCertainConsAgent.findRelevantFeaturesAndDomPis()
 
       for domPi in domPis:
@@ -223,10 +232,15 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
     relFeats = self.objectDomPiData.violatedCons
     unknownRelFeats = set(relFeats).intersection(self.unknownCons)
+    # fixme better ways to choose queries and decide when to stop?
     if len(unknownRelFeats) > 0:
       # pose constraint queries if any relevant features are unknown
       return ('F', random.choice(list(unknownRelFeats)))
     else:
-      # pose reward queries aiming to show that the rewards it optimize is correct
+      # pose reward queries aiming to show that the rewards it optimizes is correct
       consistentRewardIndices = self.computeConsistentRewardIndices()
-      return ('R', set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices))
+      assert len(consistentRewardIndices) > 0
+      # no reward queries needed if no reward uncertainty
+      if len(consistentRewardIndices) == 1: return None
+      qReward = set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices)
+      return ('R', list(qReward))

@@ -16,8 +16,9 @@ from numpy import std, sqrt
 
 def normalize(vec):
   sumOfMass = sum(vec)
-  assert sumOfMass > 0
-  return map(lambda _: _ / sumOfMass, vec)
+  # if we have a zero vector, simply return it
+  if sumOfMass == 0: return vec
+  else: return map(lambda _: _ / sumOfMass, vec)
 
 def standardErr(data):
   return std(data) / sqrt(len(data))

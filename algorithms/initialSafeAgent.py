@@ -109,7 +109,6 @@ class InitialSafePolicyAgent(ConsQueryAgent):
 
     for domPi in domPis:
       feats = self.findViolatedConstraints(domPi)
-      print 'domPi violates', feats
       # if this is a known-to-be-safe dom pi and we aim to improve safe policies,
       # don't add this to the set cover structure
       if len(feats) == 0 and self.improveSafePis: continue
