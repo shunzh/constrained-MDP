@@ -15,8 +15,7 @@ from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyA
 from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent, \
   JointUncertaintyQueryBySamplingDomPisAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
-from domains.officeNavigation import officeNavigation, squareWorld, carpetsAndWallsDomain
-from domains.domainConstructors import encodeConstraintIntoTransition
+from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
 
 
 def findInitialSafePolicy(mdp, consStates, goalStates, trueFreeFeatures, rnd, consProbs=None):
@@ -217,7 +216,7 @@ def improveSafePolicyMMR(mdp, consStates, k, rnd):
 
     print mrk, regret, runTime
 
-def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx, trueFreeFeatures, k, costOfQuery=0.0):
+def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx, trueFreeFeatures, k, costOfQuery):
   """
   Query under both reward uncertainty and safety constraint uncertainty.
 
@@ -258,7 +257,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx,
         break
 
 
-def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=None):
+def experiment(mdp, consStates, goalStates, k, pf=0, pfStep=1, consProbs=None):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
@@ -364,11 +363,11 @@ if __name__ == '__main__':
               setRandomSeed(rnd)
 
               spec = squareWorld(size=size, numOfCarpets=carpetNum, numOfWalls=wallNum)
-              mdp, consStates, goalStates = officeNavigation(spec)
+              mdp, consStates, goalStates = officeNavigationTask(spec)
               experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
   else:
-    spec = carpetsAndWallsDomain()
-    #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
+    #spec = carpetsAndWallsDomain()
+    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()
@@ -376,5 +375,5 @@ if __name__ == '__main__':
     # use uniform reward uncertainty
     numOfSwitches = len(spec.switches)
     rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
-    mdp, consStates, goalStates = officeNavigation(spec, rewardProbs=rewardProbs, gamma=0.9)
-    experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1)
+    mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.9)
+    experiment(mdp, consStates, goalStates, k, pf=0, pfStep=1)

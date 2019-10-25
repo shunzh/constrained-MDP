@@ -177,7 +177,7 @@ def parameterizedSokobanWorld(size, numOfBoxes):
   return Spec(width, height, robot, switches, walls, doors, boxes, carpets, horizon)
 
 
-def officeNavigation(spec, rewardProbs=[1], gamma=.9):
+def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
   """
   spec: specification of the factored mdp
   gamma: discounting factor
@@ -348,7 +348,7 @@ def officeNavigation(spec, rewardProbs=[1], gamma=.9):
   # create the list of reward candidates, in the form of [(reward_func, prob)]
   rFunc = [(rewardFuncGen(sIdx), rewardProbs[sIdx - sIndexStart]) for sIdx in sIndices]
 
-  mdp = domainConstructors.constructDeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma, terminal)
+  mdp = domainConstructors.DeterministicFactoredMDP(sSets, aSets, rFunc, tFunc, s0, gamma, terminal)
 
   # implement the set of constrained states based on feature representation
   # consStates is [[states that violate the i-th constraint] for i in all constraints]

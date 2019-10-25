@@ -7,7 +7,6 @@ from numpy import random
 from algorithms.consQueryAgents import ConsQueryAgent
 from algorithms.initialSafeAgent import GreedyForSafetyAgent
 from algorithms.rewardQueryAgents import GreedyConstructRewardAgent
-from domains.domainConstructors import encodeConstraintIntoTransition
 from util import normalize
 
 
@@ -79,7 +78,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     # construct an mdp that encodes safety constraints
     mdp = copy.deepcopy(self.mdp)
-    encodeConstraintIntoTransition(mdp, self.currentConsStates, self.currentConsProbs)
+    mdp.encodeConstraintIntoTransition(self.currentConsStates)
 
     agent = GreedyConstructRewardAgent(mdp, 2)
     return agent.findBinaryResponseRewardSetQuery()
@@ -134,6 +133,8 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     rewardQEPU = self.computeEPU(rewardQuery)
     featureQEPU = self.computeEPU(featureQuery)
+
+    print rewardQuery, rewardQEPU, 'vs.', featureQuery, featureQEPU
 
     if rewardQEPU < self.costOfQuery and featureQEPU < self.costOfQuery:
       # stop querying
