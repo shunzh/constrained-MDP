@@ -89,8 +89,8 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
   m.setObjective(sum([x[s, a] * r(S[s], A[a]) for s in Sr for a in Ar]), GRB.MAXIMIZE)
 
   m.optimize()
-  
-  if m.status == GRB.Status.OPTIMAL: 
+
+  if m.status == GRB.Status.OPTIMAL:
     # return feasible being true and the obj value, opt pi
     # .X attribute is to retrieve the value of the variable
     return {'feasible': True, 'obj': m.objVal, 'pi': {(S[s], A[a]): x[s, a].X for s in Sr for a in Ar}}
@@ -169,7 +169,7 @@ def milp(mdp, maxV):
   # convert notation to previous implementation
   S = mdp.S
   A = mdp.A
-  R = mdp.rewardFuncs
+  R = mdp.rFuncs
   psi = mdp.psi
   T = mdp.T
   alpha = mdp.alpha
@@ -200,10 +200,12 @@ def milp(mdp, maxV):
 
   m.optimize()
 
+  pi = {(S[s], A[a]): x[s, a].X for s in Sr for a in Ar}
+
   if m.status == GRB.Status.OPTIMAL:
     # return feasible being true and the obj value, opt pi
     # .X attribute is to retrieve the value of the variable
-    return {(S[s], A[a]): x[s, a].X for s in Sr for a in Ar}
+    return pi
   else:
     # simply return infeasible
     raise Exception('milp problem optimal solution not found' + m.status)

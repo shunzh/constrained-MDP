@@ -116,14 +116,16 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
       rIndices = qContent
 
       mdpIfTrueReward = copy.deepcopy(self.mdp)
-      mdpIfTrueReward.psi = self.updateARewardDistribution(rIndices, psi=mdpIfTrueReward.psi)
+      mdpIfTrueReward.updatePsi(self.updateARewardDistribution(rIndices, psi=mdpIfTrueReward.psi))
+      posteriorValueIfTrue = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward)['obj']
 
       mdpIfFalseReward = copy.deepcopy(self.mdp)
-      mdpIfFalseReward.psi = self.updateARewardDistribution(set(range(len(self.mdp.psi))) - set(rIndices),
-                                                            psi=mdpIfFalseReward.psi)
+      mdpIfFalseReward.updatePsi(self.updateARewardDistribution(set(range(len(self.mdp.psi))) - set(rIndices),
+                                                            psi=mdpIfFalseReward.psi))
+      posteriorValueIfFalse = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
 
-      return sum(self.mdp.psi[_] for _ in rIndices) * self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward)['obj'] +\
-           + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
+      return sum(self.mdp.psi[_] for _ in rIndices) * posteriorValueIfTrue +\
+           + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * posteriorValueIfFalse
     else:
       raise Exception('unknown query ' + query)
 
@@ -137,7 +139,8 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     rewardQEPU = self.computeEPU(rewardQuery)
     featureQEPU = self.computeEPU(featureQuery)
 
-    print 'EPU', rewardQuery, rewardQEPU, featureQuery, featureQEPU
+    print 'EPU', rewardQuery, rewardQEPU
+    print 'EPU', featureQuery, featureQEPU
 
     if rewardQEPU < self.costOfQuery and featureQEPU < self.costOfQuery:
       # stop querying
@@ -179,8 +182,8 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     """
     domPisData = {}
 
-    for rIdx in range(len(self.mdp.rewardFuncs)):
-      r = self.mdp.rewardFuncs[rIdx]
+    for rIdx in range(len(self.mdp.rFuncs)):
+      r = self.mdp.rFuncs[rIdx]
       rProb = self.mdp.psi[rIdx]
 
       rewardCertainMDP = copy.deepcopy(self.mdp)

@@ -320,7 +320,7 @@ if __name__ == '__main__':
   size = 6
 
   numOfCarpets = 10
-  numOfSwitches = 2
+  numOfSwitches = 5
   numOfWalls = 0
 
   rnd = 0 # set a dummy random seed if no -r argument
@@ -367,8 +367,8 @@ if __name__ == '__main__':
               mdp, consStates, goalStates = officeNavigationTask(spec)
               experiment(mdp, consStates, goalStates, k, pf=pf, pfStep=pfStep)
   else:
-    #spec = carpetsAndWallsDomain()
-    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
+    spec = carpetsAndWallsDomain()
+    #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()

@@ -8,34 +8,31 @@ class SimpleMDP:
   Not working with constraints, but can encode constraints into its transition function
   """
   def __init__(self, S=[], A=[], T=None, r=None, alpha=None, terminal=lambda _: False, gamma=1):
-    """
-    r is set if reward function is known,
-    """
     self.S = S
     self.A = A
     self.T = T
+    if r is not None: self.setReward(r)
     self.alpha = alpha
     self.terminal = terminal
     self.gamma = gamma
-    if r is not None: self.setReward(r)
 
     # can compute this to make lp more efficient
     self.transit = None
     self.invertT = None
 
-  def setReward(self, r):
-    if callable(r):
-      self.r = r
-
-      self.rewardFuncs = [r,]
-      self.psi = [1,]
-    elif type(r) is list:
-      self.rewardFuncs = map(lambda _: _[0], r)
-      self.psi = map(lambda _: _[1], r)
-
-      self.r = lambda s, a: sum(rFunc(s, a) * prob for (rFunc, prob) in zip(self.rewardFuncs, self.psi))
+  def setReward(self, rInput):
+    if callable(rInput):
+      self.r = rInput
+    elif type(rInput) is list:
+      self.rFuncs = map(lambda _: _[0], rInput)
+      psi = map(lambda _: _[1], rInput)
+      self.updatePsi(psi)
     else:
-      raise Exception('unknown type of r ' + str(type(r)))
+      raise Exception('unknown type of reward')
+
+  def updatePsi(self, psi):
+    self.psi = psi
+    self.r = lambda s, a: sum(rFunc(s, a) * prob for (rFunc, prob) in zip(self.rFuncs, self.psi))
 
   def resetInitialState(self, initS):
     """

@@ -35,7 +35,7 @@ class GreedyConstructRewardAgent:
     maxV = []
     rewardCandNum = len(self.mdp.psi)
     for rewardIdx in xrange(rewardCandNum):
-      maxV.append(max([self.computeValue(pi, r=self.mdp.rewardFuncs[rewardIdx]) for pi in q]))
+      maxV.append(max([self.computeValue(pi, r=self.mdp.rFuncs[rewardIdx]) for pi in q]))
 
     # solve a MILP problem
     return milp(self.mdp, maxV)
@@ -48,7 +48,10 @@ class GreedyConstructRewardAgent:
 
     rewardIndicesSet = []
     for rewardIdx in range(len(self.mdp.psi)):
-      if self.computeValue(qPi[0], r=self.mdp.rewardFuncs[rewardIdx]) > self.computeValue(qPi[1], r=self.mdp.rewardFuncs[rewardIdx]):
+      qPiValues = [self.computeValue(qPi[0], r=self.mdp.rFuncs[rewardIdx]),
+                   self.computeValue(qPi[1], r=self.mdp.rFuncs[rewardIdx])]
+      print rewardIdx, qPiValues
+      if qPiValues[0] > qPiValues[1]:
         rewardIndicesSet.append(rewardIdx)
 
     return rewardIndicesSet
