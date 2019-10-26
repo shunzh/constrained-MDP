@@ -14,7 +14,7 @@ class ConsQueryAgent():
   """
   Find queries in constraint-uncertain mdps.
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None):
+  def __init__(self, mdp, consStates, goalStates, consProbs=None, knownLockedCons=(), knownFreeCons=()):
     """
     can't think of a class it should inherit..
 
@@ -31,14 +31,12 @@ class ConsQueryAgent():
     self.consProbs = consProbs
     self.adversarial = (consProbs is None)
 
-    self.unknownCons = copy.copy(self.consIndices)
-
     self.goalCons = [(s, a) for a in mdp.A for s in goalStates]
 
-    # used for iterative queries
-    self.knownLockedCons = []
-    self.knownFreeCons = []
-  
+    self.knownLockedCons = list(knownLockedCons)
+    self.knownFreeCons = list(knownFreeCons)
+    self.unknownCons = list(set(self.consIndices) - set(self.knownLockedCons) - set(self.knownFreeCons))
+
   def initialSafePolicyExists(self):
     """
     Run the LP solver with all constraints and see if the LP problem is feasible.
@@ -123,7 +121,7 @@ class ConsQueryAgent():
         continue
 
       # it will enforce activeCons and known locked features (inside)
-      sol = self.findConstrainedOptPi(activeCons)
+      sol = self.findConstrainedOptPi(list(activeCons) + list(self.knownLockedCons))
       if sol['feasible']:
         x = sol['pi']
         if config.DEBUG:

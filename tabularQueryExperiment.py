@@ -251,7 +251,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx,
           if trueRewardIdx in qContent:
             agent.updateReward(qContent)
           else:
-            allRewardIdx = range(len(mdp.rSetAndProb))
+            allRewardIdx = range(len(mdp.psi))
             agent.updateReward(set(allRewardIdx) - set(qContent))
       else:
         break
@@ -317,11 +317,11 @@ if __name__ == '__main__':
   dry = False # do not save to files if dry run
 
   # the domain is size x size
-  from config import size
+  size = 6
 
-  numOfCarpets = 14
+  numOfCarpets = 10
   numOfSwitches = 2
-  numOfWalls = 5
+  numOfWalls = 0
 
   rnd = 0 # set a dummy random seed if no -r argument
 
@@ -352,6 +352,7 @@ if __name__ == '__main__':
       raise Exception('unknown argument')
 
   if batch:
+    # the experiment specification is in config
     from config import trialsStart, trialsEnd, settingCandidates
 
     for rnd in range(trialsStart, trialsEnd):
@@ -364,7 +365,7 @@ if __name__ == '__main__':
 
               spec = squareWorld(size=size, numOfCarpets=carpetNum, numOfWalls=wallNum)
               mdp, consStates, goalStates = officeNavigationTask(spec)
-              experiment(mdp, consStates, goalStates, k, dry, rnd, pf=pf, pfStep=pfStep)
+              experiment(mdp, consStates, goalStates, k, pf=pf, pfStep=pfStep)
   else:
     #spec = carpetsAndWallsDomain()
     spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)

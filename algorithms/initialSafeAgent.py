@@ -278,13 +278,13 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     # this just add to the list of known free and locked features
     InitialSafePolicyAgent.updateFeats(self, newFreeCon, newLockedCon)
 
-    if newFreeCon != None:
+    if newFreeCon is not None:
       if self.useIIS:
         self.iiss = coverFeat(newFreeCon, self.iiss)
       if self.useRelPi:
         self.domPiFeats = removeFeat(newFreeCon, self.domPiFeats)
 
-    if newLockedCon != None:
+    if newLockedCon is not None:
       if self.useIIS:
         self.iiss = removeFeat(newLockedCon, self.iiss)
       if self.useRelPi:

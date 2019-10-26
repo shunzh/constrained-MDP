@@ -14,13 +14,10 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   """
   Querying under reward uncertainty and safety-constraint uncertainty
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
+  def __init__(self, mdp, consStates, goalStates, consProbs, costOfQuery):
     ConsQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs)
 
     self.costOfQuery = costOfQuery
-
-    self.currentConsStates = self.consStates
-    self.currentConsProbs = self.consProbs
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
     # share some code as InitialSafeAgent, but I don't want to make this class a subclass of that
@@ -30,12 +27,6 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     if newLockedCon is not None:
       self.unknownCons.remove(newLockedCon)
       self.knownLockedCons.append(newLockedCon)
-
-    # maintain the set of states constrained by *currently* unknown and locked features
-    self.currentConsStates = [self.consStates[_] for _ in self.unknownCons] +\
-                             [self.consStates[_] for _ in self.knownLockedCons]
-    self.currentConsProbs = [self.consProbs[_] for _ in self.unknownCons] +\
-                            [0 for _ in self.knownLockedCons]
 
   def updateReward(self, possibleTrueRewardIndices):
     self.mdp.psi = self.updateARewardDistribution(possibleTrueRewardIndices, self.mdp.psi)
@@ -65,6 +56,21 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
   """
   Planning several steps into the future
   """
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
+    JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs, costOfQuery=costOfQuery)
+
+    # create two query agents specialized on reward / feature queries
+    self.rewardQueryAgent = GreedyConstructRewardAgent(mdp, 2)
+    self.featureQueryAgent = GreedyForSafetyAgent(mdp, consStates, goalStates, consProbs, improveSafePis=True)
+
+  def updateFeats(self, newFreeCon=None, newLockedCon=None):
+    JointUncertaintyQueryAgent.updateFeats(self, newFreeCon, newLockedCon)
+
+    # need to update the set cover structure
+    self.featureQueryAgent.updateFeats(newFreeCon, newLockedCon)
+    self.featureQueryAgent.computePolicyRelFeats()
+    self.featureQueryAgent.computeIISs()
+
   def findRewardQuery(self):
     """
     encode consStates and pf into the transition function,
@@ -76,12 +82,10 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     # if the true reward function is known, no need to pose more reward queries
     if len(psiSupports) == 1: return None
 
-    # construct an mdp that encodes safety constraints
-    mdp = copy.deepcopy(self.mdp)
-    mdp.encodeConstraintIntoTransition(self.currentConsStates)
+    self.rewardQueryAgent.mdp.psi = self.mdp.psi
+    self.rewardQueryAgent.mdp.encodeConstraintIntoTransition([self.consStates[_] for _ in self.knownLockedCons + self.unknownCons])
 
-    agent = GreedyConstructRewardAgent(mdp, 2)
-    return agent.findBinaryResponseRewardSetQuery()
+    return self.rewardQueryAgent.findBinaryResponseRewardSetQuery()
 
   def findFeatureQuery(self):
     """
@@ -92,12 +96,11 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     computing the set structures by first removing safe dominating policies (set includeSafePolicies to True),
     that is, we want to minimize the number of queries to find *additional* dominating policies.
     """
-    # if no unknown safety constraints, no need to pose more feature queries
-    if len(self.unknownCons) == 0: return None
+    # after computing rel feats, check if it's empty. if so, nothing need to be queried.
+    #if len(self.featureQueryAgent.relFeats) == 0: return None
+    if len(self.featureQueryAgent.domPiFeats) == 0 or len(self.featureQueryAgent.iiss) == 0: return None
 
-    agent = GreedyForSafetyAgent(self.mdp, self.currentConsStates, goalStates=self.goalCons,
-                                 consProbs=self.currentConsProbs, improveSafePis=True)
-    return agent.findQuery()
+    return self.featureQueryAgent.findQuery()
 
   def computeEPU(self, query):
     (qType, qContent) = query
@@ -134,7 +137,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     rewardQEPU = self.computeEPU(rewardQuery)
     featureQEPU = self.computeEPU(featureQuery)
 
-    print rewardQuery, rewardQEPU, 'vs.', featureQuery, featureQEPU
+    print 'EPU', rewardQuery, rewardQEPU, featureQuery, featureQEPU
 
     if rewardQEPU < self.costOfQuery and featureQEPU < self.costOfQuery:
       # stop querying
@@ -168,7 +171,6 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       self.optimizedRewards = []
       self.violatedCons = None
 
-
   def sampleDomPi(self):
     """
     (re)compute all dominating policies given reward and safety uncertainty
@@ -184,8 +186,8 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       rewardCertainMDP = copy.deepcopy(self.mdp)
       rewardCertainMDP.setReward(r)
 
-      rewardCertainConsAgent = ConsQueryAgent(rewardCertainMDP, self.currentConsStates, goalStates=self.goalCons,
-                                              consProbs=self.currentConsProbs)
+      rewardCertainConsAgent = ConsQueryAgent(rewardCertainMDP, self.consStates, self.goalCons, self.consProbs,
+                                              knownFreeCons=self.knownFreeCons, knownLockedCons=self.knownLockedCons)
       _, domPis = rewardCertainConsAgent.findRelevantFeaturesAndDomPis()
 
       for domPi in domPis:

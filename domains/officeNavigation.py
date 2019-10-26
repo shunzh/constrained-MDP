@@ -143,21 +143,24 @@ def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1, randomSwitch=Fa
   
   robot = (0, 0)
 
+  # these objects are absent
   doors = []
+  boxes = [] # no need to put in boxes for now
 
   possibleLocs = [(x, y) for x in range(width) for y in range(height)]
+  possibleLocs.remove((0, 0))
+  objectLocs = util.sampleSubset(possibleLocs, numOfCarpets + numOfWalls + numOfSwitches)
 
-  carpets = util.sampleSubset(possibleLocs, numOfCarpets)
+  carpets = objectLocs[:numOfCarpets]
 
-  walls = util.sampleSubset(possibleLocs, numOfWalls)
+  walls = objectLocs[numOfCarpets:numOfCarpets + numOfWalls]
 
   if randomSwitch:
-    switches = util.sampleSubset(possibleLocs, numOfSwitches)
+    switches = objectLocs[numOfCarpets + numOfWalls:]
   else:
+    if numOfSwitches > 1: raise Exception('did not specify how to deterministically place multiple switches')
     switches = [((width - 1), (height - 1))]
 
-  boxes = [] # no need to put in boxes for now
-  
   return Spec(width, height, robot, switches, walls, doors, boxes, carpets)
 
 def parameterizedSokobanWorld(size, numOfBoxes):
@@ -213,7 +216,7 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
     for x in range(spec.width):
       if (x, y) in spec.walls: print '[ W]',
       elif (x, y) in spec.boxes: print '[ B]',
-      elif (x, y) in spec.switches: print '[ S]',
+      elif (x, y) in spec.switches: print '[ *]',
       elif (x, y) == spec.robot: print '[ R]',
       elif spec.carpets.count((x, y)) == 1: print '[%2d]' % spec.carpets.index((x, y)),
       elif spec.carpets.count((x, y)) > 1: print '[%2d*' % spec.carpets.index((x, y)),
