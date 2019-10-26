@@ -238,7 +238,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx,
     for queryIdx in range(k):
       query = agent.findQuery()
       if query is not None:
-        print query
+        print 'Query', query
 
         (qType, qContent) = query
         if qType == 'F':
@@ -313,7 +313,7 @@ def setRandomSeed(rnd):
 if __name__ == '__main__':
   # default values
   method = None
-  k = 4 # dummy for sequential queries?
+  k = 5 # dummy for sequential queries?
   dry = False # do not save to files if dry run
 
   # the domain is size x size
@@ -367,8 +367,8 @@ if __name__ == '__main__':
               mdp, consStates, goalStates = officeNavigationTask(spec)
               experiment(mdp, consStates, goalStates, k, pf=pf, pfStep=pfStep)
   else:
-    spec = carpetsAndWallsDomain()
-    #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
+    #spec = carpetsAndWallsDomain()
+    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()

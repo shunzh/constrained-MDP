@@ -40,6 +40,9 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   def computeConsistentRewardIndices(self):
     return filter(lambda rIdx: self.mdp.psi[rIdx] > 0, range(len(self.mdp.psi)))
 
+  def computeCurrentSafelyOptPiValue(self):
+    return self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
+
 
 class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
   def computeOptimalQueries(self):
@@ -82,7 +85,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     # if the true reward function is known, no need to pose more reward queries
     if len(psiSupports) == 1: return None
 
-    self.rewardQueryAgent.mdp.psi = self.mdp.psi
+    self.rewardQueryAgent.mdp.updatePsi(self.mdp.psi)
     self.rewardQueryAgent.mdp.encodeConstraintIntoTransition([self.consStates[_] for _ in self.knownLockedCons + self.unknownCons])
 
     return self.rewardQueryAgent.findBinaryResponseRewardSetQuery()
@@ -102,16 +105,17 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     return self.featureQueryAgent.findQuery()
 
-  def computeEPU(self, query):
+  def computeEVOI(self, query):
     (qType, qContent) = query
-
     # if the query gives up, then epu is 0
     if qContent is None: return 0
 
+    priorValue = self.computeCurrentSafelyOptPiValue()
+
     if qType == 'F':
       feat = qContent
-      return self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat,})['obj']\
-           + (1 - self.consProbs[feat]) * self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
+      epu = self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat,})['obj']\
+          + (1 - self.consProbs[feat]) * self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
     elif qType == 'R':
       rIndices = qContent
 
@@ -124,10 +128,14 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
                                                             psi=mdpIfFalseReward.psi))
       posteriorValueIfFalse = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
 
-      return sum(self.mdp.psi[_] for _ in rIndices) * posteriorValueIfTrue +\
-           + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * posteriorValueIfFalse
+      epu = sum(self.mdp.psi[_] for _ in rIndices) * posteriorValueIfTrue +\
+          + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * posteriorValueIfFalse
     else:
       raise Exception('unknown query ' + query)
+
+    evoi = epu - priorValue
+    assert evoi >= 0
+    return evoi
 
   def findQuery(self):
     """
@@ -136,16 +144,16 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     rewardQuery = ('R', self.findRewardQuery())
     featureQuery = ('F', self.findFeatureQuery())
 
-    rewardQEPU = self.computeEPU(rewardQuery)
-    featureQEPU = self.computeEPU(featureQuery)
+    rewardQEVOI = self.computeEVOI(rewardQuery)
+    featureQEVOI = self.computeEVOI(featureQuery)
 
-    print 'EPU', rewardQuery, rewardQEPU
-    print 'EPU', featureQuery, featureQEPU
+    print 'EVOI', rewardQuery, rewardQEVOI
+    print 'EVOI', featureQuery, featureQEVOI
 
-    if rewardQEPU < self.costOfQuery and featureQEPU < self.costOfQuery:
+    if rewardQEVOI < self.costOfQuery and featureQEVOI < self.costOfQuery:
       # stop querying
       return None
-    elif rewardQEPU > featureQEPU:
+    elif rewardQEVOI > featureQEVOI:
       return rewardQuery
     else:
       return featureQuery

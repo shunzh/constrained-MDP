@@ -50,7 +50,7 @@ class GreedyConstructRewardAgent:
     for rewardIdx in range(len(self.mdp.psi)):
       qPiValues = [self.computeValue(qPi[0], r=self.mdp.rFuncs[rewardIdx]),
                    self.computeValue(qPi[1], r=self.mdp.rFuncs[rewardIdx])]
-      print rewardIdx, qPiValues
+      #print rewardIdx, qPiValues
       if qPiValues[0] > qPiValues[1]:
         rewardIndicesSet.append(rewardIdx)
 
