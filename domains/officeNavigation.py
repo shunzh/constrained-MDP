@@ -179,6 +179,30 @@ def parameterizedSokobanWorld(size, numOfBoxes):
   
   return Spec(width, height, robot, switches, walls, doors, boxes, carpets, horizon)
 
+def plotDomain(spec):
+  # check whether the world looks as expected
+  for y in range(spec.height):
+    print '%3d' % y,
+    for x in range(spec.width):
+      if (x, y) in spec.walls:
+        print '[ W]',
+      elif (x, y) in spec.boxes:
+        print '[ B]',
+      elif (x, y) in spec.switches:
+        print '[S%1d]' % spec.switches.index((x, y)),
+      elif (x, y) == spec.robot:
+        print '[ R]',
+      elif spec.carpets.count((x, y)) == 1:
+        print '[%2d]' % spec.carpets.index((x, y)),
+      elif spec.carpets.count((x, y)) > 1:
+        print '[%2d*' % spec.carpets.index((x, y)),
+      else:
+        print '[  ]',
+    print
+  print '  ',
+  for x in range(spec.width):
+    print '%4d' % x,
+  print
 
 def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
   """
@@ -209,23 +233,8 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
 
   directionalActs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
   aSets = directionalActs + [TURNOFFSWITCH]
- 
-  # check whether the world looks as expected
-  for y in range(spec.height):
-    print '%3d' % y,
-    for x in range(spec.width):
-      if (x, y) in spec.walls: print '[ W]',
-      elif (x, y) in spec.boxes: print '[ B]',
-      elif (x, y) in spec.switches: print '[ *]',
-      elif (x, y) == spec.robot: print '[ R]',
-      elif spec.carpets.count((x, y)) == 1: print '[%2d]' % spec.carpets.index((x, y)),
-      elif spec.carpets.count((x, y)) > 1: print '[%2d*' % spec.carpets.index((x, y)),
-      else: print '[  ]',
-    print
-  print '  ',
-  for x in range(spec.width):
-    print '%4d' % x,
-  print
+
+  plotDomain(spec)
 
   def boxMovable(idx, s, a):
     """

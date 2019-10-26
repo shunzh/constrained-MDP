@@ -216,7 +216,7 @@ def improveSafePolicyMMR(mdp, consStates, k, rnd):
 
     print mrk, regret, runTime
 
-def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx, trueFreeFeatures, k, costOfQuery):
+def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFeatures, costOfQuery):
   """
   Query under both reward uncertainty and safety constraint uncertainty.
 
@@ -235,9 +235,11 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx,
       raise Exception('unknown method ' + str(method))
 
     print method
-    for queryIdx in range(k):
+    numOfQueries = 0
+    while True:
       query = agent.findQuery()
       if query is not None:
+        numOfQueries += 1
         print 'Query', query
 
         (qType, qContent) = query
@@ -253,7 +255,12 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardIdx,
           else:
             allRewardIdx = range(len(mdp.psi))
             agent.updateReward(set(allRewardIdx) - set(qContent))
+        else:
+          raise Exception('unknown qType ' + qType)
       else:
+        # the agent stops querying
+        print 'optPi', agent.computeCurrentSafelyOptPiValue()
+        print 'numOfQueries', numOfQueries
         break
 
 
@@ -300,8 +307,7 @@ def experiment(mdp, consStates, goalStates, k, pf=0, pfStep=1, consProbs=None):
   """
 
   # under joint uncertainty:
-  jointUncertaintyQuery(mdp, consStates, consProbs, goalStates, trueRewardFuncIdx, trueFreeFeatures, k,
-                        costOfQuery=0.01)
+  jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, costOfQuery=0.01)
 
 
 def setRandomSeed(rnd):
