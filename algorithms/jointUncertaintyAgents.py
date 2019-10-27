@@ -51,7 +51,6 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     return filter(lambda rIdx: psi[rIdx] > 0, range(self.sizeOfRewards))
 
   def computeCurrentSafelyOptPiValue(self):
-    print 'psi', self.mdp.psi
     return self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
 
 
@@ -63,12 +62,16 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
     JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs, costOfQuery)
 
+    # used for self.computeOptimalQuery
     self.imaginedMDP = copy.deepcopy(self.mdp)
 
   def computeOptimalQuery(self, knownLockedCons, knownFreeCons, unknownCons, psi):
     """
     recursively compute the optimal query, return the value after query
     """
+    print knownLockedCons, knownFreeCons, unknownCons, psi
+    raw_input()
+
     rewardSupports = self.computeConsistentRewardIndices(psi)
     if len(unknownCons) == 0 and len(rewardSupports) <= 1:
       self.imaginedMDP.updatePsi(psi)
@@ -154,7 +157,6 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     that is, we want to minimize the number of queries to find *additional* dominating policies.
     """
     # after computing rel feats, check if it's empty. if so, nothing need to be queried.
-    #if len(self.featureQueryAgent.relFeats) == 0: return None
     if len(self.featureQueryAgent.domPiFeats) == 0 or len(self.featureQueryAgent.iiss) == 0: return None
 
     return self.featureQueryAgent.findQuery()
@@ -168,7 +170,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     if qType == 'F':
       feat = qContent
-      epu = self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat,})['obj']\
+      epu = self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat})['obj']\
           + (1 - self.consProbs[feat]) * self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
     elif qType == 'R':
       rIndices = qContent
