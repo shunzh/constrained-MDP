@@ -34,6 +34,8 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
                                                     inconsistentRewards=inconsistentRewards)
 
   def updateARewardDistribution(self, psi, consistentRewards=None, inconsistentRewards=None):
+    psi = copy.copy(psi)
+
     if inconsistentRewards is not None:
       allRewardIdx = range(self.sizeOfRewards)
       consistentRewards = set(allRewardIdx) - set(inconsistentRewards)
@@ -42,12 +44,14 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     for rIdx in range(len(psi)):
       if rIdx not in consistentRewards:
         psi[rIdx] = 0
-    return normalize(psi)
+    psi = normalize(psi)
+    return psi
 
   def computeConsistentRewardIndices(self, psi):
     return filter(lambda rIdx: psi[rIdx] > 0, range(self.sizeOfRewards))
 
   def computeCurrentSafelyOptPiValue(self):
+    print 'psi', self.mdp.psi
     return self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
 
 
@@ -65,7 +69,8 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
     """
     recursively compute the optimal query, return the value after query
     """
-    if len(unknownCons) == 0 and len(self.computeConsistentRewardIndices(psi)) <= 1:
+    rewardSupports = self.computeConsistentRewardIndices(psi)
+    if len(unknownCons) == 0 and len(rewardSupports) <= 1:
       self.imaginedMDP.updatePsi(psi)
       return (None, self.findConstrainedOptPi(activeCons=unknownCons, mdp=self.imaginedMDP)['obj'])
 
@@ -83,8 +88,8 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
                          + (1 - psi[r]) * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
                                                                    self.updateARewardDistribution(psi, inconsistentRewards=[r]))[1]
                          - self.costOfQuery
-                         for r in range(self.sizeOfRewards)}
-    print rewardQueryValues
+                         for r in rewardSupports}
+    print consQueryValues, rewardQueryValues
 
     queryAndValues = consQueryValues.copy()
     queryAndValues.update(rewardQueryValues)
