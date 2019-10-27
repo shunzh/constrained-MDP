@@ -18,6 +18,7 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     ConsQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs)
 
     self.costOfQuery = costOfQuery
+    self.sizeOfRewards = len(mdp.psi)
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
     # share some code as InitialSafeAgent, but I don't want to make this class a subclass of that
@@ -28,31 +29,79 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
       self.unknownCons.remove(newLockedCon)
       self.knownLockedCons.append(newLockedCon)
 
-  def updateReward(self, possibleTrueRewardIndices):
-    self.mdp.psi = self.updateARewardDistribution(possibleTrueRewardIndices, self.mdp.psi)
+  def updateReward(self, consistentRewards=None, inconsistentRewards=None):
+      self.mdp.psi = self.updateARewardDistribution(self.mdp.psi, consistentRewards=consistentRewards,
+                                                    inconsistentRewards=inconsistentRewards)
 
-  def updateARewardDistribution(self, possibleTrueRewardIndices, psi):
+  def updateARewardDistribution(self, psi, consistentRewards=None, inconsistentRewards=None):
+    if inconsistentRewards is not None:
+      allRewardIdx = range(self.sizeOfRewards)
+      consistentRewards = set(allRewardIdx) - set(inconsistentRewards)
+    assert consistentRewards is not None
+
     for rIdx in range(len(psi)):
-      if rIdx not in possibleTrueRewardIndices:
+      if rIdx not in consistentRewards:
         psi[rIdx] = 0
     return normalize(psi)
 
-  def computeConsistentRewardIndices(self):
-    return filter(lambda rIdx: self.mdp.psi[rIdx] > 0, range(len(self.mdp.psi)))
+  def computeConsistentRewardIndices(self, psi):
+    return filter(lambda rIdx: psi[rIdx] > 0, range(self.sizeOfRewards))
 
   def computeCurrentSafelyOptPiValue(self):
     return self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
 
 
 class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
-  def computeOptimalQueries(self):
+  """
+  Find the optimal query policy by dynamic programming.
+  Given (partition of features, possible true reward functions), it computes the immediate optimal query to pose
+  """
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
+    JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs, costOfQuery)
+
+    self.imaginedMDP = copy.deepcopy(self.mdp)
+
+  def computeOptimalQuery(self, knownLockedCons, knownFreeCons, unknownCons, psi):
     """
-    find the optimal query policy by evaluating all possible query policies
+    recursively compute the optimal query, return the value after query
     """
-    pass
+    if len(unknownCons) == 0 and len(self.computeConsistentRewardIndices(psi)) <= 1:
+      self.imaginedMDP.updatePsi(psi)
+      return (None, self.findConstrainedOptPi(activeCons=unknownCons, mdp=self.imaginedMDP)['obj'])
+
+    consQueryValues = {('F', con):
+                       self.consProbs[con] * self.computeOptimalQuery(knownLockedCons, knownFreeCons + [con],
+                                                                      set(unknownCons) - {con}, psi)[1]
+                       + (1 - self.consProbs[con]) * self.computeOptimalQuery(knownLockedCons + [con], knownFreeCons,
+                                                                              set(unknownCons) - {con}, psi)[1]
+                       - self.costOfQuery
+                       for con in unknownCons}
+
+    rewardQueryValues = {('R', (r,)):
+                         psi[r] * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
+                                                           self.updateARewardDistribution(psi, consistentRewards=[r]))[1]
+                         + (1 - psi[r]) * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
+                                                                   self.updateARewardDistribution(psi, inconsistentRewards=[r]))[1]
+                         - self.costOfQuery
+                         for r in range(self.sizeOfRewards)}
+    print rewardQueryValues
+
+    queryAndValues = consQueryValues.copy()
+    queryAndValues.update(rewardQueryValues)
+
+    optQueryAndValue = max(queryAndValues.items(), key=lambda _: _[1])
+
+    self.imaginedMDP.updatePsi(psi)
+    currentSafelyOptValue = self.findConstrainedOptPi(activeCons=unknownCons, mdp=self.imaginedMDP)['obj']
+
+    if optQueryAndValue[1] - currentSafelyOptValue <= 0:
+      # we will stop querying in this case
+      return (None, currentSafelyOptValue)
+    else:
+      return optQueryAndValue
 
   def findQuery(self):
-    pass
+    return self.computeOptimalQuery(self.knownLockedCons, self.knownFreeCons, self.unknownCons, self.mdp.psi)[0]
 
 
 class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
@@ -120,12 +169,11 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
       rIndices = qContent
 
       mdpIfTrueReward = copy.deepcopy(self.mdp)
-      mdpIfTrueReward.updatePsi(self.updateARewardDistribution(rIndices, psi=mdpIfTrueReward.psi))
+      mdpIfTrueReward.updatePsi(self.updateARewardDistribution(mdpIfTrueReward.psi, consistentRewards=rIndices))
       posteriorValueIfTrue = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward)['obj']
 
       mdpIfFalseReward = copy.deepcopy(self.mdp)
-      mdpIfFalseReward.updatePsi(self.updateARewardDistribution(set(range(len(self.mdp.psi))) - set(rIndices),
-                                                            psi=mdpIfFalseReward.psi))
+      mdpIfFalseReward.updatePsi(self.updateARewardDistribution(mdpIfFalseReward.psi, inconsistentRewards=rIndices))
       posteriorValueIfFalse = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
 
       epu = sum(self.mdp.psi[_] for _ in rIndices) * posteriorValueIfTrue +\
@@ -164,7 +212,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
   Sample a set of dominating policies according to their probabilities of being free and their values.
   Then query the features that would make them safely-optimal.
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=1):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
     JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs,
                                         costOfQuery=costOfQuery)
 
@@ -229,7 +277,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     """
     # if the response is inconsistent with self.objectDomPi,
     # we void the current object dom pi, findQuery will recompute the object dom pi
-    consistentRewardIndices = self.computeConsistentRewardIndices()
+    consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
     #print 'known locked cons', self.knownLockedCons
     #print 'consistent reward indices', consistentRewardIndices
     return len(set(self.knownLockedCons).intersection(self.objectDomPiData.violatedCons)) == 0 \
@@ -252,7 +300,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       return ('F', random.choice(list(unknownRelFeats)))
     else:
       # pose reward queries aiming to show that the rewards it optimizes is correct
-      consistentRewardIndices = self.computeConsistentRewardIndices()
+      consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
       assert len(consistentRewardIndices) > 0
       # no reward queries needed if no reward uncertainty
       if len(consistentRewardIndices) == 1: return None

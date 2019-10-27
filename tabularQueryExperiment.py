@@ -13,7 +13,7 @@ from algorithms.consQueryAgents import ConsQueryAgent, EXIST, NOTEXIST
 from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyAgent, \
   MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent, OracleSafetyAgent
 from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent, \
-  JointUncertaintyQueryBySamplingDomPisAgent
+  JointUncertaintyQueryBySamplingDomPisAgent, JointUncertaintyOptimalQueryAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
 
@@ -222,12 +222,14 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
 
   For now, assume initial safe policies exist and the robot can pose at most k queries
   """
-  methods = ['myopic', 'dompi']
+  methods = ['opt', 'myopic', 'dompi']
 
   for method in methods:
     # the agent is going to modify mdp.psi, so make copies here
     mdpForAgent = copy.deepcopy(mdp)
-    if method == 'myopic':
+    if method == 'opt':
+      agent = JointUncertaintyOptimalQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+    elif method == 'myopic':
       agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'dompi':
       agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
@@ -251,10 +253,9 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
             agent.updateFeats(newLockedCon=qContent)
         elif qType == 'R':
           if trueRewardIdx in qContent:
-            agent.updateReward(qContent)
+            agent.updateReward(consistentRewards=qContent)
           else:
-            allRewardIdx = range(len(mdp.psi))
-            agent.updateReward(set(allRewardIdx) - set(qContent))
+            agent.updateReward(inconsistentRewards=qContent)
         else:
           raise Exception('unknown qType ' + qType)
       else:
@@ -373,8 +374,8 @@ if __name__ == '__main__':
               mdp, consStates, goalStates = officeNavigationTask(spec)
               experiment(mdp, consStates, goalStates, k, pf=pf, pfStep=pfStep)
   else:
-    #spec = carpetsAndWallsDomain()
-    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
+    spec = carpetsAndWallsDomain()
+    #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     #spec = toySokobanWorld()
     #spec = sokobanWorld()
