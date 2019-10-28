@@ -30,8 +30,9 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
       self.knownLockedCons.append(newLockedCon)
 
   def updateReward(self, consistentRewards=None, inconsistentRewards=None):
-      self.mdp.psi = self.updateARewardDistribution(self.mdp.psi, consistentRewards=consistentRewards,
-                                                    inconsistentRewards=inconsistentRewards)
+    self.mdp.updatePsi(self.updateARewardDistribution(self.mdp.psi,
+                                                      consistentRewards=consistentRewards,
+                                                      inconsistentRewards=inconsistentRewards))
 
   def updateARewardDistribution(self, psi, consistentRewards=None, inconsistentRewards=None):
     psi = copy.copy(psi)
@@ -114,7 +115,9 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
         return optQueryAndValue
 
   def findQuery(self):
-    return self.computeOptimalQuery(self.knownLockedCons, self.knownFreeCons, self.unknownCons, self.mdp.psi)[0]
+    optQAndV = self.computeOptimalQuery(self.knownLockedCons, self.knownFreeCons, self.unknownCons, self.mdp.psi)
+
+    return optQAndV[0]
 
 
 class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
@@ -147,7 +150,8 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     # if the true reward function is known, no need to pose more reward queries
     if len(psiSupports) == 1: return None
 
-    self.rewardQueryAgent.mdp.updatePsi(self.mdp.psi)
+    # going to modify the transition function, so make a copy of mdp
+    self.rewardQueryAgent.mdp = copy.deepcopy(self.mdp)
     self.rewardQueryAgent.mdp.encodeConstraintIntoTransition([self.consStates[_] for _ in self.knownLockedCons + self.unknownCons])
 
     return self.rewardQueryAgent.findBinaryResponseRewardSetQuery()
@@ -155,7 +159,6 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
   def findFeatureQuery(self):
     """
     use set-cover based algorithm and use the mean reward function (mdp.r does that)
-    #fixme assume safe policies exist for now
 
     when safe policies exist, need to modify the original algorithm:
     computing the set structures by first removing safe dominating policies (set includeSafePolicies to True),
@@ -290,8 +293,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     # if the response is inconsistent with self.objectDomPi,
     # we void the current object dom pi, findQuery will recompute the object dom pi
     consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
-    #print 'known locked cons', self.knownLockedCons
-    #print 'consistent reward indices', consistentRewardIndices
+
     return len(set(self.knownLockedCons).intersection(self.objectDomPiData.violatedCons)) == 0 \
       and len(set(consistentRewardIndices).intersection(self.objectDomPiData.optimizedRewards)) > 0
 
