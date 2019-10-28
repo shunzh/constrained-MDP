@@ -71,6 +71,7 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
     recursively compute the optimal query, return the value after query
     """
     rewardSupports = self.computeConsistentRewardIndices(psi)
+    currentSafelyOptValue = self.findConstrainedOptPi(activeCons=unknownCons, mdp=self.imaginedMDP)['obj']
 
     if len(unknownCons) > 0:
       consQueryValues = {('F', con):
@@ -96,8 +97,6 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
 
     queryAndValues = consQueryValues.copy()
     queryAndValues.update(rewardQueryValues)
-
-    currentSafelyOptValue = self.findConstrainedOptPi(activeCons=unknownCons, mdp=self.imaginedMDP)['obj']
 
     if len(queryAndValues) == 0:
       # no more queries to consider
@@ -213,7 +212,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     print 'EVOI', rewardQuery, rewardQEVOI
     print 'EVOI', featureQuery, featureQEVOI
 
-    if rewardQEVOI < self.costOfQuery and featureQEVOI < self.costOfQuery:
+    if rewardQEVOI <= self.costOfQuery and featureQEVOI <= self.costOfQuery:
       # stop querying
       return None
     elif rewardQEVOI > featureQEVOI:
@@ -244,6 +243,10 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       self.weightedValue = 0
       self.optimizedRewards = []
       self.violatedCons = None
+
+    def __str__(self):
+      return 'DomPi score ' + str(self.weightedValue) + ' rewards optimized ' + str(self.optimizedRewards) +\
+             ' rel feats ' + str(self.violatedCons)
 
   def sampleDomPi(self):
     """
@@ -284,6 +287,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
     self.objectDomPi = numpy.random.choice(domPisData.keys(), p=[data.weightedValue for data in domPisData.values()])
     self.objectDomPiData = copy.copy(domPisData[self.objectDomPi]) # hopefully python will then free domPisData
+    print 'chosen dom pi', self.objectDomPiData
 
   def objectDomPiIsConsistent(self):
     """
