@@ -23,10 +23,11 @@ def normalize(vec):
 def standardErr(data):
   return std(data) / sqrt(len(data))
 
-def powerset(iterable):
+def powerset(iterable, minimum=0, maximum=None):
   from itertools import combinations
   s = list(iterable)
-  for r in range(len(s)+1):
+  if maximum is None: maximum = len(s)
+  for r in range(minimum, maximum + 1):
     for _ in combinations(s, r):
       yield _
 

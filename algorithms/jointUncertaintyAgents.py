@@ -7,7 +7,7 @@ from numpy import random
 from algorithms.consQueryAgents import ConsQueryAgent
 from algorithms.initialSafeAgent import GreedyForSafetyAgent
 from algorithms.rewardQueryAgents import GreedyConstructRewardAgent
-from util import normalize
+from util import normalize, powerset
 
 
 class JointUncertaintyQueryAgent(ConsQueryAgent):
@@ -65,11 +65,20 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
 
     # used for self.computeOptimalQuery
     self.imaginedMDP = copy.deepcopy(self.mdp)
+    # for memoization
+    self.optQueryAndValueDict = {}
 
   def computeOptimalQuery(self, knownLockedCons, knownFreeCons, unknownCons, psi):
     """
     recursively compute the optimal query, return the value after query
     """
+    # the key used for optQueryAndValueDict
+    # use frozenset here because the order of features doesn't matter
+    key = (frozenset(knownLockedCons), frozenset(knownFreeCons), frozenset(unknownCons), tuple(psi))
+
+    if key in self.optQueryAndValueDict.keys():
+      return self.optQueryAndValueDict[key]
+
     rewardSupports = self.computeConsistentRewardIndices(psi)
     currentSafelyOptValue = self.findConstrainedOptPi(activeCons=unknownCons, mdp=self.imaginedMDP)['obj']
 
@@ -84,14 +93,15 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
     else:
       consQueryValues = {}
 
+    psiOfSet = lambda rSet: sum(psi[_] for _ in rSet)
     if len(rewardSupports) > 1:
-      rewardQueryValues = {('R', (r,)):
-                           psi[r] * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
-                                                             self.updateARewardDistribution(psi, consistentRewards=[r]))[1]
-                           + (1 - psi[r]) * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
-                                                                     self.updateARewardDistribution(psi, inconsistentRewards=[r]))[1]
+      rewardQueryValues = {('R', rSet):
+                           psiOfSet(rSet) * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
+                                                                     self.updateARewardDistribution(psi, consistentRewards=rSet))[1]
+                           + (1 - psiOfSet(rSet)) * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
+                                                                             self.updateARewardDistribution(psi, inconsistentRewards=rSet))[1]
                            - self.costOfQuery
-                           for r in rewardSupports}
+                           for rSet in powerset(rewardSupports, minimum=1, maximum=len(rewardSupports) - 1)}
     else:
       rewardQueryValues = {}
 
@@ -101,7 +111,7 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
     if len(queryAndValues) == 0:
       # no more queries to consider
       self.imaginedMDP.updatePsi(psi)
-      return None, currentSafelyOptValue
+      ret = (None, currentSafelyOptValue)
     else:
       optQueryAndValue = max(queryAndValues.items(), key=lambda _: _[1])
 
@@ -109,9 +119,12 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
 
       if optQueryAndValue[1] - currentSafelyOptValue <= 0:
         # we will stop querying in this case
-        return None, currentSafelyOptValue
+        ret = (None, currentSafelyOptValue)
       else:
-        return optQueryAndValue
+        ret = optQueryAndValue
+
+    self.optQueryAndValueDict[key] = ret
+    return ret
 
   def findQuery(self):
     optQAndV = self.computeOptimalQuery(self.knownLockedCons, self.knownFreeCons, self.unknownCons, self.mdp.psi)

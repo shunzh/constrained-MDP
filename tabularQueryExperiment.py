@@ -326,7 +326,7 @@ if __name__ == '__main__':
   # the domain is size x size
   size = 6
 
-  numOfCarpets = 10
+  numOfCarpets = 5
   numOfSwitches = 2
   numOfWalls = 0
 
