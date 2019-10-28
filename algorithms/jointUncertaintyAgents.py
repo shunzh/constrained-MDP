@@ -69,44 +69,49 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
     """
     recursively compute the optimal query, return the value after query
     """
-    print knownLockedCons, knownFreeCons, unknownCons, psi
-    raw_input()
-
     rewardSupports = self.computeConsistentRewardIndices(psi)
-    if len(unknownCons) == 0 and len(rewardSupports) <= 1:
-      self.imaginedMDP.updatePsi(psi)
-      return (None, self.findConstrainedOptPi(activeCons=unknownCons, mdp=self.imaginedMDP)['obj'])
 
-    consQueryValues = {('F', con):
-                       self.consProbs[con] * self.computeOptimalQuery(knownLockedCons, knownFreeCons + [con],
-                                                                      set(unknownCons) - {con}, psi)[1]
-                       + (1 - self.consProbs[con]) * self.computeOptimalQuery(knownLockedCons + [con], knownFreeCons,
-                                                                              set(unknownCons) - {con}, psi)[1]
-                       - self.costOfQuery
-                       for con in unknownCons}
-
-    rewardQueryValues = {('R', (r,)):
-                         psi[r] * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
-                                                           self.updateARewardDistribution(psi, consistentRewards=[r]))[1]
-                         + (1 - psi[r]) * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
-                                                                   self.updateARewardDistribution(psi, inconsistentRewards=[r]))[1]
+    if len(unknownCons) > 0:
+      consQueryValues = {('F', con):
+                         self.consProbs[con] * self.computeOptimalQuery(knownLockedCons, knownFreeCons + [con],
+                                                                        set(unknownCons) - {con}, psi)[1]
+                         + (1 - self.consProbs[con]) * self.computeOptimalQuery(knownLockedCons + [con], knownFreeCons,
+                                                                                set(unknownCons) - {con}, psi)[1]
                          - self.costOfQuery
-                         for r in rewardSupports}
-    print consQueryValues, rewardQueryValues
+                         for con in unknownCons}
+    else:
+      consQueryValues = {}
+
+    if len(rewardSupports) > 1:
+      rewardQueryValues = {('R', (r,)):
+                           psi[r] * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
+                                                             self.updateARewardDistribution(psi, consistentRewards=[r]))[1]
+                           + (1 - psi[r]) * self.computeOptimalQuery(knownLockedCons, knownFreeCons, unknownCons,
+                                                                     self.updateARewardDistribution(psi, inconsistentRewards=[r]))[1]
+                           - self.costOfQuery
+                           for r in rewardSupports}
+    else:
+      rewardQueryValues = {}
 
     queryAndValues = consQueryValues.copy()
     queryAndValues.update(rewardQueryValues)
 
-    optQueryAndValue = max(queryAndValues.items(), key=lambda _: _[1])
-
-    self.imaginedMDP.updatePsi(psi)
     currentSafelyOptValue = self.findConstrainedOptPi(activeCons=unknownCons, mdp=self.imaginedMDP)['obj']
 
-    if optQueryAndValue[1] - currentSafelyOptValue <= 0:
-      # we will stop querying in this case
-      return (None, currentSafelyOptValue)
+    if len(queryAndValues) == 0:
+      # no more queries to consider
+      self.imaginedMDP.updatePsi(psi)
+      return None, currentSafelyOptValue
     else:
-      return optQueryAndValue
+      optQueryAndValue = max(queryAndValues.items(), key=lambda _: _[1])
+
+      self.imaginedMDP.updatePsi(psi)
+
+      if optQueryAndValue[1] - currentSafelyOptValue <= 0:
+        # we will stop querying in this case
+        return None, currentSafelyOptValue
+      else:
+        return optQueryAndValue
 
   def findQuery(self):
     return self.computeOptimalQuery(self.knownLockedCons, self.knownFreeCons, self.unknownCons, self.mdp.psi)[0]
