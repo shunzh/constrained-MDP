@@ -251,10 +251,11 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     elif method == 'myopic':
       agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'dompi':
-      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
+                                                         costOfQuery=costOfQuery, heuristicID=0)
     elif method == 'dompiUniform':
       agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
-                                                         costOfQuery=costOfQuery, heuristicType='uniform')
+                                                         costOfQuery=costOfQuery, heuristicID=1)
     else:
       raise Exception('unknown method ' + str(method))
 
@@ -292,7 +293,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     saveData(results, rnd)
 
 
-def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=None):
+def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, costOfQuery=0.0):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
@@ -306,7 +307,7 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=No
   numOfRewards = len(mdp.psi)
 
   # consProbs is None then it's Bayesian setting, otherwise MMR
-  if consProbs is None: consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
+  consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
   print 'consProbs', zip(range(numOfCons), consProbs)
 
   # true free features, randomly generated
@@ -335,7 +336,7 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=No
   """
 
   # under joint uncertainty:
-  jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, costOfQuery=0.1)
+  jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, costOfQuery)
 
 
 def setRandomSeed(rnd):
@@ -348,7 +349,6 @@ if __name__ == '__main__':
   # default values
   method = None
   k = 5 # dummy for sequential queries?
-  dry = False # do not save to files if dry run
 
   # the domain is size x size
   size = 5
@@ -356,13 +356,14 @@ if __name__ == '__main__':
   numOfCarpets = 6
   numOfWalls = 0
   numOfSwitches = 3
+  costOfQuery = 0.1
 
   rnd = 0 # set a dummy random seed if no -r argument
 
   batch = True # run batch experiments
 
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 'm:k:n:s:r:dp:')
+    opts, args = getopt.getopt(sys.argv[1:], 'm:k:n:s:r:R:dp:')
   except getopt.GetoptError:
     raise Exception('Unknown flag')
   for opt, arg in opts:
@@ -374,12 +375,13 @@ if __name__ == '__main__':
       numOfCarpets = int(arg)
     elif opt == '-s':
       numOfSwitches = int(arg)
-    elif opt == '-d':
-      # disable dry run if output to file
-      dry = True
     elif opt == '-r':
       rnd = int(arg)
       batch = False
+    elif opt == '-R':
+      # running starting from trialsStart
+      trialsStart = int(arg)
+      batch = True
     else:
       raise Exception('unknown argument')
 
@@ -398,4 +400,4 @@ if __name__ == '__main__':
     # use uniform reward uncertainty
     rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
     mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.9)
-    experiment(mdp, consStates, goalStates, k, rnd)
+    experiment(mdp, consStates, goalStates, k, rnd, costOfQuery=costOfQuery)

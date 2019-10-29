@@ -235,14 +235,14 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
   Sample a set of dominating policies according to their probabilities of being free and their values.
   Then query the features that would make them safely-optimal.
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, heuristicType='weighted'):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, heuristicID=0):
     JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs,
                                         costOfQuery=costOfQuery)
 
     # initialize objectDomPi to be None, will be computed in findQuery
     self.objectDomPi = None
 
-    self.heuristicType = heuristicType
+    self.heuristicID = heuristicID
 
   class DomPiData:
     """
@@ -286,25 +286,24 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
           domPisData[domPiHashable] = self.DomPiData()
           domPisData[domPiHashable].violatedCons = relFeats
 
-        if self.heuristicType == 'weighted':
-          safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
+        if self.heuristicID == 0:
           piValue = rewardCertainConsAgent.computeValue(domPi)
+          safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
           domPisData[domPiHashable].weightedValue += safeProb * rProb * piValue
-        elif self.heuristicType == 'uniform':
+        elif self.heuristicID == 1:
           domPisData[domPiHashable].weightedValue = 1.0
         else:
-          raise Exception('unknown heuristicType ' + self.heuristicType)
+          raise Exception('unknown heuristicID ' + str(self.heuristicID))
 
         domPisData[domPiHashable].optimizedRewards.append(rIdx)
 
-    # normalize values
-    sumOfAllValues = sum([data.weightedValue for data in domPisData.values()])
-
-    # fixme doesn't look right
-    # no safe policies exist in this case
-    if sumOfAllValues == 0:
+    # no safe policies exist or certain about safely-optimal policy in this case
+    if len(domPisData) <= 1:
       self.objectDomPi = None
       return
+
+    # normalize values
+    sumOfAllValues = sum([data.weightedValue for data in domPisData.values()])
 
     for domPiHashable in domPisData.keys():
       domPisData[domPiHashable].weightedValue /= sumOfAllValues

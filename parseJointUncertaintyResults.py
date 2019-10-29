@@ -31,10 +31,11 @@ def parseJointUncertaintyResults():
   statNames = ['objective value', 'value of safely-optimal $\pi$', 'number of queries', 'computation time (sec.)']
   statFuncs = [returns, values, numOfQueries, times]
 
+  print methods
   for (statName, statFunc) in zip(statNames, statFuncs):
     print statName
     for method in methods:
-      print '& %.2f $\\pm$ %.2f' % (mean(statFunc[method]), standardErr(statFunc[method]))
+      print '& %.4f $\\pm$ %.4f' % (mean(statFunc[method]), standardErr(statFunc[method]))
     print '\\\\'
 
 if __name__ == '__main__':

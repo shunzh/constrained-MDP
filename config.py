@@ -4,7 +4,7 @@ DEBUG = False
 OPT_METHOD = 'gurobi'
 #OPT_METHOD = 'cplex'
 
-earlyStop = False
+earlyStop = None
 
 # experiment configuration
 trialsStart = 0
