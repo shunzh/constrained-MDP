@@ -57,9 +57,9 @@ class ConsQueryAgent():
 
     zeroConstraints = self.constructConstraints(tuple(activeCons) + tuple(self.knownLockedCons))
 
-    if config.METHOD == 'gurobi':
+    if config.OPT_METHOD == 'gurobi':
       return lpDualGurobi(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)
-    elif config.METHOD == 'cplex':
+    elif config.OPT_METHOD == 'cplex':
       # not using this. only for comparision
       return lpDualCPLEX(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)
     else:

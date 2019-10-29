@@ -237,8 +237,8 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
 
   For now, assume initial safe policies exist and the robot can pose at most k queries
   """
-  methods = ['opt', 'myopic', 'dompi']
   results = {}
+  from config import methods
 
   for method in methods:
     # the agent is going to modify mdp.psi, so make copies here
@@ -252,6 +252,9 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
       agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'dompi':
       agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+    elif method == 'dompiUniform':
+      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
+                                                         costOfQuery=costOfQuery, heuristicType='uniform')
     else:
       raise Exception('unknown method ' + str(method))
 

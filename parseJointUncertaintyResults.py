@@ -5,9 +5,8 @@ from util import standardErr
 
 
 def parseJointUncertaintyResults():
-  from config import trialsStart, trialsEnd
+  from config import trialsStart, trialsEnd, methods
 
-  methods = ['opt', 'myopic', 'dompi']
   costOfQ = 0.01
 
   constructStatsDict = lambda: {method: [] for method in methods}
@@ -33,10 +32,9 @@ def parseJointUncertaintyResults():
   statFuncs = [returns, values, numOfQueries, times]
 
   for (statName, statFunc) in zip(statNames, statFuncs):
-    print statName,
+    print statName
     for method in methods:
-      print '&',
-      print '%.4f $\\pm$ %.4f' % (mean(statFunc[method]), standardErr(statFunc[method])),
+      print '& %.2f $\\pm$ %.2f' % (mean(statFunc[method]), standardErr(statFunc[method]))
     print '\\\\'
 
 if __name__ == '__main__':

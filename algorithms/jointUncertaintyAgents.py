@@ -235,12 +235,14 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
   Sample a set of dominating policies according to their probabilities of being free and their values.
   Then query the features that would make them safely-optimal.
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, heuristicType='weighted'):
     JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs,
                                         costOfQuery=costOfQuery)
 
     # initialize objectDomPi to be None, will be computed in findQuery
     self.objectDomPi = None
+
+    self.heuristicType = heuristicType
 
   class DomPiData:
     """
@@ -277,16 +279,22 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       _, domPis = rewardCertainConsAgent.findRelevantFeaturesAndDomPis()
 
       for domPi in domPis:
-        piValue = rewardCertainConsAgent.computeValue(domPi)
         relFeats = rewardCertainConsAgent.findViolatedConstraints(domPi)
-        safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
 
         domPiHashable = frozenset(domPi.items())
         if domPiHashable not in domPisData.keys():
           domPisData[domPiHashable] = self.DomPiData()
           domPisData[domPiHashable].violatedCons = relFeats
 
-        domPisData[domPiHashable].weightedValue += safeProb * rProb * piValue
+        if self.heuristicType == 'weighted':
+          safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
+          piValue = rewardCertainConsAgent.computeValue(domPi)
+          domPisData[domPiHashable].weightedValue += safeProb * rProb * piValue
+        elif self.heuristicType == 'uniform':
+          domPisData[domPiHashable].weightedValue = 1.0
+        else:
+          raise Exception('unknown heuristicType ' + self.heuristicType)
+
         domPisData[domPiHashable].optimizedRewards.append(rIdx)
 
     # normalize values

@@ -1,12 +1,12 @@
 import config
 import util
 
-if config.METHOD == 'gurobi':
+if config.OPT_METHOD == 'gurobi':
   from gurobipy import *
-elif config.METHOD == 'cplex':
+elif config.OPT_METHOD == 'cplex':
   from pycpx import CPlexModel, CPlexException, CPlexNoSolution
 else:
-  raise Exception('unknown optimization method ' + config.METHOD)
+  raise Exception('unknown optimization method ' + config.OPT_METHOD)
 
 def linearRegression(A, b):
   """
