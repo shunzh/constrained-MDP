@@ -361,7 +361,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
       #score[con] += 1
 
     # to understand the behavior
-    if config.VERBOSE: print score
+    #if config.VERBOSE: print score
     return max(score.iteritems(), key=lambda _: _[1])[0]
 
 

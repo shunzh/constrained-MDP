@@ -18,6 +18,21 @@ from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
 
 
+def saveData(results, rnd):
+  """
+  Save results to [rnd].pkl
+  If prior results exist, update it
+  """
+  filename = str(rnd) + '.pkl'
+  if os.path.exists(filename):
+    existingResults = pickle.load(open(filename, 'rb'))
+  else:
+    existingResults = {}
+  existingResults.update(results)
+  results = existingResults
+
+  pickle.dump(results, open(filename, 'wb'))
+
 def findInitialSafePolicy(mdp, consStates, goalStates, trueFreeFeatures, rnd, consProbs=None):
   queries = {}
   valuesOfSafePis = {}
@@ -216,17 +231,21 @@ def improveSafePolicyMMR(mdp, consStates, k, rnd):
 
     print mrk, regret, runTime
 
-def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFeatures, costOfQuery):
+def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFeatures, rnd, costOfQuery):
   """
   Query under both reward uncertainty and safety constraint uncertainty.
 
   For now, assume initial safe policies exist and the robot can pose at most k queries
   """
   methods = ['opt', 'myopic', 'dompi']
+  results = {}
 
   for method in methods:
     # the agent is going to modify mdp.psi, so make copies here
     mdpForAgent = copy.deepcopy(mdp)
+
+    start = time.time()
+
     if method == 'opt':
       agent = JointUncertaintyOptimalQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'myopic':
@@ -240,7 +259,9 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     numOfQueries = 0
     while True:
       query = agent.findQuery()
-      if query is not None:
+      if query is None:
+        break
+      else:
         numOfQueries += 1
         print 'Query', query
 
@@ -258,14 +279,17 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
             agent.updateReward(inconsistentRewards=qContent)
         else:
           raise Exception('unknown qType ' + qType)
-      else:
-        # the agent stops querying
-        print 'optPi', agent.computeCurrentSafelyOptPiValue()
-        print 'numOfQueries', numOfQueries
-        break
+
+    end = time.time()
+    duration = end - start
+
+    value = agent.computeCurrentSafelyOptPiValue()
+    results[method] = {'value': value, 'numOfQueries': numOfQueries, 'time':duration}
+    print 'rnd', rnd, method, value, numOfQueries, duration
+    saveData(results, rnd)
 
 
-def experiment(mdp, consStates, goalStates, k, pf=0, pfStep=1, consProbs=None):
+def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, consProbs=None):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
@@ -308,7 +332,7 @@ def experiment(mdp, consStates, goalStates, k, pf=0, pfStep=1, consProbs=None):
   """
 
   # under joint uncertainty:
-  jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, costOfQuery=0.01)
+  jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, costOfQuery=0.1)
 
 
 def setRandomSeed(rnd):
@@ -324,18 +348,18 @@ if __name__ == '__main__':
   dry = False # do not save to files if dry run
 
   # the domain is size x size
-  size = 6
+  size = 5
 
-  numOfCarpets = 5
-  numOfSwitches = 2
+  numOfCarpets = 6
   numOfWalls = 0
+  numOfSwitches = 3
 
   rnd = 0 # set a dummy random seed if no -r argument
 
-  batch = False # run batch experiments
+  batch = True # run batch experiments
 
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 'm:k:n:s:r:dp:b')
+    opts, args = getopt.getopt(sys.argv[1:], 'm:k:n:s:r:dp:')
   except getopt.GetoptError:
     raise Exception('Unknown flag')
   for opt, arg in opts:
@@ -350,38 +374,25 @@ if __name__ == '__main__':
     elif opt == '-d':
       # disable dry run if output to file
       dry = True
-    elif opt == '-b':
-      batch = True
     elif opt == '-r':
       rnd = int(arg)
-      setRandomSeed(rnd)
+      batch = False
     else:
       raise Exception('unknown argument')
 
   if batch:
-    # the experiment specification is in config
-    from config import trialsStart, trialsEnd, settingCandidates
-
-    for rnd in range(trialsStart, trialsEnd):
-      for (carpetNums, wallNums, pfRange, pfStep) in settingCandidates:
-        for carpetNum in carpetNums:
-          for wallNum in wallNums:
-            for pf in pfRange:
-              # reset random seed in each iteration
-              setRandomSeed(rnd)
-
-              spec = squareWorld(size=size, numOfCarpets=carpetNum, numOfWalls=wallNum)
-              mdp, consStates, goalStates = officeNavigationTask(spec)
-              experiment(mdp, consStates, goalStates, k, pf=pf, pfStep=pfStep)
+    from config import trialsStart, trialsEnd
   else:
+    trialsStart = rnd
+    trialsEnd = rnd + 1
+
+  for rnd in range(trialsStart, trialsEnd):
+    setRandomSeed(rnd)
+
     #spec = carpetsAndWallsDomain()
     spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
-    #spec = toySokobanWorld()
-    #spec = sokobanWorld()
-
     # use uniform reward uncertainty
-    numOfSwitches = len(spec.switches)
     rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
     mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.9)
-    experiment(mdp, consStates, goalStates, k, pf=0, pfStep=1)
+    experiment(mdp, consStates, goalStates, k, rnd)

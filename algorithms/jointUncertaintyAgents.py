@@ -4,6 +4,7 @@ from operator import mul
 import numpy
 from numpy import random
 
+import config
 from algorithms.consQueryAgents import ConsQueryAgent
 from algorithms.initialSafeAgent import GreedyForSafetyAgent
 from algorithms.rewardQueryAgents import GreedyConstructRewardAgent
@@ -79,9 +80,12 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
     if key in self.optQueryAndValueDict.keys():
       return self.optQueryAndValueDict[key]
 
+    # reward queries
     rewardSupports = self.computeConsistentRewardIndices(psi)
+    self.imaginedMDP.updatePsi(psi)
     currentSafelyOptValue = self.findConstrainedOptPi(activeCons=unknownCons, mdp=self.imaginedMDP)['obj']
 
+    # feature queries
     if len(unknownCons) > 0:
       consQueryValues = {('F', con):
                          self.consProbs[con] * self.computeOptimalQuery(knownLockedCons, knownFreeCons + [con],
@@ -108,23 +112,13 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
     queryAndValues = consQueryValues.copy()
     queryAndValues.update(rewardQueryValues)
 
-    if len(queryAndValues) == 0:
-      # no more queries to consider
-      self.imaginedMDP.updatePsi(psi)
-      ret = (None, currentSafelyOptValue)
-    else:
-      optQueryAndValue = max(queryAndValues.items(), key=lambda _: _[1])
+    # also, there's an option to no pose a query
+    queryAndValues[None] = currentSafelyOptValue
 
-      self.imaginedMDP.updatePsi(psi)
+    optQueryAndValue = max(queryAndValues.items(), key=lambda _: _[1])
 
-      if optQueryAndValue[1] - currentSafelyOptValue <= 0:
-        # we will stop querying in this case
-        ret = (None, currentSafelyOptValue)
-      else:
-        ret = optQueryAndValue
-
-    self.optQueryAndValueDict[key] = ret
-    return ret
+    self.optQueryAndValueDict[key] = optQueryAndValue
+    return optQueryAndValue
 
   def findQuery(self):
     optQAndV = self.computeOptimalQuery(self.knownLockedCons, self.knownFreeCons, self.unknownCons, self.mdp.psi)
@@ -208,6 +202,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     else:
       raise Exception('unknown query ' + query)
 
+    if config.VERBOSE: print epu, '-', priorValue
     evoi = epu - priorValue
     assert evoi >= 0
     return evoi
@@ -222,8 +217,9 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     rewardQEVOI = self.computeEVOI(rewardQuery)
     featureQEVOI = self.computeEVOI(featureQuery)
 
-    print 'EVOI', rewardQuery, rewardQEVOI
-    print 'EVOI', featureQuery, featureQEVOI
+    if config.VERBOSE:
+      print 'EVOI', rewardQuery, rewardQEVOI
+      print 'EVOI', featureQuery, featureQEVOI
 
     if rewardQEVOI <= self.costOfQuery and featureQEVOI <= self.costOfQuery:
       # stop querying
@@ -295,12 +291,19 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
     # normalize values
     sumOfAllValues = sum([data.weightedValue for data in domPisData.values()])
+
+    # fixme doesn't look right
+    # no safe policies exist in this case
+    if sumOfAllValues == 0:
+      self.objectDomPi = None
+      return
+
     for domPiHashable in domPisData.keys():
       domPisData[domPiHashable].weightedValue /= sumOfAllValues
 
     self.objectDomPi = numpy.random.choice(domPisData.keys(), p=[data.weightedValue for data in domPisData.values()])
     self.objectDomPiData = copy.copy(domPisData[self.objectDomPi]) # hopefully python will then free domPisData
-    print 'chosen dom pi', self.objectDomPiData
+    if config.VERBOSE: print 'chosen dom pi', self.objectDomPiData
 
   def objectDomPiIsConsistent(self):
     """
@@ -322,6 +325,9 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     # sample dom pis, find what can make them be the safely optimal one
     if self.objectDomPi is None or not self.objectDomPiIsConsistent():
       self.sampleDomPi()
+
+    if self.objectDomPi is None:
+      return None # safe policies not exist
 
     relFeats = self.objectDomPiData.violatedCons
     unknownRelFeats = set(relFeats).intersection(self.unknownCons)

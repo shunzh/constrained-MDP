@@ -23,7 +23,6 @@ class GreedyConstructRewardAgent:
 
     # start adding following policies
     for i in range(1, self.k):
-      if config.VERBOSE: print 'iter.', i
       x = self.findNextPolicy(q)
       q.append(x)
 
