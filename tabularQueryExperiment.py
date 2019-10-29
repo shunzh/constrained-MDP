@@ -243,6 +243,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
   for method in methods:
     # the agent is going to modify mdp.psi, so make copies here
     mdpForAgent = copy.deepcopy(mdp)
+    queriesAsked = []
 
     start = time.time()
 
@@ -260,16 +261,15 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
       raise Exception('unknown method ' + str(method))
 
     print method
-    numOfQueries = 0
     while True:
       query = agent.findQuery()
+
       if query is None:
         break
       else:
-        numOfQueries += 1
-        print 'Query', query
-
+        queriesAsked.append(query)
         (qType, qContent) = query
+
         if qType == 'F':
           # a feature query
           if qContent in trueFreeFeatures:
@@ -288,8 +288,8 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     duration = end - start
 
     value = agent.computeCurrentSafelyOptPiValue()
-    results[method] = {'value': value, 'numOfQueries': numOfQueries, 'time':duration}
-    print 'rnd', rnd, method, value, numOfQueries, duration
+    results[method] = {'value': value, 'queries': queriesAsked, 'time':duration}
+    print 'rnd', rnd, method, value, queriesAsked, duration
     saveData(results, rnd)
 
 
@@ -356,7 +356,7 @@ if __name__ == '__main__':
   numOfCarpets = 6
   numOfWalls = 0
   numOfSwitches = 3
-  costOfQuery = 0.1
+  from config import costOfQuery
 
   rnd = 0 # set a dummy random seed if no -r argument
 

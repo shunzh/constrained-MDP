@@ -5,9 +5,7 @@ from util import standardErr
 
 
 def parseJointUncertaintyResults():
-  from config import trialsStart, trialsEnd, methods
-
-  costOfQ = 0.01
+  from config import trialsStart, trialsEnd, methods, costOfQuery
 
   constructStatsDict = lambda: {method: [] for method in methods}
 
@@ -23,9 +21,11 @@ def parseJointUncertaintyResults():
 
       for method in methods:
         if method in results.keys():
+          numQ = len(results[method]['queries'])
+
           values[method].append(results[method]['value'])
-          numOfQueries[method].append(results[method]['numOfQueries'])
-          returns[method].append(results[method]['value'] - costOfQ * results[method]['numOfQueries'])
+          numOfQueries[method].append(numQ)
+          returns[method].append(results[method]['value'] - costOfQuery * numQ)
           times[method].append(results[method]['time'])
 
   statNames = ['objective value', 'value of safely-optimal $\pi$', 'number of queries', 'computation time (sec.)']
