@@ -255,7 +255,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       self.optimizedRewards = []
       self.violatedCons = None
 
-    def __str__(self):
+    def __repr__(self):
       return 'DomPi score ' + str(self.weightedValue) + ' rewards optimized ' + str(self.optimizedRewards) +\
              ' rel feats ' + str(self.violatedCons)
 
@@ -267,7 +267,9 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     """
     domPisData = {}
 
-    for rIdx in range(self.sizeOfRewards):
+    consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
+
+    for rIdx in consistentRewardIndices:
       r = self.mdp.rFuncs[rIdx]
       rProb = self.mdp.psi[rIdx]
 
@@ -304,13 +306,13 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
         len(domPisData[domPiHashable].violatedCons) == 0:
         domPisData.pop(domPiHashable)
 
-    # no safe policies exist or certain about safely-optimal policy in this case
-    if len(domPisData) == 0:
-      self.objectDomPi = None
-      return
-
     # normalize values
     sumOfAllValues = sum([data.weightedValue for data in domPisData.values()])
+
+    # FIXME are these termination conditions complete?
+    if len(domPisData) == 0 or sumOfAllValues == 0:
+      self.objectDomPi = None
+      return
 
     for domPiHashable in domPisData.keys():
       domPisData[domPiHashable].weightedValue /= sumOfAllValues
@@ -353,7 +355,11 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       # pose reward queries aiming to show that the rewards it optimizes is correct
       consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
       assert len(consistentRewardIndices) > 0
+
+      # if true, we know the robot's optimzies the true safely-optimal policy
+      if set(consistentRewardIndices).issubset(self.objectDomPiData.optimizedRewards): return None
+
       # no reward queries needed if no reward uncertainty
-      if len(consistentRewardIndices) == 1: return None
       qReward = set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices)
+
       return ('R', list(qReward))
