@@ -12,4 +12,5 @@ costOfQuery = 0.2
 trialsStart = 0
 trialsEnd = 1000
 
-methods = ['opt', 'myopic', 'dompi', 'dompiUniform']
+methods = ['myopic', 'dompi', 'dompiUniform']
+#methods = ['opt', 'myopic', 'dompi', 'dompiUniform']

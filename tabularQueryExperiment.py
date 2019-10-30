@@ -356,11 +356,9 @@ if __name__ == '__main__':
   numOfCarpets = 6
   numOfWalls = 0
   numOfSwitches = 3
-  from config import costOfQuery
+  from config import costOfQuery, trialsStart, trialsEnd
 
   rnd = 0 # set a dummy random seed if no -r argument
-
-  batch = True # run batch experiments
 
   try:
     opts, args = getopt.getopt(sys.argv[1:], 'm:k:n:s:r:R:dp:')
@@ -377,19 +375,14 @@ if __name__ == '__main__':
       numOfSwitches = int(arg)
     elif opt == '-r':
       rnd = int(arg)
-      batch = False
+
+      trialsStart = rnd
+      trialsEnd = rnd + 1
     elif opt == '-R':
       # running starting from trialsStart
       trialsStart = int(arg)
-      batch = True
     else:
       raise Exception('unknown argument')
-
-  if batch:
-    from config import trialsStart, trialsEnd
-  else:
-    trialsStart = rnd
-    trialsEnd = rnd + 1
 
   for rnd in range(trialsStart, trialsEnd):
     setRandomSeed(rnd)

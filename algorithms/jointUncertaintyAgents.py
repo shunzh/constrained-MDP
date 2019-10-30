@@ -267,7 +267,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     """
     domPisData = {}
 
-    for rIdx in range(len(self.mdp.rFuncs)):
+    for rIdx in range(self.sizeOfRewards):
       r = self.mdp.rFuncs[rIdx]
       rProb = self.mdp.psi[rIdx]
 
@@ -297,8 +297,15 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
         domPisData[domPiHashable].optimizedRewards.append(rIdx)
 
+    # after finding all dominating policies and the set of reward functions they optimize
+    # remove the ones that optimize everything
+    for domPiHashable in domPisData.keys():
+      if len(domPisData[domPiHashable].optimizedRewards) == self.sizeOfRewards and\
+        len(domPisData[domPiHashable].violatedCons) == 0:
+        domPisData.pop(domPiHashable)
+
     # no safe policies exist or certain about safely-optimal policy in this case
-    if len(domPisData) <= 1:
+    if len(domPisData) == 0:
       self.objectDomPi = None
       return
 
