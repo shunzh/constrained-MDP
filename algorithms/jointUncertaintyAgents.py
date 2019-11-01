@@ -251,6 +251,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     the rewards it optimizes, and the constraints that it violates
     """
     def __init__(self):
+      self.pi = None
       self.weightedValue = 0
       self.optimizedRewards = []
       self.violatedCons = None
@@ -265,16 +266,15 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     and then sample one
     stored in self.dompis = [(dompi, weighted_prob)]
     """
-    domPisData = {}
+    domPisData = []
 
+    priorValue = self.computeCurrentSafelyOptPiValue()
     consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
 
-    for rIdx in consistentRewardIndices:
-      r = self.mdp.rFuncs[rIdx]
-      rProb = self.mdp.psi[rIdx]
-
+    for rIndices in powerset(consistentRewardIndices, minimum=1, maximum=self.sizeOfRewards - 1):
       rewardCertainMDP = copy.deepcopy(self.mdp)
-      rewardCertainMDP.setReward(r)
+      rewardCertainMDP.updatePsi(rIndices)
+      sumOfPsi = sum(self.mdp.psi[_] for _ in rIndices)
 
       rewardCertainConsAgent = ConsQueryAgent(rewardCertainMDP, self.consStates, self.goalCons, self.consProbs,
                                               knownFreeCons=self.knownFreeCons, knownLockedCons=self.knownLockedCons)
@@ -283,42 +283,39 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       for domPi in domPis:
         relFeats = rewardCertainConsAgent.findViolatedConstraints(domPi)
 
-        domPiHashable = frozenset(domPi.items())
-        if domPiHashable not in domPisData.keys():
-          domPisData[domPiHashable] = self.DomPiData()
-          domPisData[domPiHashable].violatedCons = relFeats
+        domPisDatum = self.DomPiData()
+        domPisDatum.pi = domPi
+        domPisDatum.optimizedRewards = rIndices
+        domPisDatum.violatedCons = relFeats
 
         if self.heuristicID == 0:
           piValue = rewardCertainConsAgent.computeValue(domPi)
           safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
-          domPisData[domPiHashable].weightedValue += safeProb * rProb * piValue
+
+          # at least (relFeats) feature queries and (1) reward-set query are needed
+          domPisDatum.weightedValue += max(safeProb * sumOfPsi * (piValue - priorValue - (len(relFeats) + 1) * self.costOfQuery),
+                                           0)
         elif self.heuristicID == 1:
-          domPisData[domPiHashable].weightedValue = 1.0
+          domPisDatum.weightedValue = 1.0
         else:
           raise Exception('unknown heuristicID ' + str(self.heuristicID))
 
-        domPisData[domPiHashable].optimizedRewards.append(rIdx)
-
-    # after finding all dominating policies and the set of reward functions they optimize
-    # remove the ones that optimize everything
-    for domPiHashable in domPisData.keys():
-      if len(domPisData[domPiHashable].optimizedRewards) == self.sizeOfRewards and\
-        len(domPisData[domPiHashable].violatedCons) == 0:
-        domPisData.pop(domPiHashable)
+    if self.heuristicID == 0:
+      for datum in domPisData:
+        datum[1].weightedValue = max(datum.weightedValue - priorValue, 0)
 
     # normalize values
-    sumOfAllValues = sum([data.weightedValue for data in domPisData.values()])
+    sumOfAllValues = sum([data[1].weightedValue for data in domPisData])
 
     # FIXME are these termination conditions complete?
     if len(domPisData) == 0 or sumOfAllValues == 0:
       self.objectDomPi = None
       return
 
-    for domPiHashable in domPisData.keys():
-      domPisData[domPiHashable].weightedValue /= sumOfAllValues
+    for datum in domPisData:
+      datum[1].weightedValue /= sumOfAllValues
 
-    self.objectDomPi = numpy.random.choice(domPisData.keys(), p=[data.weightedValue for data in domPisData.values()])
-    self.objectDomPiData = copy.copy(domPisData[self.objectDomPi]) # hopefully python will then free domPisData
+    self.objectDomPiData = numpy.random.choice(domPisData, p=[data[1].weightedValue for data in domPisData])
     if config.VERBOSE: print 'chosen dom pi', self.objectDomPiData
 
   def objectDomPiIsConsistent(self):
@@ -339,8 +336,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     :return: (query type, query)
     """
     # sample dom pis, find what can make them be the safely optimal one
-    if self.objectDomPi is None or not self.objectDomPiIsConsistent():
-      self.sampleDomPi()
+    self.sampleDomPi()
 
     if self.objectDomPi is None:
       return None # safe policies not exist

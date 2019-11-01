@@ -212,7 +212,6 @@ def milp(mdp, maxV):
 
 
 #TODO the following functions still use CPLEX.
-
 def lp(S, A, r, T, s0):
   """
   Solve the LP problem to find out the optimal occupancy

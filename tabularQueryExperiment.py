@@ -9,6 +9,7 @@ import time
 import numpy
 import scipy
 
+import config
 from algorithms.consQueryAgents import ConsQueryAgent, EXIST, NOTEXIST
 from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyAgent, \
   MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent, OracleSafetyAgent
@@ -231,13 +232,13 @@ def improveSafePolicyMMR(mdp, consStates, k, rnd):
 
     print mrk, regret, runTime
 
-def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFeatures, rnd, costOfQuery):
+def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFeatures, rnd, dry, costOfQuery):
   """
   Query under both reward uncertainty and safety constraint uncertainty.
 
   For now, assume initial safe policies exist and the robot can pose at most k queries
   """
-  results = {}
+  if not dry: results = {}
   from config import methods
 
   for method in methods:
@@ -260,7 +261,6 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     else:
       raise Exception('unknown method ' + str(method))
 
-    print method
     while True:
       query = agent.findQuery()
 
@@ -269,6 +269,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
       else:
         queriesAsked.append(query)
         (qType, qContent) = query
+        if config.VERBOSE: print query
 
         if qType == 'F':
           # a feature query
@@ -288,12 +289,14 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     duration = end - start
 
     value = agent.computeCurrentSafelyOptPiValue()
-    results[method] = {'value': value, 'queries': queriesAsked, 'time':duration}
+    if not dry: results[method] = {'value': value, 'queries': queriesAsked, 'time':duration}
+
     print 'rnd', rnd, method, value, queriesAsked, duration
-    saveData(results, rnd)
+
+  if not dry: saveData(results, rnd)
 
 
-def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, costOfQuery=0.0):
+def experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0, pfStep=1, costOfQuery=0.0):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
@@ -336,7 +339,7 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, costOfQuery=
   """
 
   # under joint uncertainty:
-  jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, costOfQuery)
+  jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, dry, costOfQuery)
 
 
 def setRandomSeed(rnd):
@@ -359,6 +362,7 @@ if __name__ == '__main__':
   from config import costOfQuery, trialsStart, trialsEnd
 
   rnd = 0 # set a dummy random seed if no -r argument
+  dry = False # no output to files if dry run
 
   try:
     opts, args = getopt.getopt(sys.argv[1:], 'm:k:n:s:r:R:dp:')
@@ -381,6 +385,8 @@ if __name__ == '__main__':
     elif opt == '-R':
       # running starting from trialsStart
       trialsStart = int(arg)
+    elif opt == '-d':
+      dry = True
     else:
       raise Exception('unknown argument')
 
@@ -393,4 +399,4 @@ if __name__ == '__main__':
     # use uniform reward uncertainty
     rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
     mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.9)
-    experiment(mdp, consStates, goalStates, k, rnd, costOfQuery=costOfQuery)
+    experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)
