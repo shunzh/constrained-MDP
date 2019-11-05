@@ -52,6 +52,9 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   def computeConsistentRewardIndices(self, psi):
     return filter(lambda rIdx: psi[rIdx] > 0, range(self.sizeOfRewards))
 
+  def computeCurrentSafelyOptPi(self):
+    return self.findConstrainedOptPi(activeCons=self.unknownCons)['pi']
+
   def computeCurrentSafelyOptPiValue(self):
     return self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
 

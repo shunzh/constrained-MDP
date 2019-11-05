@@ -239,7 +239,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
 
   For now, assume initial safe policies exist and the robot can pose at most k queries
   """
-  if not dry: results = {}
+  results = {}
   from config import methods
 
   for method in methods:
@@ -289,7 +289,12 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     end = time.time()
     duration = end - start
 
-    value = agent.computeCurrentSafelyOptPiValue()
+    # find the robot's policy, and evaluate under the true reward function
+    # this is for fair comparision between agents, since different agents have different reward beliefs
+    agentPi = agent.computeCurrentSafelyOptPi()
+    agent.updateReward([trueRewardIdx])
+    value = agent.computeValue(agentPi)
+
     if not dry: results[method] = {'value': value, 'queries': queriesAsked, 'time':duration}
 
     print 'rnd', rnd, method, value, queriesAsked, duration
@@ -358,7 +363,7 @@ if __name__ == '__main__':
   size = 5
 
   numOfCarpets = 6
-  numOfWalls = 0
+  numOfWalls = 5
   numOfSwitches = 3
   from config import costOfQuery, trialsStart, trialsEnd
 
@@ -397,6 +402,11 @@ if __name__ == '__main__':
     #spec = carpetsAndWallsDomain()
     spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
-    rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
+    # uniform prior over rewards
+    #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
+
+    # random prior over rewards
+    rewardProbs = normalize([random.random() for _ in range(numOfSwitches)])
+
     mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.9)
     experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)
