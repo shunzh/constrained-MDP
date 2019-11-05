@@ -17,6 +17,7 @@ from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelec
   JointUncertaintyQueryBySamplingDomPisAgent, JointUncertaintyOptimalQueryAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
+from util import normalize
 
 
 def saveData(results, rnd):
@@ -358,7 +359,7 @@ if __name__ == '__main__':
 
   numOfCarpets = 6
   numOfWalls = 0
-  numOfSwitches = 4
+  numOfSwitches = 3
   from config import costOfQuery, trialsStart, trialsEnd
 
   rnd = 0 # set a dummy random seed if no -r argument
@@ -396,7 +397,6 @@ if __name__ == '__main__':
     #spec = carpetsAndWallsDomain()
     spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
-    # use uniform reward uncertainty
     rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
     mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.9)
     experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)

@@ -204,7 +204,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     if config.VERBOSE: print epu, '-', priorValue
     evoi = epu - priorValue
-    assert evoi >= 0
+    assert evoi >= -1e-4, 'evoi value %f' % evoi
     return evoi
 
   def findQuery(self):
@@ -239,8 +239,8 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs,
                                         costOfQuery=costOfQuery)
 
-    # initialize objectDomPi to be None, will be computed in findQuery
-    self.objectDomPi = None
+    # initialize objectDomPiData to be None, will be computed in findQuery
+    self.objectDomPiData = None
 
     self.heuristicID = heuristicID
 
@@ -293,69 +293,75 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
           safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
 
           # at least (relFeats) feature queries and (1) reward-set query are needed
-          domPisDatum.weightedValue += max(safeProb * sumOfPsi * (piValue - priorValue - (len(relFeats) + 1) * self.costOfQuery),
-                                           0)
+          domPisDatum.weightedValue = max(safeProb * sumOfPsi * (piValue - priorValue - (len(relFeats) + 1) * self.costOfQuery),
+                                          0)
         elif self.heuristicID == 1:
           domPisDatum.weightedValue = 1.0
         else:
           raise Exception('unknown heuristicID ' + str(self.heuristicID))
 
-    if self.heuristicID == 0:
-      for datum in domPisData:
-        datum[1].weightedValue = max(datum.weightedValue - priorValue, 0)
+        domPisData.append(domPisDatum)
 
     # normalize values
-    sumOfAllValues = sum([data[1].weightedValue for data in domPisData])
+    sumOfAllValues = sum([datum.weightedValue for datum in domPisData])
 
     # FIXME are these termination conditions complete?
     if len(domPisData) == 0 or sumOfAllValues == 0:
-      self.objectDomPi = None
+      self.objectDomPiData = None
       return
 
     for datum in domPisData:
-      datum[1].weightedValue /= sumOfAllValues
+      datum.weightedValue /= sumOfAllValues
 
-    self.objectDomPiData = numpy.random.choice(domPisData, p=[data[1].weightedValue for data in domPisData])
+    self.objectDomPiData = numpy.random.choice(domPisData, p=[datum.weightedValue for datum in domPisData])
     if config.VERBOSE: print 'chosen dom pi', self.objectDomPiData
 
-  def objectDomPiIsConsistent(self):
+  def attemptToFindQuery(self):
     """
-    If the reward functions the current objectDomPi optimize are ruled out, or the current objectDomPi is knwon to be unsafe,
-    then re-compute the set of dominating policies
+    try to find a query without re-sampling domPi
+    return None if can't do so
     """
-    # if the response is inconsistent with self.objectDomPi,
-    # we void the current object dom pi, findQuery will recompute the object dom pi
-    consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
+    # if not assigned, compute it
+    if self.objectDomPiData is None:
+      if config.VERBOSE: print 'dompi not assigned'
+      return None
 
-    return len(set(self.knownLockedCons).intersection(self.objectDomPiData.violatedCons)) == 0 \
-      and len(set(consistentRewardIndices).intersection(self.objectDomPiData.optimizedRewards)) > 0
+    # if some relevant features are known-to-be-locked, we should find another dom pi
+    if len(set(self.knownLockedCons).intersection(self.objectDomPiData.violatedCons)) > 0:
+      if config.VERBOSE: print 'dompi not safe'
+      return None
+
+    # first consider reward queries
+    consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
+    # if any of the reward functions tha domPi optimizes is not possibly a true reward function
+    if not set(self.objectDomPiData.optimizedRewards).issubset(consistentRewardIndices):
+      if config.VERBOSE: print 'some optimized reward known to be false'
+      return None
+    # otherwise, try to find a reward query
+    qReward = set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices)
+    # make sure we have something to query about (not querying the whole conssitentRewardIndices set)
+    if len(qReward) < len(consistentRewardIndices):
+      return ('R', list(qReward))
+
+    # then we consider feature queries
+    unknownRelFeats = set(self.objectDomPiData.violatedCons).intersection(self.unknownCons)
+    if len(unknownRelFeats) > 0:
+      # pose constraint queries if any relevant features are unknown
+      return ('F', random.choice(list(unknownRelFeats)))
+
+    # otherwise, we have nothing to query about
+    if config.VERBOSE: print 'nothing to query'
+    return None
 
   def findQuery(self):
     """
     sample some dominating policies, find the most useful query?
     :return: (query type, query)
     """
-    # sample dom pis, find what can make them be the safely optimal one
-    self.sampleDomPi()
+    query = self.attemptToFindQuery()
+    if query is None:
+      self.sampleDomPi()
+      query = self.attemptToFindQuery()
 
-    if self.objectDomPi is None:
-      return None # safe policies not exist
+    return query
 
-    relFeats = self.objectDomPiData.violatedCons
-    unknownRelFeats = set(relFeats).intersection(self.unknownCons)
-    # fixme better ways to choose queries and decide when to stop?
-    if len(unknownRelFeats) > 0:
-      # pose constraint queries if any relevant features are unknown
-      return ('F', random.choice(list(unknownRelFeats)))
-    else:
-      # pose reward queries aiming to show that the rewards it optimizes is correct
-      consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
-      assert len(consistentRewardIndices) > 0
-
-      # if true, we know the robot's optimzies the true safely-optimal policy
-      if set(consistentRewardIndices).issubset(self.objectDomPiData.optimizedRewards): return None
-
-      # no reward queries needed if no reward uncertainty
-      qReward = set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices)
-
-      return ('R', list(qReward))

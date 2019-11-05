@@ -104,8 +104,10 @@ A list of toy domains.
 """
 def carpetsAndWallsDomain():
   # example on notes
-  map = [[_, _, S],
-         [R, C, S]]
+  map = [[R, C, S],
+         [_, W, W],
+         [_, C, S],
+         [_, C, S]]
   return toyWorldConstructor(map)
 
 # some toy domains for need-to-be-reverted features (boxes)
@@ -345,7 +347,7 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
     # let the episode end when any switch is off
     terminal = lambda s: any(s[sIndex] == OFF for sIndex in sIndices)
 
-  # an intuitive one, give reward when and only when the switch is turned off
+  # give reward when and only when the switch is turned off
   # note that the robot does not have the action to turn the switch on
   def rewardFuncGen(switchIndex):
     def rFunc(s, a):
@@ -353,6 +355,8 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
       # if the robot is at a switch and the action is to turn off
       if loc == spec.switches[switchIndex - sIndexStart] and s[switchIndex] == ON and a == TURNOFFSWITCH:
         return 1
+      elif any(loc == spec.switches[sIndex - sIndexStart] and s[sIndex] == ON and a == TURNOFFSWITCH for sIndex in sIndices):
+        return 0
       else:
         return 0
     return rFunc
