@@ -5,7 +5,7 @@
 # purposes. The Pacman AI projects were developed at UC Berkeley, primarily by
 # John DeNero (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # For more info, see http://inst.eecs.berkeley.edu/~cs188/sp09/pacman.html
-
+import pprint
 import sys
 import inspect
 import heapq, random
@@ -18,7 +18,7 @@ def normalize(vec):
   sumOfMass = sum(vec)
   # if we have a zero vector, simply return it
   if sumOfMass == 0: return vec
-  else: return map(lambda _: _ / sumOfMass, vec)
+  else: return map(lambda _: 1.0 * _ / sumOfMass, vec)
 
 def standardErr(data):
   return std(data) / sqrt(len(data))
@@ -68,3 +68,6 @@ def checkPolicyConsistency(states, a, b):
 
   return 1.0 * consistentPolices / len(states)
 
+def printOccSA(x):
+  nonZeroSAOcc = filter(lambda _: _[1] > 0, x.items())
+  pprint.pprint(sorted(nonZeroSAOcc, key=lambda _: _[1], reverse=True))

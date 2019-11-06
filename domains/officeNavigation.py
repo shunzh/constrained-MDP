@@ -106,7 +106,6 @@ def carpetsAndWallsDomain():
   # example on notes
   map = [[R, C, S],
          [_, W, W],
-         [_, C, S],
          [_, C, S]]
   return toyWorldConstructor(map)
 
@@ -151,10 +150,10 @@ def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1, randomSwitch=Fa
 
   possibleLocs = [(x, y) for x in range(width) for y in range(height)]
   possibleLocs.remove((0, 0))
+
+  # generate the list of the locations of all objects, make sure they don't overlap
   objectLocs = util.sampleSubset(possibleLocs, numOfCarpets + numOfWalls + numOfSwitches)
-
   carpets = objectLocs[:numOfCarpets]
-
   walls = objectLocs[numOfCarpets:numOfCarpets + numOfWalls]
 
   if randomSwitch:
@@ -233,7 +232,8 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
   # time is needed when there are horizon-dependent constraints
   tIndex = sIndexStart + sSize
 
-  directionalActs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+  moveActs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+  directionalActs = moveActs + [(0, 0)]
   aSets = directionalActs + [TURNOFFSWITCH]
 
   plotDomain(spec)
@@ -352,10 +352,10 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
   def rewardFuncGen(switchIndex):
     def rFunc(s, a):
       loc = s[locIndex]
-      # if the robot is at a switch and the action is to turn off
       if loc == spec.switches[switchIndex - sIndexStart] and s[switchIndex] == ON and a == TURNOFFSWITCH:
         return 1
-      elif any(loc == spec.switches[sIndex - sIndexStart] and s[sIndex] == ON and a == TURNOFFSWITCH for sIndex in sIndices):
+      elif a in moveActs:
+        # just a way to discourage unnecessary movements
         return 0
       else:
         return 0

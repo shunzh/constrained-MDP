@@ -17,7 +17,7 @@ from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelec
   JointUncertaintyQueryBySamplingDomPisAgent, JointUncertaintyOptimalQueryAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
-from util import normalize
+from util import normalize, printOccSA
 
 
 def saveData(results, rnd):
@@ -292,12 +292,13 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     # find the robot's policy, and evaluate under the true reward function
     # this is for fair comparision between agents, since different agents have different reward beliefs
     agentPi = agent.computeCurrentSafelyOptPi()
-    agent.updateReward([trueRewardIdx])
+    # set the reward function in-place, we are not going to use agent after this anyway
+    agent.updateReward(consistentRewards=[trueRewardIdx])
     value = agent.computeValue(agentPi)
 
     if not dry: results[method] = {'value': value, 'queries': queriesAsked, 'time':duration}
 
-    print 'rnd', rnd, method, value, queriesAsked, duration
+    print 'rnd', rnd, method, value, value - len(queriesAsked) * costOfQuery, queriesAsked, duration
 
   if not dry: saveData(results, rnd)
 
@@ -363,7 +364,7 @@ if __name__ == '__main__':
   size = 5
 
   numOfCarpets = 6
-  numOfWalls = 5
+  numOfWalls = 6
   numOfSwitches = 3
   from config import costOfQuery, trialsStart, trialsEnd
 
@@ -399,14 +400,15 @@ if __name__ == '__main__':
   for rnd in range(trialsStart, trialsEnd):
     setRandomSeed(rnd)
 
-    #spec = carpetsAndWallsDomain()
+    #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
     spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     # uniform prior over rewards
     #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
 
-    # random prior over rewards
+    # random prior over rewards (add 0.1 to reduce variance a little bit)
     rewardProbs = normalize([random.random() for _ in range(numOfSwitches)])
+    print 'psi', rewardProbs
 
     mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.9)
     experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)

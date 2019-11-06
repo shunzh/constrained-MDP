@@ -1,5 +1,7 @@
 import copy
 
+from util import normalize
+
 
 class SimpleMDP:
   """
@@ -31,7 +33,7 @@ class SimpleMDP:
       raise Exception('unknown type of reward')
 
   def updatePsi(self, psi):
-    self.psi = psi
+    self.psi = normalize(psi)
     self.r = lambda s, a: sum(rFunc(s, a) * prob for (rFunc, prob) in zip(self.rFuncs, self.psi))
 
   def resetInitialState(self, initS):

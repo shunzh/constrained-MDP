@@ -48,6 +48,7 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
   r = mdp.r
   gamma = mdp.gamma
   alpha = mdp.alpha
+  terminal = mdp.terminal
   
   # initialize a Gurobi model
   m = Model()
@@ -63,7 +64,8 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
   # \sum_{s, a} x(s, a) (1_{s = s'} - \gamma * T(s, a, s')) = \alpha(s')
   if mdp.invertT is not None:
     # if invertT is computed for deterministic domains, this can be much more efficient
-    for sp in Sr:
+    # sp ('next state' in the transition) are non-terminal states
+    for sp in filter(lambda _: not terminal(S[_]), Sr):
       # supports of 1_{s = s'}
       identityItems = [(sp, a) for a in Ar]
       # supports of \gamma * T(s, a, s')
@@ -74,7 +76,7 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
   else:
     # the normal way, exactly as specified in the formula
     # note that we need to iterate overall state, action pairs for each s' \in S
-    for sp in Sr:
+    for sp in filter(lambda _: not terminal(S[_]), Sr):
       m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
 
   # == constraints

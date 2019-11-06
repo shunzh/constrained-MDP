@@ -1,9 +1,7 @@
-import pprint
 import time
 
 from lp import lpDualGurobi, computeValue, lpDualCPLEX
-from util import powerset
-import copy
+from util import powerset, printOccSA
 import config
 
 # the querying return these consts that represent safe policies exist / not exist
@@ -45,7 +43,7 @@ class ConsQueryAgent():
 
     return statusObj['feasible']
 
-  def findConstrainedOptPi(self, activeCons=(), mdp=None):
+  def findConstrainedOptPi(self, activeCons=(), addKnownLockedCons=True, mdp=None):
     """
     :param activeCons:  constraints that should be followed
     :param mdp: use mdp.r by default
@@ -55,7 +53,9 @@ class ConsQueryAgent():
     """
     if mdp is None: mdp = self.mdp
 
-    zeroConstraints = self.constructConstraints(tuple(activeCons) + tuple(self.knownLockedCons))
+    if addKnownLockedCons:
+      activeCons = tuple(activeCons) + tuple(self.knownLockedCons)
+    zeroConstraints = self.constructConstraints(activeCons)
 
     if config.OPT_METHOD == 'gurobi':
       return lpDualGurobi(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)
@@ -189,7 +189,3 @@ class ConsQueryAgent():
     return var
 
 
-
-def printOccSA(x):
-  nonZeroSAOcc = filter(lambda _: _[1] > 0, x.items())
-  pprint.pprint(sorted(nonZeroSAOcc, key=lambda _: _[0][0][-1]))
