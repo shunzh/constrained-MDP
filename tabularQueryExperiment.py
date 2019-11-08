@@ -298,7 +298,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
 
     if not dry: results[method] = {'value': value, 'queries': queriesAsked, 'time':duration}
 
-    print 'rnd', rnd, method, value, value - len(queriesAsked) * costOfQuery, queriesAsked, duration
+    print 'rnd', rnd, method, value - len(queriesAsked) * costOfQuery, value, queriesAsked, duration
 
   if not dry: saveData(results, rnd)
 

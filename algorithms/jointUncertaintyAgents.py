@@ -168,9 +168,14 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     # if the true reward function is known, no need to pose more reward queries
     if len(psiSupports) == 1: return None
 
-    # going to modify the transition function, so make a copy of mdp
+    # going to modify the transition function in place, so make a copy of mdp
+    # for any unknown feature, with prob. pf, its transition goes through. Otherwise it's transited to a sink state
+    # for any locked feature, it transits to a sink state with prob. 1
+    # free features wouldn't pose any constraints
     self.rewardQueryAgent.mdp = copy.deepcopy(self.mdp)
-    self.rewardQueryAgent.mdp.encodeConstraintIntoTransition([self.consStates[_] for _ in self.knownLockedCons + self.unknownCons])
+    pfs = [0 for _ in self.knownLockedCons] + [self.consProbs[_] for _ in self.unknownCons]
+    self.rewardQueryAgent.mdp.encodeConstraintIntoTransition(cons=[self.consStates[_] for _ in self.knownLockedCons + self.unknownCons],
+                                                             pfs=pfs)
 
     return self.rewardQueryAgent.findBinaryResponseRewardSetQuery()
 
