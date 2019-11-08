@@ -5,7 +5,7 @@ OPT_METHOD = 'gurobi'
 #OPT_METHOD = 'cplex'
 
 earlyStop = None
-#earlyStop = 5
+#earlyStop = 3
 
 costOfQuery = 0.1
 
@@ -14,4 +14,4 @@ trialsStart = 0
 trialsEnd = 1000
 
 #methods = ['myopic', 'dompi', 'dompiUniform']
-methods = ['opt', 'myopic', 'dompi', 'dompiUniform']
+methods = ['opt', 'myopic', 'dompi']

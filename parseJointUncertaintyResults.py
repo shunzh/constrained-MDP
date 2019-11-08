@@ -27,7 +27,8 @@ def parseJointUncertaintyResults():
           numOfQueries[method].append(numQ)
           returns[method].append(results[method]['value'] - costOfQuery * numQ)
           times[method].append(results[method]['time'])
-      #if returns['myopic'][-1] > returns['opt'][-1]: print rnd
+
+      if returns['myopic'][-1] < returns['opt'][-1]: print rnd
 
   statNames = ['objective value', 'value of safely-optimal $\pi$', 'number of queries', 'computation time (sec.)']
   statFuncs = [returns, values, numOfQueries, times]
@@ -36,7 +37,7 @@ def parseJointUncertaintyResults():
   for (statName, statFunc) in zip(statNames, statFuncs):
     print statName
     for method in methods:
-      print '& %.4f $\\pm$ %.4f' % (mean(statFunc[method]), standardErr(statFunc[method]))
+      print '& %.3f $\\pm$ %.3f' % (mean(statFunc[method]), standardErr(statFunc[method]))
     print '\\\\'
 
 if __name__ == '__main__':

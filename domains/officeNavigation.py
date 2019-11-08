@@ -1,7 +1,5 @@
 import random
 
-import numpy
-
 import domainConstructors
 
 # constants for objects in the environment
@@ -104,9 +102,9 @@ A list of toy domains.
 """
 def carpetsAndWallsDomain():
   # example on notes
-  map = [[R, C, S],
-         [_, W, W],
-         [_, C, S]]
+  map = [[R, C, C, S],
+         [_, W, W, W],
+         [_, C, C, S]]
   return toyWorldConstructor(map)
 
 # some toy domains for need-to-be-reverted features (boxes)
@@ -151,16 +149,20 @@ def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1, randomSwitch=Fa
   possibleLocs = [(x, y) for x in range(width) for y in range(height)]
   possibleLocs.remove((0, 0))
 
+  if randomSwitch:
+    switches = util.sampleSubset(possibleLocs, numOfSwitches)
+  else:
+    if numOfSwitches <= height:
+      switches = [((width - 1), (height - i - 1)) for i in range(numOfSwitches)]
+    else:
+      raise Exception('dont know how to deterministically place ' + str(numOfSwitches) + ' switches')
+
+  for switch in switches: possibleLocs.remove(switch)
+
   # generate the list of the locations of all objects, make sure they don't overlap
-  objectLocs = util.sampleSubset(possibleLocs, numOfCarpets + numOfWalls + numOfSwitches)
+  objectLocs = util.sampleSubset(possibleLocs, numOfCarpets + numOfWalls)
   carpets = objectLocs[:numOfCarpets]
   walls = objectLocs[numOfCarpets:numOfCarpets + numOfWalls]
-
-  if randomSwitch:
-    switches = objectLocs[numOfCarpets + numOfWalls:]
-  else:
-    if numOfSwitches > 1: raise Exception('did not specify how to deterministically place multiple switches')
-    switches = [((width - 1), (height - 1))]
 
   return Spec(width, height, robot, switches, walls, doors, boxes, carpets)
 
@@ -347,16 +349,23 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
     # let the episode end when any switch is off
     terminal = lambda s: any(s[sIndex] == OFF for sIndex in sIndices)
 
-  # give reward when and only when the switch is turned off
-  # note that the robot does not have the action to turn the switch on
-  def rewardFuncGen(switchIndex):
+  # reward of turning off a non-target switch
+  randomRewardDict = [random.random() for _ in spec.switches]
+  print 'random reward dict', randomRewardDict
+
+  # give reward of 1 when the target switch is turned off
+  # otherwise, give reward of random.random(), stored in randomRewardDict
+  # note that the robot does not have the action to turn the switch back on
+  def rewardFuncGen(rewardSwitchIndex):
     def rFunc(s, a):
       loc = s[locIndex]
-      if loc == spec.switches[switchIndex - sIndexStart] and s[switchIndex] == ON and a == TURNOFFSWITCH:
-        return 1
-      elif a in moveActs:
-        # just a way to discourage unnecessary movements
-        return 0
+      # if the robot turns off a switch
+      if any(loc == spec.switches[switchIndex - sIndexStart] and s[switchIndex] == ON and a == TURNOFFSWITCH for switchIndex in sIndices):
+        switchTurnedOff = spec.switches.index(loc)
+        if sIndexStart + switchTurnedOff == rewardSwitchIndex:
+          return 1
+        else:
+          return randomRewardDict[switchTurnedOff]
       else:
         return 0
     return rFunc

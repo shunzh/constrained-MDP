@@ -98,7 +98,7 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
     return {'feasible': True, 'obj': m.objVal, 'pi': {(S[s], A[a]): x[s, a].X for s in Sr for a in Ar}}
   elif m.status == GRB.Status.INF_OR_UNBD:
     # simply return infeasible
-    return {'feasible': False}
+    return {'feasible': False, 'obj': 0, 'pi': None}
   else:
     raise Exception('error status: %d' % m.status)
 

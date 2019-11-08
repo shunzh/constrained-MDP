@@ -70,10 +70,10 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
 
     # used for self.computeOptimalQuery
     self.imaginedMDP = copy.deepcopy(self.mdp)
+
     # for memoization
     self.optQueryAndValueDict = {}
-    # keeping all values for debugging
-    self.queryAndValueDict = {}
+    self.currentOptPiValueDict = {}
 
   def computeOptimalQuery(self, knownLockedCons, knownFreeCons, unknownCons, psi):
     """
@@ -88,9 +88,12 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
 
     rewardSupports = self.computeConsistentRewardIndices(psi)
     self.imaginedMDP.updatePsi(psi)
-    # compute the current safe policy, note that we need the hypothetical sets of features and reward
-    currentSafelyOptValue = self.findConstrainedOptPi(activeCons=list(unknownCons)+list(knownLockedCons),
-                                                      addKnownLockedCons=False, mdp=self.imaginedMDP)['obj']
+    # compute the current safe policy
+    if key in self.currentOptPiValueDict.keys():
+      currentSafelyOptValue = self.currentOptPiValueDict[key]
+    else:
+      currentSafelyOptValue = self.findConstrainedOptPi(activeCons=list(unknownCons)+list(knownLockedCons),
+                                                        addKnownLockedCons=False, mdp=self.imaginedMDP)['obj']
 
     # feature queries
     if len(unknownCons) > 0:
@@ -126,15 +129,11 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
     optQueryAndValue = max(queryAndValues.items(), key=lambda _: _[1])
 
     self.optQueryAndValueDict[key] = optQueryAndValue
-    self.queryAndValueDict[key] = queryAndValues
 
     return optQueryAndValue
 
   def findQuery(self):
     optQAndV = self.computeOptimalQuery(self.knownLockedCons, self.knownFreeCons, self.unknownCons, self.mdp.psi)
-
-    #if optQAndV[0] is None:
-    #  print pprint.pprint(self.queryAndValueDict)
 
     return optQAndV[0]
 
@@ -284,16 +283,17 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
 
     for rIndices in powerset(consistentRewardIndices, minimum=1, maximum=self.sizeOfRewards):
-      rewardCertainMDP = copy.deepcopy(self.mdp)
-      rewardCertainMDP.updatePsi(self.updateARewardDistribution(self.mdp.psi, consistentRewards=rIndices))
+      rewardPositiveMDP = copy.deepcopy(self.mdp)
+      rewardPositiveMDP.updatePsi(self.updateARewardDistribution(self.mdp.psi, consistentRewards=rIndices))
+
       sumOfPsi = sum(self.mdp.psi[_] for _ in rIndices)
 
-      rewardCertainConsAgent = ConsQueryAgent(rewardCertainMDP, self.consStates, self.goalCons, self.consProbs,
-                                              knownFreeCons=self.knownFreeCons, knownLockedCons=self.knownLockedCons)
-      _, domPis = rewardCertainConsAgent.findRelevantFeaturesAndDomPis()
+      rewardPositiveConsAgent = ConsQueryAgent(rewardPositiveMDP, self.consStates, self.goalCons, self.consProbs,
+                                               knownFreeCons=self.knownFreeCons, knownLockedCons=self.knownLockedCons)
+      _, domPis = rewardPositiveConsAgent.findRelevantFeaturesAndDomPis()
 
       for domPi in domPis:
-        relFeats = rewardCertainConsAgent.findViolatedConstraints(domPi)
+        relFeats = rewardPositiveConsAgent.findViolatedConstraints(domPi)
 
         domPisDatum = self.DomPiData()
         domPisDatum.pi = domPi
@@ -301,12 +301,19 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
         domPisDatum.violatedCons = relFeats
 
         if self.heuristicID == 0:
-          piValue = rewardCertainConsAgent.computeValue(domPi)
+          # we are going to query about rIndices and relFeatures
+          # we regard them as batch queries and compute the possible responses
           safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
+          rPositiveValue = rewardPositiveConsAgent.computeValue(domPi)
 
-          # at least (relFeats) feature queries and (1) reward-set query are needed
-          domPisDatum.weightedValue = max(safeProb * sumOfPsi * (piValue - priorValue - (len(relFeats) + 1) * self.costOfQuery),
-                                          0)
+          # at least (relFeats) feature queries and 1 reward-set query are needed
+          weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue)
+
+          weightedValue -= self.costOfQuery * len(relFeats)
+          # reward query cost
+          if len(rIndices) < self.sizeOfRewards: weightedValue -= self.costOfQuery
+
+          domPisDatum.weightedValue = weightedValue
         elif self.heuristicID == 1:
           domPisDatum.weightedValue = 1.0
         else:
@@ -317,7 +324,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     if len(domPisData) > 0:
       self.objectDomPiData = max(domPisData, key=lambda datum: datum.weightedValue)
 
-    if len(domPisData) == 0 or self.objectDomPiData.weightedValue == 0:
+    if len(domPisData) == 0 or self.objectDomPiData.weightedValue <= 0:
       # no dompis to consider, or the value says nothing worth querying
       self.objectDomPiData = None
       return
