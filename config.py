@@ -8,7 +8,7 @@ METHOD = 'gurobi'
 trialsStart = 0
 trialsEnd = 1000
 
-exp = 1
+exp = 2
 
 if exp == 1:
   settingCandidates = [([10, 12, 14], [5], [0], 1),
@@ -31,7 +31,7 @@ if exp == 1:
             ]
 
 elif exp == 2:
-  settingCandidates = [([30], [20], map(lambda _: 0.2 * _, range(5)), 0.5)
+  settingCandidates = [([40], [20], map(lambda _: 0.1 * _, range(6)), 0.5)
                       ]
 
   size = 10

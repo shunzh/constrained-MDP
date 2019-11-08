@@ -242,7 +242,7 @@ def plotNumVsProportion(carpetNum, wallNum, pfRange, pfStep):
   y = lambda method, pf: lensOfQ[method, pf]
   plot(x, y, methods, '$p_f$', '# of Queried Features',
        'lensOfQPf' + str(carpetNum) + '_' + str(wallNum) + '_' + str(pfStep),
-       xAxis=xAxis, intYAxis=True, ylim=[1.6, 4])
+       xAxis=xAxis, intYAxis=True)
   #plotMeanOfRatioWrtBaseline(x, y, methods, '$p_f$', '# of Queried Features / Optimal',
   #                           'lensOfQPf_meanOfRatio_' + str(carpetNum) + '_' + str(wallNum) + '_' + str(pfStep),
   #                           xAxis=xAxis)

@@ -615,14 +615,11 @@ class OracleSafetyAgent(InitialSafePolicyAgent):
     else:
       self.answer = NOTEXIST
 
-    self.computePolicyRelFeats()
-    self.computeIISs()
-
-    # depend on whether we find the true dom pis
     if config.earlyStop is None:
+      self.computePolicyRelFeats()
+      self.computeIISs()
+
       self.computeExactQueries()
-    else:
-      self.computeApproximateQueries()
 
   def computeExactQueries(self):
     if self.safePolicyIndeedExist:
@@ -639,7 +636,7 @@ class OracleSafetyAgent(InitialSafePolicyAgent):
   def computeApproximateQueries(self):
     """
     We do not have the computation power to find all domPis and IISs.
-    So we greedily cover tree free/locked features
+    So we greedily cover tree free/locked features and recompute domPis adn IISs after each query
     :return:
     """
     if self.safePolicyIndeedExist:
@@ -657,8 +654,12 @@ class OracleSafetyAgent(InitialSafePolicyAgent):
 
   def findQuery(self):
     # recompute approximate queries when we do early stopping
-    if config.earlyStop is not None: self.computeApproximateQueries()
+    if config.earlyStop is not None:
+      # recompute dompis and iiss after each iteration?
+      self.computePolicyRelFeats()
+      self.computeIISs()
+
+      self.computeApproximateQueries()
 
     if len(self.queries) == 0: return self.answer
     else: return self.queries.pop()
-
