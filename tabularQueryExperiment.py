@@ -361,11 +361,11 @@ if __name__ == '__main__':
   k = 5 # dummy for sequential queries?
 
   # the domain is size x size
-  size = 5
+  size = 6
 
-  numOfCarpets = 5
-  numOfWalls = 5
-  numOfSwitches = 3
+  numOfCarpets = 6
+  numOfWalls = 6
+  numOfSwitches = 4
   from config import costOfQuery, trialsStart, trialsEnd
 
   rnd = 0 # set a dummy random seed if no -r argument

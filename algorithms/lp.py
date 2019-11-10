@@ -60,12 +60,14 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
 
   x = m.addVars(len(S), len(A), lb=0, name='x')
 
+  nonTerminalStatesRange = filter(lambda _: not terminal(S[_]), Sr)
+
   # flow conservation constraints. for each s',
   # \sum_{s, a} x(s, a) (1_{s = s'} - \gamma * T(s, a, s')) = \alpha(s')
   if mdp.invertT is not None:
     # if invertT is computed for deterministic domains, this can be much more efficient
     # sp ('next state' in the transition) are non-terminal states
-    for sp in filter(lambda _: not terminal(S[_]), Sr):
+    for sp in nonTerminalStatesRange:
       # supports of 1_{s = s'}
       identityItems = [(sp, a) for a in Ar]
       # supports of \gamma * T(s, a, s')
@@ -76,8 +78,8 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
   else:
     # the normal way, exactly as specified in the formula
     # note that we need to iterate overall state, action pairs for each s' \in S
-    for sp in filter(lambda _: not terminal(S[_]), Sr):
-      m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
+    for sp in nonTerminalStatesRange:
+      m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in nonTerminalStatesRange for a in Ar) == alpha(S[sp]))
 
   # == constraints
   if len(zeroConstraints) > 0:

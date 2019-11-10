@@ -206,11 +206,12 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     elif qType == 'R':
       rIndices = qContent
 
-      mdpIfTrueReward = copy.deepcopy(self.mdp)
+      # we use the mdp with safety constraints encoded into the transition function
+      mdpIfTrueReward = copy.deepcopy(self.rewardQueryAgent.mdp)
       mdpIfTrueReward.updatePsi(self.updateARewardDistribution(mdpIfTrueReward.psi, consistentRewards=rIndices))
       posteriorValueIfTrue = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward)['obj']
 
-      mdpIfFalseReward = copy.deepcopy(self.mdp)
+      mdpIfFalseReward = copy.deepcopy(self.rewardQueryAgent.mdp)
       mdpIfFalseReward.updatePsi(self.updateARewardDistribution(mdpIfFalseReward.psi, inconsistentRewards=rIndices))
       posteriorValueIfFalse = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
 
@@ -244,6 +245,40 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
       return rewardQuery
     else:
       return featureQuery
+
+
+class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelectionAgent):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
+    JointUncertaintyQueryByMyopicSelectionAgent.__init__(self, mdp, consStates, goalStates, consProbs, costOfQuery)
+
+    # we need to fix one query to find another query
+    self.featureQuery = None
+    self.rewardQuery = None
+
+  def findRewardQuery(self):
+    """
+    find one reward query, given possible responses of the feature query
+    safety constraints are encoded in the transition function
+
+    :return: True if the query is updated, False otherwise
+    """
+    featureQuery = self.featureQuery
+
+  def findFeatureQuery(self):
+    """
+    find a feature query, given possible responses of reward query
+    find one feature that maximize coverage under two possible reward query outcomes?
+
+    :return: True if the query is updated, False otherwise
+    """
+    rewardQuery = self.rewardQuery
+
+  def findQuery(self):
+    # start with finding the myopically-optiam reward query
+    self.rewardQuery = JointUncertaintyQueryByMyopicSelectionAgent.findRewardQuery(self)
+
+    # keep alternating updating feature queries and reward queries, until no local improvement is possible
+    while self.findFeatureQuery() and self.findRewardQuery(): pass
 
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):

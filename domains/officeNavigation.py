@@ -349,21 +349,21 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
     # let the episode end when any switch is off
     terminal = lambda s: any(s[sIndex] == OFF for sIndex in sIndices)
 
-  # reward of turning off a non-target switch
+  # reward of turning off a non-target switch, uniformly-random in [0, 0.5]
   randomRewardDict = [random.random() for _ in spec.switches]
   print 'random reward dict', randomRewardDict
 
-  # give reward of 1 when the target switch is turned off
+  # give reward of 2 when the target switch is turned off
   # otherwise, give reward of random.random(), stored in randomRewardDict
   # note that the robot does not have the action to turn the switch back on
-  def rewardFuncGen(rewardSwitchIndex):
+  def rewardFuncGen(targetSwitchIndex):
     def rFunc(s, a):
       loc = s[locIndex]
       # if the robot turns off a switch
       if any(loc == spec.switches[switchIndex - sIndexStart] and s[switchIndex] == ON and a == TURNOFFSWITCH for switchIndex in sIndices):
         switchTurnedOff = spec.switches.index(loc)
-        if sIndexStart + switchTurnedOff == rewardSwitchIndex:
-          return 1
+        if sIndexStart + switchTurnedOff == targetSwitchIndex:
+          return 2
         else:
           return randomRewardDict[switchTurnedOff]
       else:

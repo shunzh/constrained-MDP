@@ -87,13 +87,13 @@ class SimpleMDP:
         # prob. of reaching sink
         newT[s, a, 'sink'] = 1 - successProb
 
-    # it's impossible to get out of the sink
-    for a in self.A:
-      newT['sink', a, 'sink'] = 1
-
     self.S.append('sink')
 
     self.T = lambda s, a, sp: newT[s, a, sp] if (s, a, sp) in newT.keys() else 0
+
+    # make 'sink' terminal states
+    terminal = copy.deepcopy(self.terminal)
+    self.terminal = lambda s: s == 'sink' or terminal(s)
 
     # these are for deterministic transitions, they shouldn't be called (just to make sure)
     self.transit = None
