@@ -146,16 +146,13 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs, costOfQuery=costOfQuery)
 
     # create two query agents specialized on reward / feature queries
-    self.rewardQueryAgent = GreedyConstructRewardAgent(mdp, 2)
+    self.rewardQueryAgent = GreedyConstructRewardAgent(mdp, 2, qi=True)
     self.featureQueryAgent = GreedyForSafetyAgent(mdp, consStates, goalStates, consProbs, improveSafePis=True)
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
     JointUncertaintyQueryAgent.updateFeats(self, newFreeCon, newLockedCon)
-
-    # need to update the set cover structure
+    # need to update the feature partition of self.featureQueryAgent
     self.featureQueryAgent.updateFeats(newFreeCon, newLockedCon)
-    self.featureQueryAgent.computePolicyRelFeats()
-    self.featureQueryAgent.computeIISs()
 
   def findRewardQuery(self):
     """
@@ -187,6 +184,10 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     computing the set structures by first removing safe dominating policies (set includeSafePolicies to True),
     that is, we want to minimize the number of queries to find *additional* dominating policies.
     """
+    # recompute the set cover structure under the mean reward function (it will use self.mdp.r)
+    self.featureQueryAgent.computePolicyRelFeats()
+    self.featureQueryAgent.computeIISs()
+
     # after computing rel feats, check if it's empty. if so, nothing need to be queried.
     if len(self.featureQueryAgent.domPiFeats) == 0 or len(self.featureQueryAgent.iiss) == 0: return None
 
@@ -264,6 +265,19 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     """
     featureQuery = self.featureQuery
 
+    psiSupports = filter(lambda _: _ > 0, self.mdp.psi)
+    assert len(psiSupports) > 0
+    if len(psiSupports) == 1: return None
+
+    # going to modify the transition function in place, so make a copy of mdp
+    self.rewardQueryAgent.mdp = copy.deepcopy(self.mdp)
+    # consider the possible responses of the queried features
+    pfs = [0 for _ in self.knownLockedCons] + [self.consProbs[_] if _ == featureQuery else 0 for _ in self.unknownCons]
+    self.rewardQueryAgent.mdp.encodeConstraintIntoTransition(cons=[self.consStates[_] for _ in self.knownLockedCons + self.unknownCons],
+                                                             pfs=pfs)
+
+    return self.rewardQueryAgent.findBinaryResponseRewardSetQuery()
+
   def findFeatureQuery(self):
     """
     find a feature query, given possible responses of reward query
@@ -273,12 +287,32 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     """
     rewardQuery = self.rewardQuery
 
+    # update the reward of featureQueryAgent.mdp in place
+    self.featureQueryAgent.mdp.updatePsi(self.updateARewardDistribution(self.mdp.psi, consistentRewards=rewardQuery))
+    self.featureQueryAgent.computePolicyRelFeats()
+    self.featureQueryAgent.computeIISs()
+
+    if len(self.featureQueryAgent.domPiFeats) == 0 or len(self.featureQueryAgent.iiss) == 0: return None
+
+    return self.featureQueryAgent.findQuery()
+
   def findQuery(self):
-    # start with finding the myopically-optiam reward query
+    # start with finding the myopically-optimal reward query
     self.rewardQuery = JointUncertaintyQueryByMyopicSelectionAgent.findRewardQuery(self)
 
     # keep alternating updating feature queries and reward queries, until no local improvement is possible
-    while self.findFeatureQuery() and self.findRewardQuery(): pass
+    while True:
+      featureQuery = self.findFeatureQuery()
+
+      if featureQuery is None or featureQuery == self.featureQuery: break
+      else: self.featureQuery = featureQuery
+
+      rewardQuery = self.findRewardQuery()
+
+      if rewardQuery is None or rewardQuery == self.rewardQuery: break
+      else: self.rewardQuery = rewardQuery
+
+    # evaluate EVOI of joint queries to determine if we want to stop querying
 
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):

@@ -3,12 +3,14 @@ from algorithms.lp import lpDualGurobi, computeValue, milp
 
 
 class GreedyConstructRewardAgent:
-  def __init__(self, mdp, k):
+  def __init__(self, mdp, k, qi=False):
     """
-    qi: query iteration
+    :param k: number of queries
+    :param qi: query iteration
     """
     self.mdp = mdp
     self.k = k
+    self.qi = qi
 
   def computeValue(self, x, r=None):
     """
@@ -39,18 +41,34 @@ class GreedyConstructRewardAgent:
     # solve a MILP problem
     return milp(self.mdp, maxV)
 
+  def findDominatedRewards(self, q):
+    """
+    :return: [indices of rewards being dominateded, for policy in q]
+    """
+    dominatingIndices = [[] for _ in q]
+    for rewardIdx in range(self.mdp.psi):
+      dominatingPi = max(range(len(q)), key=lambda piIndex: self.computeValue(q[piIndex], r=self.mdp.rFuncs(rewardIdx)))
+      dominatingIndices[dominatingPi].append(rewardIdx)
+
+    return dominatingIndices
+
+  def queryIteration(self, qPi):
+    """
+    iteratively improve one policy while fixing other policies in the query
+    :param qPi:
+    :return:
+    """
+    oldDominatingIndices = self.findDominatedRewards(qPi)
+
+    for piIdx in range(self.k):
+
+
   def findBinaryResponseRewardSetQuery(self):
     """
     If we have only one response, find out which reward function is optimized by the first policy in qPi
     """
     qPi = self.findPolicyQuery()
 
-    rewardIndicesSet = []
-    for rewardIdx in range(len(self.mdp.psi)):
-      qPiValues = [self.computeValue(qPi[0], r=self.mdp.rFuncs[rewardIdx]),
-                   self.computeValue(qPi[1], r=self.mdp.rFuncs[rewardIdx])]
-      #print rewardIdx, qPiValues
-      if qPiValues[0] > qPiValues[1]:
-        rewardIndicesSet.append(rewardIdx)
+    dominatingIndices = self.findDominatedRewards(qPi)
 
-    return rewardIndicesSet
+    return dominatingIndices[0]
