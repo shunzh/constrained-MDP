@@ -14,7 +14,7 @@ from algorithms.consQueryAgents import ConsQueryAgent, EXIST, NOTEXIST
 from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyAgent, \
   MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent, OracleSafetyAgent
 from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent, \
-  JointUncertaintyQueryBySamplingDomPisAgent, JointUncertaintyOptimalQueryAgent
+  JointUncertaintyQueryBySamplingDomPisAgent, JointUncertaintyOptimalQueryAgent, JointUncertaintyQueryAlternatingAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
 from util import normalize, printOccSA
@@ -253,6 +253,8 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
       agent = JointUncertaintyOptimalQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'myopic':
       agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+    elif method == 'alternate':
+      agent = JointUncertaintyQueryAlternatingAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'dompi':
       agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
                                                          costOfQuery=costOfQuery, heuristicID=0)
@@ -400,8 +402,8 @@ if __name__ == '__main__':
   for rnd in range(trialsStart, trialsEnd):
     setRandomSeed(rnd)
 
-    #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
+    spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
+    #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     # uniform prior over rewards
     rewardProbs = [1.0 / numOfSwitches] * numOfSwitches

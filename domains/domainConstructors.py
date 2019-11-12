@@ -36,6 +36,7 @@ class SimpleMDP:
     self.psi = normalize(psi)
     self.r = lambda s, a: sum(rFunc(s, a) * prob for (rFunc, prob) in zip(self.rFuncs, self.psi))
 
+
   def resetInitialState(self, initS):
     """
     reset the initial state distribution to be deterministically starting from initS

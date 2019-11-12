@@ -1,5 +1,8 @@
+import copy
+
 import config
 from algorithms.lp import lpDualGurobi, computeValue, milp
+from util import computePosteriorBelief
 
 
 class GreedyConstructRewardAgent:
@@ -28,8 +31,9 @@ class GreedyConstructRewardAgent:
       x = self.findNextPolicy(q)
       q.append(x)
 
-    # if asking policies directly, then return q
-    # return q, objValue # THIS RETURNS EUS, NOT EPU
+    # do query iteration to locally improve this query
+    if self.qi: q = self.queryIteration(q)
+
     return q
 
   def findNextPolicy(self, q):
@@ -46,8 +50,9 @@ class GreedyConstructRewardAgent:
     :return: [indices of rewards being dominateded, for policy in q]
     """
     dominatingIndices = [[] for _ in q]
-    for rewardIdx in range(self.mdp.psi):
-      dominatingPi = max(range(len(q)), key=lambda piIndex: self.computeValue(q[piIndex], r=self.mdp.rFuncs(rewardIdx)))
+    for rewardIdx in range(len(self.mdp.psi)):
+      dominatingPi = max(range(len(q)), key=lambda piIndex: self.computeValue(q[piIndex], r=self.mdp.rFuncs[rewardIdx]))
+      # dominatingPi dominates rewardIdx
       dominatingIndices[dominatingPi].append(rewardIdx)
 
     return dominatingIndices
@@ -58,17 +63,33 @@ class GreedyConstructRewardAgent:
     :param qPi:
     :return:
     """
+    mdp = copy.deepcopy(self.mdp)
+
     oldDominatingIndices = self.findDominatedRewards(qPi)
 
-    for piIdx in range(self.k):
+    while True:
+      newQPi = []
 
+      for piIdx in range(self.k):
+        dominatedRewards = oldDominatingIndices[piIdx]
 
-  def findBinaryResponseRewardSetQuery(self):
+        posteriorRewards = computePosteriorBelief(self.mdp.psi, consistentRewards=dominatedRewards)
+        mdp.updatePsi(posteriorRewards)
+        newPi = lpDualGurobi(mdp)['pi']
+        newQPi.append(newPi)
+
+      newDominatingIndices = self.findDominatedRewards(newQPi)
+      if newDominatingIndices == oldDominatingIndices:
+        # query iteration converges
+        break
+      else:
+        oldDominatingIndices = newDominatingIndices
+
+    return newQPi
+
+  def findRewardSetQuery(self):
     """
     If we have only one response, find out which reward function is optimized by the first policy in qPi
     """
     qPi = self.findPolicyQuery()
-
-    dominatingIndices = self.findDominatedRewards(qPi)
-
-    return dominatingIndices[0]
+    return self.findDominatedRewards(qPi)

@@ -5,6 +5,7 @@
 # purposes. The Pacman AI projects were developed at UC Berkeley, primarily by
 # John DeNero (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # For more info, see http://inst.eecs.berkeley.edu/~cs188/sp09/pacman.html
+import copy
 import pprint
 import sys
 import inspect
@@ -49,6 +50,20 @@ def getMSE(x, y):
   assert len(x) == len(y)
   
   return sum([(xi - yi) ** 2 for xi, yi in zip(x, y)]) / len(x)
+
+def computePosteriorBelief(psi, consistentRewards=None, inconsistentRewards=None):
+    psi = copy.copy(psi)
+
+    if inconsistentRewards is not None:
+      allRewardIdx = range(len(psi))
+      consistentRewards = set(allRewardIdx) - set(inconsistentRewards)
+    assert consistentRewards is not None
+
+    for rIdx in range(len(psi)):
+      if rIdx not in consistentRewards:
+        psi[rIdx] = 0
+    psi = normalize(psi)
+    return psi
 
 def checkPolicyConsistency(states, a, b):
   """

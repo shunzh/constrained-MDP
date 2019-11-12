@@ -1,4 +1,4 @@
-VERBOSE = False
+VERBOSE = True
 DEBUG = False
 
 OPT_METHOD = 'gurobi'
@@ -14,4 +14,4 @@ trialsStart = 0
 trialsEnd = 1000
 
 #methods = ['opt', 'myopic', 'dompi', 'dompiUniform']
-methods = ['opt', 'myopic']
+methods = ['opt', 'myopic', 'alternate']
