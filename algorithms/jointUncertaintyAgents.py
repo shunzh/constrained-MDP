@@ -152,12 +152,14 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     # for any unknown feature, with prob. pf, its transition goes through. Otherwise it's transited to a sink state
     # for any locked feature, it transits to a sink state with prob. 1
     # free features wouldn't pose any constraints
-    self.rewardQueryAgent.mdp = copy.deepcopy(self.mdp)
+    mdp = copy.deepcopy(self.mdp)
     pfs = [0 for _ in self.knownLockedCons] + [self.consProbs[_] for _ in self.unknownCons]
-    self.rewardQueryAgent.mdp.encodeConstraintIntoTransition(cons=[self.consStates[_] for _ in self.knownLockedCons + self.unknownCons],
-                                                             pfs=pfs)
+    mdp.encodeConstraintIntoTransition(cons=[self.consStates[_] for _ in self.knownLockedCons + self.unknownCons],
+                                       pfs=pfs)
+    self.rewardQueryAgent.mdp = mdp
 
-    return self.rewardQueryAgent.findRewardSetQuery()
+    # assume reward-set query has binary responses, so pose either one
+    return self.rewardQueryAgent.findRewardSetQuery()[0]
 
   def findFeatureQuery(self):
     """
@@ -223,8 +225,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     """
     compute the myopically optimal reward query vs feature query, pose the on that has larger EPU value
     """
-    # assume reward-set query has binary responses, so pose either one
-    rewardQuery = ('R', self.findRewardQuery()[0])
+    rewardQuery = ('R', self.findRewardQuery())
     featureQuery = ('F', self.findFeatureQuery())
 
     return self.selectQueryBasedOnEVOI([rewardQuery, featureQuery])
@@ -252,14 +253,18 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     assert len(psiSupports) > 0
     if len(psiSupports) == 1: return None
 
-    # going to modify the transition function in place, so make a copy of mdp
-    self.rewardQueryAgent.mdp = copy.deepcopy(self.mdp)
+    # going to modify the transition function of the mdp used by rewardQueryAgent
+    mdp = copy.deepcopy(self.mdp)
     # consider the possible responses of the queried features
-    pfs = [0 for _ in self.knownLockedCons] + [self.consProbs[_] if _ == featureQuery else 0 for _ in self.unknownCons]
-    self.rewardQueryAgent.mdp.encodeConstraintIntoTransition(cons=[self.consStates[_] for _ in self.knownLockedCons + self.unknownCons],
-                                                             pfs=pfs)
+    pfs = [0 for _ in self.knownLockedCons] + [self.consProbs[_] if _ in featureQuery else 0 for _ in self.unknownCons]
+    mdp.encodeConstraintIntoTransition(cons=[self.consStates[_] for _ in self.knownLockedCons + self.unknownCons],
+                                       rfs=pfs)
+    self.rewardQueryAgent.mdp = mdp
 
-    return self.rewardQueryAgent.findRewardSetQuery()
+    rewardSetQuery = self.rewardQueryAgent.findRewardSetQuery()
+    targetRewards = max(rewardSetQuery, key=lambda rewardSet: sum(map(lambda _: self.mdp.psi[_], rewardSet)))
+
+    return targetRewards
 
   def findFeatureQuery(self):
     """
@@ -268,11 +273,8 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     """
     rewardQuery = self.rewardQuery
 
-    # we hope that the true reward function is in this set
-    targetRewards = max(rewardQuery, key=lambda rewardSet: sum(map(lambda _: self.mdp.psi[_], rewardSet)))
-
     # update the reward of featureQueryAgent.mdp in place
-    self.featureQueryAgent.mdp.updatePsi(computePosteriorBelief(self.mdp.psi, consistentRewards=targetRewards))
+    self.featureQueryAgent.mdp.updatePsi(computePosteriorBelief(self.mdp.psi, consistentRewards=rewardQuery))
     self.featureQueryAgent.computePolicyRelFeats()
     self.featureQueryAgent.computeIISs()
 
@@ -303,7 +305,7 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     # evaluate EVOI of joint queries
     # reward queries have binary responses, so pose either possible response
     # should ignore cost of query since planning for longer horizon?
-    return self.selectQueryBasedOnEVOI([('R', self.rewardQuery[0]), ('F', self.featureQuery)])
+    return self.selectQueryBasedOnEVOI([('R', self.rewardQuery), ('F', self.featureQuery)])
 
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
