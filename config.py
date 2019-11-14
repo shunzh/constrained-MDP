@@ -31,7 +31,7 @@ if exp == 1:
             ]
 
 elif exp == 2:
-  settingCandidates = [([40], [20], map(lambda _: 0.1 * _, range(6)), 0.5)
+  settingCandidates = [([50], [20], map(lambda _: 0.1 * _, range(6)), 0.5)
                       ]
 
   size = 10

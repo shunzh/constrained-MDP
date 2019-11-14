@@ -616,9 +616,9 @@ class OracleSafetyAgent(InitialSafePolicyAgent):
       self.answer = NOTEXIST
 
     if config.earlyStop is None:
+      # compute oracle queries only once here if no approximation is used
       self.computePolicyRelFeats()
       self.computeIISs()
-
       self.computeExactQueries()
 
   def computeExactQueries(self):
@@ -640,13 +640,13 @@ class OracleSafetyAgent(InitialSafePolicyAgent):
     :return:
     """
     if self.safePolicyIndeedExist:
-      if len(self.iiss) == 0:
+      if len(self.iiss) == 0 or len(set(self.trueFreeFeatures) - set(self.knownFreeCons)) == 0:
         self.queries = []
       else:
         query = max(set(self.trueFreeFeatures) - set(self.knownFreeCons), key=lambda con: numOfSetsContainFeat(con, self.iiss))
         self.queries = [query]
     else:
-      if len(self.domPiFeats) == 0:
+      if len(self.domPiFeats) == 0 or len(set(self.trueLockedFeatures) - set(self.knownLockedCons)) == 0:
         self.queries = []
       else:
         query = max(set(self.trueLockedFeatures) - set(self.knownLockedCons), key=lambda con: numOfSetsContainFeat(con, self.domPiFeats))
