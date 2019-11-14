@@ -28,7 +28,7 @@ def parseJointUncertaintyResults():
           returns[method].append(results[method]['value'] - costOfQuery * numQ)
           times[method].append(results[method]['time'])
 
-      if returns['myopic'][-1] < returns['opt'][-1]: print rnd
+      #if returns['myopic'][-1] < returns['opt'][-1]: print rnd
 
   statNames = ['objective value', 'value of safely-optimal $\pi$', 'number of queries', 'computation time (sec.)']
   statFuncs = [returns, values, numOfQueries, times]

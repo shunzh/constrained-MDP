@@ -67,6 +67,9 @@ class GreedyConstructRewardAgent:
 
     oldDominatingIndices = self.findDominatedRewards(qPi)
 
+    if config.VERBOSE:
+      for piIdx in range(len(qPi)): print 'pi', piIdx, [self.computeValue(qPi[piIdx], r) for r in self.mdp.rFuncs]
+
     while True:
       newQPi = []
 
@@ -77,6 +80,9 @@ class GreedyConstructRewardAgent:
         mdp.updatePsi(posteriorRewards)
         newPi = lpDualGurobi(mdp)['pi']
         newQPi.append(newPi)
+
+      if config.VERBOSE:
+        for piIdx in range(len(newQPi)): print 'pi', piIdx, [self.computeValue(newQPi[piIdx], r) for r in self.mdp.rFuncs]
 
       newDominatingIndices = self.findDominatedRewards(newQPi)
       if newDominatingIndices == oldDominatingIndices:

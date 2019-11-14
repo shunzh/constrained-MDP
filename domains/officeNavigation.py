@@ -351,7 +351,6 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
 
   # reward of turning off a non-target switch, uniformly-random in [0, 0.5]
   randomRewardDict = [random.random() for _ in spec.switches]
-  print 'random reward dict', randomRewardDict
 
   # give reward of 2 when the target switch is turned off
   # otherwise, give reward of random.random(), stored in randomRewardDict

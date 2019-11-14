@@ -93,7 +93,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     elif self.safePolicyNotExist(): return NOTEXIST
     else: return None
 
-  def computePolicyRelFeats(self):
+  def computePolicyRelFeats(self, recompute=False):
     """
     Compute relevant features of dominating policies.
     If the relevant features of any dominating policy are all free, then safe policies exist.
@@ -102,7 +102,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     This can be O(2^|relevant features|), depending on the implementation of findDomPis
     """
     # check whether this is already computed
-    if hasattr(self, 'domPiFeats'): return
+    if hasattr(self, 'domPiFeats') and not recompute: return
 
     relFeats, domPis = self.findRelevantFeaturesAndDomPis()
     domPiFeats = []
@@ -122,15 +122,14 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     self.domPiFeatsAndValues = domPiFeatsAndValues
     self.relFeats = relFeats # all relevant features
 
-  def computeIISs(self):
+  def computeIISs(self, recompute=False):
     """
     Compute IISs by looking at relevant features of dominating policies.
 
     eg. (1 and 2) or (3 and 4) --> (1 or 3) and (1 or 4) and (2 or 3) and (2 or 4)
     """
     # we first need relevant features
-    if hasattr(self, 'iiss'):
-      return
+    if hasattr(self, 'iiss') and not recompute: return
 
     if not hasattr(self, 'piRelFeats'):
       self.computePolicyRelFeats()
@@ -210,8 +209,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
       allSubsetsOfRelFeats = powerset(self.relFeats)
       for freeSubset in allSubsetsOfRelFeats:
         if self.safePolicyExist(freeCons = list(freeSubset) + list(self.knownFreeCons)):
-          prob = reduce(mul, map(lambda _: self.consProbs[_], freeSubset), 1) *\
-                 reduce(mul, map(lambda _: 1 - self.consProbs[_], set(self.relFeats) - set(freeSubset)), 1)
+          prob = self.probFeatsBeingFree(freeSubset) * self.probFeatsBeingLocked(set(self.relFeats) - set(freeSubset))
           result += prob
     else:
       for k in range(1, len(self.domPiFeats) + 1):
@@ -226,7 +224,7 @@ class InitialSafePolicyAgent(ConsQueryAgent):
 
 class GreedyForSafetyAgent(InitialSafePolicyAgent):
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, useIIS=True, useRelPi=True,
-               optimizeValue=False, heuristicID=0, improveSafePis=False):
+               optimizeValue=False, heuristicID=0, improveSafePis=False, k=1):
     """
     :param consStates: the set of states that should not be visited
     :param consProbs: the probability that the corresponding constraint is free, None if adversarial setting
@@ -244,6 +242,7 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
 
     self.optimizeValue = optimizeValue
     self.heuristicID = heuristicID
+    self.k = k
 
     # find all IISs without knowing any locked or free cons
     if self.useRelPi:
@@ -295,6 +294,10 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     """
     return the next feature to query by greedily cover the most number of sets
     return None if no more features are needed or nothing left to query about
+
+    heuristics are inspired by
+    Golovin, Daniel, and Andreas Krause. "Adaptive submodularity: Theory and applications in active learning and stochastic optimization."
+    Journal of Artificial Intelligence Research 42 (2011): 427-486.
     """
     answerFound = self.checkSafePolicyExists()
     if answerFound != None: return answerFound
@@ -363,6 +366,36 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
     # to understand the behavior
     #if config.VERBOSE: print score
     return max(score.iteritems(), key=lambda _: _[1])[0]
+
+  def findKFeatureQuery(self):
+    """
+    Construct a k-feature batch query using greedy construction.
+
+    Chen, Yuxin, and Andreas Krause. "Near-optimal Batch Mode Active Learning and Adaptive Submodular Optimization."
+    ICML, 2013.
+    """
+    #FIXME not reusing code in findQuery, only implementing heuristic 0
+    assert self.useIIS and self.useRelPi
+
+    query = []
+
+    for queryIdx in range(min(self.k, len(self.relFeats))):
+      # create set structures based on all possible responses to previously selected features in the same batch
+      iisUncoveredProbs = {}
+      relFeatUncoveredProbs = {}
+
+      for iis in self.iiss:
+        iisUncoveredProbs[iis] = self.probFeatsBeingLocked(set(iis).intersection(query))
+      for feats in self.domPiFeats:
+        relFeatUncoveredProbs[feats] = self.probFeatsBeingFree(set(feats).intersection(query))
+
+      score = {}
+      for con in self.relFeats:
+        score[con] = self.consProbs[con] * sum(iisUncoveredProbs[iis] for iis in self.iiss if con in iis) / len(self.iiss)\
+                   + (1 - self.consProbs[con]) * sum(relFeatUncoveredProbs[feats] for feats in self.domPiFeats if con in feats) / len(self.domPiFeats)
+      query.append(max(self.relFeats, key=lambda _: score[_]))
+
+    return query
 
 
 class DomPiHeuForSafetyAgent(InitialSafePolicyAgent):

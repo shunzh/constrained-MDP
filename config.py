@@ -1,4 +1,4 @@
-VERBOSE = True
+VERBOSE = False
 DEBUG = False
 
 OPT_METHOD = 'gurobi'
@@ -13,5 +13,4 @@ costOfQuery = 0.1
 trialsStart = 0
 trialsEnd = 1000
 
-#methods = ['opt', 'myopic', 'dompi', 'dompiUniform']
-methods = ['opt', 'myopic', 'alternate']
+methods = ['myopic', 'alternate']

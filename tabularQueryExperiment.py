@@ -363,11 +363,11 @@ if __name__ == '__main__':
   k = 5 # dummy for sequential queries?
 
   # the domain is size x size
-  size = 6
+  size = 5
 
   numOfCarpets = 6
   numOfWalls = 6
-  numOfSwitches = 4
+  numOfSwitches = 3
   from config import costOfQuery, trialsStart, trialsEnd
 
   rnd = 0 # set a dummy random seed if no -r argument
@@ -402,14 +402,14 @@ if __name__ == '__main__':
   for rnd in range(trialsStart, trialsEnd):
     setRandomSeed(rnd)
 
-    spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-    #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
+    #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
+    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     # uniform prior over rewards
-    rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
+    #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
 
     # random prior over rewards (add 0.1 to reduce variance a little bit)
-    #rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
+    rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
     mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.9)
     experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)

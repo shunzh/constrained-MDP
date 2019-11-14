@@ -1,4 +1,5 @@
 import time
+from operator import mul
 
 from lp import lpDualGurobi, computeValue, lpDualCPLEX
 from util import powerset, printOccSA
@@ -188,4 +189,8 @@ class ConsQueryAgent():
     
     return var
 
-
+  # syntax sugar functions for computing \prod_{feat} p_f(feat)
+  def probFeatsBeingFree(self, feats):
+    return reduce(mul, map(lambda _: self.consProbs[_], feats), 1)
+  def probFeatsBeingLocked(self, feats):
+    return reduce(mul, map(lambda _: 1 - self.consProbs[_], feats), 1)

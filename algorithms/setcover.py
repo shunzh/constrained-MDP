@@ -58,9 +58,6 @@ def numOfSetsContainFeat(feat, sets):
 def elementExists(feat, sets):
   return any(feat in s for s in sets)
 
-def oshimai(sets):
-  return len(sets) == 0 or any(len(s) == 0 for s in sets)
-
 """
 DEPRECATED look at the dual form of the set, not in this way..
 """

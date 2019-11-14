@@ -170,53 +170,70 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     that is, we want to minimize the number of queries to find *additional* dominating policies.
     """
     # recompute the set cover structure under the mean reward function (it will use self.mdp.r)
-    self.featureQueryAgent.computePolicyRelFeats()
-    self.featureQueryAgent.computeIISs()
+    self.featureQueryAgent.computePolicyRelFeats(recompute=True)
+    self.featureQueryAgent.computeIISs(recompute=True)
 
     # after computing rel feats, check if it's empty. if so, nothing need to be queried.
     if len(self.featureQueryAgent.domPiFeats) == 0 or len(self.featureQueryAgent.iiss) == 0: return None
 
     return self.featureQueryAgent.findQuery()
 
-  def computeEVOI(self, query):
-    (qType, qContent) = query
-    # if the query gives up, then epu is 0
-    if qContent is None: return 0
-
+  def computeEVOI(self, rewardQuery=None, featureQuery=None):
     priorValue = self.computeCurrentSafelyOptPiValue()
 
-    if qType == 'F':
-      feat = qContent
-      epu = self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat})['obj']\
-          + (1 - self.consProbs[feat]) * self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
-    elif qType == 'R':
-      rIndices = qContent
-
-      # we use the mdp with safety constraints encoded into the transition function
-      mdpIfTrueReward = copy.deepcopy(self.rewardQueryAgent.mdp)
-      mdpIfTrueReward.updatePsi(computePosteriorBelief(mdpIfTrueReward.psi, consistentRewards=rIndices))
-      posteriorValueIfTrue = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward)['obj']
-
-      mdpIfFalseReward = copy.deepcopy(self.rewardQueryAgent.mdp)
-      mdpIfFalseReward.updatePsi(computePosteriorBelief(mdpIfFalseReward.psi, inconsistentRewards=rIndices))
-      posteriorValueIfFalse = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
-
-      epu = sum(self.mdp.psi[_] for _ in rIndices) * posteriorValueIfTrue +\
-          + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * posteriorValueIfFalse
+    if rewardQuery is None:
+      psiAndProbs = [(self.mdp.psi, 1)]
     else:
-      raise Exception('unknown query ' + query)
+      positiveProb = sum(self.mdp.psi[_] for _ in rewardQuery)
+      negativeProb = 1 - positiveProb
+
+      positivePsi = computePosteriorBelief(self.mdp.psi, consistentRewards=rewardQuery)
+      negativePsi = computePosteriorBelief(self.mdp.psi, inconsistentRewards=rewardQuery)
+
+      psiAndProbs = [(positivePsi, positiveProb), (negativePsi, negativeProb)]
+
+    epu = 0
+
+    for (psi, psiProb) in psiAndProbs:
+      mdp = copy.deepcopy(self.mdp)
+      mdp.updatePsi(psi)
+
+      if featureQuery is None:
+        # since no feature queries, use current unknown constraints
+        epu += psiProb * self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdp)['obj']
+      else:
+        for presumedFreeCons in powerset(featureQuery):
+          presumedLockedCons = set(featureQuery) - set(presumedFreeCons)
+          featInstanceProb = self.probFeatsBeingFree(presumedFreeCons)\
+                             * self.probFeatsBeingLocked(presumedLockedCons)
+          epu += psiProb * featInstanceProb * self.findConstrainedOptPi(activeCons=presumedLockedCons, mdp=mdp)['obj']\
 
     evoi = epu - priorValue
     assert evoi >= -1e-4, 'evoi value %f' % evoi
+
+    if config.VERBOSE: print 'EVOIs', 'feat', featureQuery, 'reward', rewardQuery, evoi
+
     return evoi
 
-  def selectQueryBasedOnEVOI(self, queries):
-    queryAndEVOIs = [(query, self.computeEVOI(query)) for query in queries]
-    if config.VERBOSE: print 'EVOIs', queryAndEVOIs
+  def selectQueryBasedOnEVOI(self, queries, considerCost=True):
+    queryAndEVOIs = []
+
+    for query in queries:
+      #fixme a bit awkward to change the representation of features
+      if query[0] == 'F':
+        if query[1] is None:
+          queryAndEVOIs.append((query, 0))
+        else:
+          queryAndEVOIs.append((query, self.computeEVOI(featureQuery=[query[1]])))
+      elif query[0] == 'R':
+        queryAndEVOIs.append((query, self.computeEVOI(rewardQuery=query[1])))
+
 
     optQueryAndEVOI = max(queryAndEVOIs, key=lambda _: _[1])
 
-    if optQueryAndEVOI[1] < self.costOfQuery:
+    if considerCost and optQueryAndEVOI[1] < self.costOfQuery:
+      return None
+    elif optQueryAndEVOI[0][1] is None:
       return None
     else:
       return optQueryAndEVOI[0]
@@ -242,6 +259,9 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     # we need to update featureQueryAgent.mdp separately, so don't share the same mdp with self.mdp
     self.featureQueryAgent.mdp = copy.deepcopy(self.mdp)
 
+    # think about three features
+    self.featureQueryAgent.k = 3
+
   def findRewardQuery(self):
     """
     find one reward query, given possible responses of the feature query
@@ -256,9 +276,9 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     # going to modify the transition function of the mdp used by rewardQueryAgent
     mdp = copy.deepcopy(self.mdp)
     # consider the possible responses of the queried features
-    pfs = [0 for _ in self.knownLockedCons] + [self.consProbs[_] if _ in featureQuery else 0 for _ in self.unknownCons]
+    pfs = [0 for _ in self.knownLockedCons] + [1 if _ in featureQuery else self.consProbs[_] for _ in self.unknownCons]
     mdp.encodeConstraintIntoTransition(cons=[self.consStates[_] for _ in self.knownLockedCons + self.unknownCons],
-                                       rfs=pfs)
+                                       pfs=pfs)
     self.rewardQueryAgent.mdp = mdp
 
     rewardSetQuery = self.rewardQueryAgent.findRewardSetQuery()
@@ -274,13 +294,16 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     rewardQuery = self.rewardQuery
 
     # update the reward of featureQueryAgent.mdp in place
-    self.featureQueryAgent.mdp.updatePsi(computePosteriorBelief(self.mdp.psi, consistentRewards=rewardQuery))
-    self.featureQueryAgent.computePolicyRelFeats()
-    self.featureQueryAgent.computeIISs()
+    if rewardQuery is not None:
+      self.featureQueryAgent.mdp.updatePsi(computePosteriorBelief(self.mdp.psi, consistentRewards=rewardQuery))
+    else:
+      self.featureQueryAgent.mdp.updatePsi(self.mdp.psi)
+    self.featureQueryAgent.computePolicyRelFeats(recompute=True)
+    self.featureQueryAgent.computeIISs(recompute=True)
 
     if len(self.featureQueryAgent.domPiFeats) == 0 or len(self.featureQueryAgent.iiss) == 0: return None
 
-    return self.featureQueryAgent.findQuery()
+    return self.featureQueryAgent.findKFeatureQuery()
 
   def findQuery(self):
     # start with finding the myopically-optimal reward query
@@ -295,17 +318,25 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
 
       if featureQuery == self.featureQuery: break
       else: self.featureQuery = featureQuery
+      # if not going to ask query, then the other query would be adapt
+      if self.featureQuery is None: break
 
       rewardQuery = self.findRewardQuery()
       if config.VERBOSE: print 'R', rewardQuery
 
       if rewardQuery == self.rewardQuery: break
       else: self.rewardQuery = rewardQuery
+      if self.rewardQuery is None: break
 
     # evaluate EVOI of joint queries
-    # reward queries have binary responses, so pose either possible response
-    # should ignore cost of query since planning for longer horizon?
-    return self.selectQueryBasedOnEVOI([('R', self.rewardQuery), ('F', self.featureQuery)])
+    if self.computeEVOI(featureQuery=self.featureQuery, rewardQuery=self.rewardQuery) < self.costOfQuery:
+      return None
+    else:
+      if self.featureQuery is not None:
+        # pose the first feature (covers the most sets in expectation)
+        self.featureQuery = self.featureQuery[0]
+
+      return self.selectQueryBasedOnEVOI([('R', self.rewardQuery), ('F', self.featureQuery)], considerCost=False)
 
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
