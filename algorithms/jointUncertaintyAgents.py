@@ -211,7 +211,10 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     evoi = epu - priorValue
     assert evoi >= -1e-4, 'evoi value %f' % evoi
 
-    if config.VERBOSE: print 'EVOIs', 'feat', featureQuery, 'reward', rewardQuery, evoi
+    if config.VERBOSE:
+      if featureQuery is not None: print 'feat', featureQuery,
+      if rewardQuery is not None: print 'reward', rewardQuery,
+      print 'EVOI', evoi
 
     return evoi
 

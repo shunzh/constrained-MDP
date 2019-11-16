@@ -1,4 +1,4 @@
-VERBOSE = False
+VERBOSE = True
 DEBUG = False
 
 OPT_METHOD = 'gurobi'

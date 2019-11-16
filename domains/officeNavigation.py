@@ -102,9 +102,9 @@ A list of toy domains.
 """
 def carpetsAndWallsDomain():
   # example on notes
-  map = [[R, C, S],
-         [_, W, W],
-         [_, C, S]]
+  map = [[R, C, C, S],
+         [_, W, W, W],
+         [_, C, C, S]]
   return toyWorldConstructor(map)
 
 # some toy domains for need-to-be-reverted features (boxes)
@@ -362,9 +362,9 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
       if any(loc == spec.switches[switchIndex - sIndexStart] and s[switchIndex] == ON and a == TURNOFFSWITCH for switchIndex in sIndices):
         switchTurnedOff = spec.switches.index(loc)
         if sIndexStart + switchTurnedOff == targetSwitchIndex:
-          return 2
+          return 1
         else:
-          return randomRewardDict[switchTurnedOff]
+          return 0
       else:
         return 0
     return rFunc
