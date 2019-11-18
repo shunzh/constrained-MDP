@@ -31,7 +31,7 @@ if exp == 1:
             ]
 
 elif exp == 2:
-  settingCandidates = [([50], [20], map(lambda _: 0.1 * _, range(6)), 0.5)
+  settingCandidates = [([40], [20], map(lambda _: 0.1 * _, range(6)), 0.5)
                       ]
 
   size = 10
@@ -41,10 +41,11 @@ elif exp == 2:
   methods = ['oracle',
              #'opt',
              'iisAndRelpi',
+             'iisOnly', 'relpiOnly',
              'iisAndRelpi3',
-             'maxProb',
-             'maxProbF', 'maxProbIF', # variations of maxProb
-             'piHeu',
+             #'maxProb',
+             #'maxProbF', 'maxProbIF', # variations of maxProb
+             #'piHeu',
             ]
 else:
   raise Exception('unknown exp')

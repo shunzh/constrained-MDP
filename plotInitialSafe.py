@@ -97,7 +97,7 @@ def printTex(head, data):
 
 def plotLegend():
   ax = pylab.gca()
-  figLegend = pylab.figure(figsize=(3.5, 4))
+  figLegend = pylab.figure(figsize=(3.5, 4.2))
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
@@ -242,7 +242,7 @@ def plotNumVsProportion(carpetNum, wallNum, pfRange, pfStep):
   y = lambda method, pf: lensOfQ[method, pf]
   plot(x, y, methods, '$p_f$', '# of Queried Features',
        'lensOfQPf' + str(carpetNum) + '_' + str(wallNum) + '_' + str(pfStep),
-       xAxis=xAxis, intYAxis=True)
+       xAxis=xAxis, intYAxis=True, ylim=[1, 9.5])
   #plotMeanOfRatioWrtBaseline(x, y, methods, '$p_f$', '# of Queried Features / Optimal',
   #                           'lensOfQPf_meanOfRatio_' + str(carpetNum) + '_' + str(wallNum) + '_' + str(pfStep),
   #                           xAxis=xAxis)
