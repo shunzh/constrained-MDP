@@ -112,3 +112,6 @@ experiments
 # ide
 .vscode
 .idea
+
+# experiment files
+*figures
