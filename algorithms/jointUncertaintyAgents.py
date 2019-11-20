@@ -42,6 +42,55 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   def computeCurrentSafelyOptPiValue(self):
     return self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
 
+  def encodeConstraintIntoTransition(self, mdp, pfs):
+    """
+    revise the transition function in-place
+    when visit a state in consStates, go to a 'sink' state with prob of pf
+    """
+    cons = [self.consStates[_] for _ in self.knownLockedCons + self.unknownCons]
+
+    # transit is going to be set 0, so make a copy here
+    transit = copy.deepcopy(mdp.transit)
+
+    newT = {}
+    for s in mdp.S:
+      for a in mdp.A:
+        # prob. of getting to transit(s, a)
+        sp = transit(s, a)
+        successProb = 1
+        for (consStates, pf) in zip(cons, pfs):
+          if sp in consStates:
+            successProb *= pf
+
+        newT[s, a, sp] = successProb
+
+        # prob. of reaching sink
+        newT[s, a, 'sink'] = 1 - successProb
+
+    mdp.S.append('sink')
+
+    mdp.T = lambda s, a, sp: newT[s, a, sp] if (s, a, sp) in newT.keys() else 0
+
+    # make 'sink' terminal states
+    terminal = copy.deepcopy(mdp.terminal)
+    mdp.terminal = lambda s: s == 'sink' or terminal(s)
+
+    # these are for deterministic transitions, they shouldn't be called (just to make sure)
+    mdp.transit = None
+    mdp.invertT = None
+
+  def addFeatQueryCostToReward(self, mdp):
+    cons = [self.consStates[_] for _ in self.knownLockedCons + self.unknownCons]
+
+    oldReward = copy.deepcopy(mdp.r)
+    def newReward(s, a):
+      if any(s in conStates for conStates in cons):
+        return oldReward(s, a) - self.costOfQuery
+      else:
+        return oldReward(s, a)
+
+    mdp.r = newReward
+
 
 class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
   """
@@ -153,9 +202,9 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     # for any locked feature, it transits to a sink state with prob. 1
     # free features wouldn't pose any constraints
     mdp = copy.deepcopy(self.mdp)
+
     pfs = [0 for _ in self.knownLockedCons] + [self.consProbs[_] for _ in self.unknownCons]
-    mdp.encodeConstraintIntoTransition(cons=[self.consStates[_] for _ in self.knownLockedCons + self.unknownCons],
-                                       pfs=pfs)
+    self.encodeConstraintIntoTransition(mdp, pfs)
     self.rewardQueryAgent.mdp = mdp
 
     # assume reward-set query has binary responses, so pose either one
@@ -259,7 +308,7 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     self.featureQuery = None
     self.rewardQuery = None
 
-    # we need to update featureQueryAgent.mdp separately, so don't share the same mdp with self.mdp
+    # we need to update featureQueryAgent.mdp.psi separately, so don't share the same mdp with self.mdp
     self.featureQueryAgent.mdp = copy.deepcopy(self.mdp)
 
     # think about three features
@@ -280,8 +329,8 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     mdp = copy.deepcopy(self.mdp)
     # consider the possible responses of the queried features
     pfs = [0 for _ in self.knownLockedCons] + [1 if _ in featureQuery else self.consProbs[_] for _ in self.unknownCons]
-    mdp.encodeConstraintIntoTransition(cons=[self.consStates[_] for _ in self.knownLockedCons + self.unknownCons],
-                                       pfs=pfs)
+    self.encodeConstraintIntoTransition(mdp, pfs=pfs)
+    self.addFeatQueryCostToReward(mdp)
     self.rewardQueryAgent.mdp = mdp
 
     rewardSetQuery = self.rewardQueryAgent.findRewardSetQuery()

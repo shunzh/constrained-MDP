@@ -364,7 +364,7 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
         if sIndexStart + switchTurnedOff == targetSwitchIndex:
           return 1
         else:
-          return 0
+          return 0.2
       else:
         return 0
     return rFunc

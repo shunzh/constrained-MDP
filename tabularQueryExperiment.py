@@ -412,4 +412,4 @@ if __name__ == '__main__':
     #rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
     mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.9)
-    experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0.5, pfStep=0, costOfQuery=costOfQuery)
+    experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)

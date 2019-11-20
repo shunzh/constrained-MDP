@@ -105,6 +105,7 @@ venv.bak/
 
 # experiment files
 experiments
+*figures
 *.pkl
 *.out
 *.pdf
@@ -112,6 +113,3 @@ experiments
 # ide
 .vscode
 .idea
-
-# experiment files
-*figures

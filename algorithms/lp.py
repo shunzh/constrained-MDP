@@ -158,14 +158,7 @@ def milp(mdp, maxV):
   """
   Solve the MILP problem in greedy construction of policy query
 
-  Args:
-    S: state set
-    A: action set
-    R: reward candidate set
-    T: transition function
-    s0: init state
-    psi: prior belief on rewards
-    maxV: maxV[i] = max_{\pi \in q} V_{r_i}^\pi
+  :param maxV maxV[i] = max_{\pi \in q} V_{r_i}^\pi
   """
   m = Model()
   m.setParam('OutputFlag', False)

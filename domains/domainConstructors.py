@@ -63,43 +63,6 @@ class SimpleMDP:
           sp = self.transit(s, a)
           self.invertT[sp].append((s, a))
 
-  def encodeConstraintIntoTransition(self, cons, pfs):
-    """
-    states in cons are not allowed to visit.
-    if s, a, sp is a transition to reach an unsafe state (sp), then create a self loop (s, a, s)
-
-    :return: None, mdp.T is changed in place
-    """
-    # transit is going to be set 0, so make a copy here
-    transit = copy.deepcopy(self.transit)
-
-    newT = {}
-    for s in self.S:
-      for a in self.A:
-        # prob. of getting to transit(s, a)
-        sp = transit(s, a)
-        successProb = 1
-        for (consStates, pf) in zip(cons, pfs):
-          if sp in consStates:
-            successProb *= pf
-
-        newT[s, a, sp] = successProb
-
-        # prob. of reaching sink
-        newT[s, a, 'sink'] = 1 - successProb
-
-    self.S.append('sink')
-
-    self.T = lambda s, a, sp: newT[s, a, sp] if (s, a, sp) in newT.keys() else 0
-
-    # make 'sink' terminal states
-    terminal = copy.deepcopy(self.terminal)
-    self.terminal = lambda s: s == 'sink' or terminal(s)
-
-    # these are for deterministic transitions, they shouldn't be called (just to make sure)
-    self.transit = None
-    self.invertT = None
-
 
 class DeterministicFactoredMDP(SimpleMDP):
   def __init__(self, sSets, aSets, rFunc, tFunc, s0, gamma=1, terminal=lambda s: False):
