@@ -14,3 +14,4 @@ trialsStart = 0
 trialsEnd = 1000
 
 methods = ['myopic', 'alternate']
+#methods = ['alternate']

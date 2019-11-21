@@ -290,9 +290,10 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
       if self.useRelPi:
         self.domPiFeats = coverFeat(newLockedCon, self.domPiFeats)
 
-  def findQuery(self):
+  def findQuery(self, subsetCons=None):
     """
-    return the next feature to query by greedily cover the most number of sets
+    :param subsetCons: only consider intersection of this set if not none
+    :return: the next feature to query by greedily cover the most number of sets
     return None if no more features are needed or nothing left to query about
 
     heuristics are inspired by
@@ -304,6 +305,8 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
 
     # make sure the constraints that are already queried are not going to be queried again
     relFeats = self.relFeats
+    if subsetCons is not None: relFeats = set(relFeats).intersection(subsetCons)
+    if len(relFeats) == 0: return None
 
     # find the maximum frequency constraint weighted by the probability
     score = {}
@@ -364,7 +367,6 @@ class GreedyForSafetyAgent(InitialSafePolicyAgent):
       #score[con] += 1
 
     # to understand the behavior
-    #if config.VERBOSE: print score
     return max(score.iteritems(), key=lambda _: _[1])[0]
 
   def findKFeatureQuery(self):

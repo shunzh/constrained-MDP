@@ -2,7 +2,7 @@ import copy
 
 import config
 from algorithms.lp import lpDualGurobi, computeValue, milp
-from util import computePosteriorBelief
+from util import computePosteriorBelief, printOccSA
 
 
 class GreedyConstructRewardAgent:
@@ -24,7 +24,8 @@ class GreedyConstructRewardAgent:
 
   def findPolicyQuery(self):
     # start with the prior optimal policy
-    q = [lpDualGurobi(self.mdp)['pi']]
+    meanRewardOptPi = lpDualGurobi(self.mdp)['pi']
+    q = [meanRewardOptPi]
 
     # start adding following policies
     for i in range(1, self.k):
@@ -45,30 +46,41 @@ class GreedyConstructRewardAgent:
     # solve a MILP problem
     return milp(self.mdp, maxV)
 
-  def findDominatedRewards(self, q):
+  def findRewardSetQuery(self, qPi=None):
     """
-    :return: [indices of rewards being dominateded, for policy in q]
+    :param qPi: provided if already computed
+    :return: [indices of rewards being dominateded by policy, for policy in qPi]
     """
-    dominatingIndices = [[] for _ in q]
+    if qPi is None: qPi = self.findPolicyQuery()
+
+    dominatingIndices = [[] for _ in qPi]
     for rewardIdx in range(len(self.mdp.psi)):
-      dominatingPi = max(range(len(q)), key=lambda piIndex: self.computeValue(q[piIndex], r=self.mdp.rFuncs[rewardIdx]))
+      dominatingPi = max(range(len(qPi)), key=lambda piIndex: self.computeValue(qPi[piIndex], r=self.mdp.rFuncs[rewardIdx]))
       # dominatingPi dominates rewardIdx
       dominatingIndices[dominatingPi].append(rewardIdx)
 
     return dominatingIndices
 
+  def computeEUS(self, qPi, qR):
+    ret = 0
+    for (pi, rs) in zip(qPi, qR):
+      for rIdx in rs:
+        piValue = self.computeValue(pi, self.mdp.rFuncs[rIdx])
+        if config.VERBOSE: print 'reward', rIdx, 'value', piValue
+
+        ret += self.mdp.psi[rIdx] * piValue
+
+    return ret
+
   def queryIteration(self, qPi):
     """
     iteratively improve one policy while fixing other policies in the query
-    :param qPi:
-    :return:
+    :return: local optimum policy query
     """
     mdp = copy.deepcopy(self.mdp)
 
-    oldDominatingIndices = self.findDominatedRewards(qPi)
-
-    if config.VERBOSE:
-      for piIdx in range(len(qPi)): print 'pi', piIdx, [self.computeValue(qPi[piIdx], r) for r in self.mdp.rFuncs]
+    oldDominatingIndices = self.findRewardSetQuery(qPi)
+    oldEUS = self.computeEUS(qPi, oldDominatingIndices)
 
     while True:
       newQPi = []
@@ -81,21 +93,16 @@ class GreedyConstructRewardAgent:
         newPi = lpDualGurobi(mdp)['pi']
         newQPi.append(newPi)
 
-      if config.VERBOSE:
-        for piIdx in range(len(newQPi)): print 'pi', piIdx, [self.computeValue(newQPi[piIdx], r) for r in self.mdp.rFuncs]
+      newDominatingIndices = self.findRewardSetQuery(newQPi)
 
-      newDominatingIndices = self.findDominatedRewards(newQPi)
-      if newDominatingIndices == oldDominatingIndices:
+      newEUS = self.computeEUS(newQPi, newDominatingIndices)
+
+      if newEUS <= oldEUS + 1e-3:
         # query iteration converges
         break
       else:
         oldDominatingIndices = newDominatingIndices
+        oldEUS = newEUS
 
     return newQPi
 
-  def findRewardSetQuery(self):
-    """
-    If we have only one response, find out which reward function is optimized by the first policy in qPi
-    """
-    qPi = self.findPolicyQuery()
-    return self.findDominatedRewards(qPi)
