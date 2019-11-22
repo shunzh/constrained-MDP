@@ -307,15 +307,6 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     qPi = self.rewardQueryAgent.findPolicyQuery()
     qR = self.rewardQueryAgent.findRewardSetQuery(qPi)
 
-    # if the batch query has no positive evoi, stop querying
-    eus = self.rewardQueryAgent.computeEUS(qPi, qR)
-    priorValue = self.computeCurrentSafelyOptPiValue()
-    batchQueryEVOI = eus - priorValue
-
-    if config.VERBOSE: print 'evoi', eus, '-', priorValue, '=', batchQueryEVOI
-
-    if batchQueryEVOI <= 1e-4: return None
-
     qFeats = set()
     for pi in qPi:
       violatedCons = self.findViolatedConstraints(pi)
@@ -326,6 +317,17 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
 
     queries = [('R', q) for q in qR if len(q) > 0 and len(q) < len(psiSupports)]\
               + [('F', qFeat)]
+
+    # if the batch query has no positive evoi, stop querying
+    eus = self.rewardQueryAgent.computeEUS(qPi, qR)
+    priorValue = self.computeCurrentSafelyOptPiValue()
+    batchQueryEVOI = eus - priorValue
+    assert batchQueryEVOI >= -1e-4
+    # count the cost of reward query
+    if any(_[0] == 'R' for _ in queries): batchQueryEVOI -= self.costOfQuery
+
+    if config.VERBOSE: print 'evoi', eus, '-', priorValue, '=', batchQueryEVOI
+    if batchQueryEVOI <= 1e-4: return None
 
     return queries
 
