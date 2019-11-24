@@ -30,11 +30,11 @@ def linearRegression(A, b):
 
   return [x[_].X for _ in xrange(d)]
 
-def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstraintsOcc=0):
+def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstraintsOcc=0, violationCost=None):
   """
   Solve the dual problem of lp, maybe with some constraints
-  Same arguments
-  
+  :param violationCost: if not None, it's the cost of violating a constraints rather than enforcing it.
+
   Note that this is a lower level function that does not consider feature extraction.
   r should be a reward function, not a reward parameter.
   """
@@ -60,6 +60,9 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
 
   x = m.addVars(len(S), len(A), lb=0, name='x')
 
+  M = 10000  # a large number
+  zC = m.addVars(len(zeroConstraints), vtype=GRB.BINARY, name='zC')
+
   nonTerminalStatesRange = filter(lambda _: not terminal(S[_]), Sr)
 
   # flow conservation constraints. for each s',
@@ -83,7 +86,10 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
 
   # == constraints
   if len(zeroConstraints) > 0:
-    m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints) == 0)
+    if violationCost is None:
+      m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints) == 0)
+    else:
+      m.addConstr(M * zC >= sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints))
 
   # >= constraints. the occupancy should be at least positiveConstraintsOcc
   if len(positiveConstraints) > 0:
@@ -180,7 +186,7 @@ def milp(mdp, maxV):
 
   # decision variables
   x = m.addVars(len(S), len(A), lb=0, name='x')
-  z = m.addVars(rLen, vtype='B', name='z')
+  z = m.addVars(rLen, vtype=GRB.BINARY, name='z')
   y = m.addVars(rLen, name='y')
 
   # constraints on y
