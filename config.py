@@ -13,5 +13,5 @@ costOfQuery = 0.1
 trialsStart = 0
 trialsEnd = 1000
 
-methods = ['myopic', 'alternate']
-#methods = ['alternate']
+#methods = ['opt', 'myopic', 'batch']
+methods = ['myopic', 'batch']

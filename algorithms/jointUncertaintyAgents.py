@@ -286,7 +286,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     return self.selectQueryBasedOnEVOI([rewardQuery, featureQuery])
 
 
-class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelectionAgent):
+class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgent):
   def findBatchQuery(self):
     """
     find one reward query and some feature queries to possibly query about
@@ -315,7 +315,7 @@ class JointUncertaintyQueryAlternatingAgent(JointUncertaintyQueryByMyopicSelecti
     if len(qFeats) > 0: qFeat = self.findFeatureQuery(subsetCons=qFeats)
     else: qFeat = None
 
-    queries = [('R', q) for q in qR if len(q) > 0 and len(q) < len(psiSupports)]\
+    queries = [('R', q) for q in qR if 0 < len(q) < len(psiSupports)]\
               + [('F', qFeat)]
 
     # if the batch query has no positive evoi, stop querying

@@ -14,7 +14,7 @@ from algorithms.consQueryAgents import ConsQueryAgent, EXIST, NOTEXIST
 from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyAgent, \
   MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent, OracleSafetyAgent
 from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent, \
-  JointUncertaintyQueryBySamplingDomPisAgent, JointUncertaintyOptimalQueryAgent, JointUncertaintyQueryAlternatingAgent
+  JointUncertaintyQueryBySamplingDomPisAgent, JointUncertaintyOptimalQueryAgent, JointUncertaintyBatchQueryAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
 from util import normalize, printOccSA
@@ -253,8 +253,8 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
       agent = JointUncertaintyOptimalQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'myopic':
       agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
-    elif method == 'alternate':
-      agent = JointUncertaintyQueryAlternatingAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+    elif method == 'batch':
+      agent = JointUncertaintyBatchQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'dompi':
       agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
                                                          costOfQuery=costOfQuery, heuristicID=0)
