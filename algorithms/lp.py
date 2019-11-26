@@ -84,19 +84,27 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
     for sp in nonTerminalStatesRange:
       m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in nonTerminalStatesRange for a in Ar) == alpha(S[sp]))
 
-  # == constraints
-  if len(zeroConstraints) > 0:
-    if violationCost is None:
-      m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints) == 0)
-    else:
-      m.addConstr(M * zC >= sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints))
-
   # >= constraints. the occupancy should be at least positiveConstraintsOcc
   if len(positiveConstraints) > 0:
     m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in positiveConstraints) >= positiveConstraintsOcc)
     
-  # obj
-  m.setObjective(sum([x[s, a] * r(S[s], A[a]) for s in Sr for a in Ar]), GRB.MAXIMIZE)
+  if violationCost is None:
+    # the normal lp
+    # == constraints
+    if len(zeroConstraints) > 0:
+      for consIdx in range(len(zeroConstraints)):
+        m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints[consIdx]) == 0)
+    # obj
+    m.setObjective(sum([x[s, a] * r(S[s], A[a]) for s in Sr for a in Ar]), GRB.MAXIMIZE)
+  else:
+    # add cost of queries
+    if len(zeroConstraints) > 0:
+      for consIdx in range(len(zeroConstraints)):
+        m.addConstr(M * zC[consIdx] >= sum(x[S.index(s), A.index(a)] for s in zeroConstraints[consIdx] for a in A))
+    # obj
+    m.setObjective(sum([x[s, a] * r(S[s], A[a]) for s in Sr for a in Ar])
+                   - sum(zC[consIdx] * violationCost for consIdx in range(len(zeroConstraints))),
+                   GRB.MAXIMIZE)
 
   m.optimize()
 
@@ -110,7 +118,7 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
   else:
     raise Exception('error status: %d' % m.status)
 
-def lpDualCPLEX(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstraintsOcc=1):
+def lpDualCPLEX(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstraintsOcc=1):
   """
   DEPRECATED since we moved to gurobi. but leave the function here for sanity check
 
@@ -160,7 +168,7 @@ def lpDualCPLEX(mdp, zeroConstraints=[], positiveConstraints=[], positiveConstra
   return {'feasible': True, 'obj': obj, 'pi': {(S[s], A[a]): m[x][s, a] for s in Sr for a in Ar}}
 
 
-def milp(mdp, maxV):
+def milp(mdp, maxV, zeroConstraints=(), violationCost=()):
   """
   Solve the MILP problem in greedy construction of policy query
 
@@ -184,6 +192,8 @@ def milp(mdp, maxV):
   Sr = range(len(S))
   Ar = range(len(A))
 
+  zC = m.addVars(len(zeroConstraints), vtype=GRB.BINARY, name='zC')
+
   # decision variables
   x = m.addVars(len(S), len(A), lb=0, name='x')
   z = m.addVars(rLen, vtype=GRB.BINARY, name='z')
@@ -198,8 +208,21 @@ def milp(mdp, maxV):
   for sp in Sr:
     m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
 
-  # obj
-  m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)]), GRB.MAXIMIZE)
+  if violationCost is None:
+    # the normal milp
+    # == constraints
+    for consIdx in range(len(zeroConstraints)):
+      m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints[consIdx]) == 0)
+    # obj
+    m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)]), GRB.MAXIMIZE)
+  else:
+    # decide which constraint is violated
+    for consIdx in range(len(zeroConstraints)):
+      m.addConstr(M * zC[consIdx] >= sum(x[S.index(s), A.index(a)] for s in zeroConstraints[consIdx] for a in A))
+    # obj
+    m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)])
+                   - sum(zC[consIdx] * violationCost for consIdx in range(len(zeroConstraints))),
+                   GRB.MAXIMIZE)
 
   m.optimize()
 

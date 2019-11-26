@@ -13,7 +13,7 @@ class ConsQueryAgent():
   """
   Find queries in constraint-uncertain mdps.
   """
-  def __init__(self, mdp, consStates, goalStates, consProbs=None, knownLockedCons=(), knownFreeCons=()):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, knownLockedCons=(), knownFreeCons=()):
     """
     can't think of a class it should inherit..
 
@@ -160,9 +160,10 @@ class ConsQueryAgent():
   def constructConstraints(self, cons):
     """
     The set of state, action pairs that should not be visited when cons are active constraints.
+    :return: [[state, action pairs that should not be visited] for con ins all constraints]
     """
     mdp = self.mdp
-    return [(s, a) for a in mdp.A for con in cons for s in self.consStates[con]]
+    return [[(s, a) for a in mdp.A for s in self.consStates[con]] for con in cons]
 
   def computeValue(self, x):
     """

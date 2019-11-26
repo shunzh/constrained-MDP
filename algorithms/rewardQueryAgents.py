@@ -1,6 +1,7 @@
 import copy
 
 import config
+from algorithms.consQueryAgents import ConsQueryAgent
 from algorithms.lp import lpDualGurobi, computeValue, milp
 from util import computePosteriorBelief, printOccSA
 
@@ -24,8 +25,7 @@ class GreedyConstructRewardAgent:
 
   def findPolicyQuery(self):
     # start with the prior optimal policy
-    meanRewardOptPi = lpDualGurobi(self.mdp)['pi']
-    q = [meanRewardOptPi]
+    q = [self.findInitialPolicy()]
 
     # start adding following policies
     for i in range(1, self.k):
@@ -36,6 +36,10 @@ class GreedyConstructRewardAgent:
     if self.qi: q = self.queryIteration(q)
 
     return q
+
+  def findInitialPolicy(self):
+    # simply the optimal policy under the mean reward function
+    return lpDualGurobi(self.mdp)['pi']
 
   def findNextPolicy(self, q):
     maxV = []
@@ -105,4 +109,43 @@ class GreedyConstructRewardAgent:
         oldEUS = newEUS
 
     return newQPi
+
+
+class GreedyConstructRewardWithConsCostAgent(GreedyConstructRewardAgent):
+  """
+  Override the methods in the base class that need to consider query cost.
+  The value of a policy is its return under the reward function and the cost of query times the number of violated constraints
+  """
+  def __init__(self, mdp, k, consStates, costOfQuery, qi=False):
+    GreedyConstructRewardAgent.__init__(self, mdp, k, qi=qi)
+
+    # will be used for computing value of policies
+    self.consStates = consStates
+    self.costOfQuery = costOfQuery
+
+  def computeValue(self, x, r=None):
+    if r is None: r = self.mdp.r
+    value = computeValue(x, r, self.mdp.S, self.mdp.A)
+
+    violatedCons = []
+    for idx in range(len(self.consStates)):
+      # states violated by idx
+      for s, a in x.keys():
+        if any(x[s, a] > 0 for a in self.mdp.A) and s in self.consStates[idx]:
+          violatedCons.append(idx)
+          break
+
+    return value - self.costOfQuery * len(violatedCons)
+
+  def findInitialPolicy(self):
+    return lpDualGurobi(self.mdp, zeroConstraints=self.consStates, violationCost=self.costOfQuery)['pi']
+
+  def findNextPolicy(self, q):
+    maxV = []
+    rewardCandNum = len(self.mdp.psi)
+    for rewardIdx in xrange(rewardCandNum):
+      maxV.append(max([self.computeValue(pi, r=self.mdp.rFuncs[rewardIdx]) for pi in q]))
+
+    # solve a MILP problem
+    return milp(self.mdp, maxV, zeroConstraints=self.consStates, violationCost=self.costOfQuery)
 

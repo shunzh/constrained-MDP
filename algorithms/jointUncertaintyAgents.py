@@ -1,10 +1,11 @@
 import copy
+import random
 from operator import mul
 
 import config
 from algorithms.consQueryAgents import ConsQueryAgent
 from algorithms.initialSafeAgent import GreedyForSafetyAgent
-from algorithms.rewardQueryAgents import GreedyConstructRewardAgent
+from algorithms.rewardQueryAgents import GreedyConstructRewardAgent, GreedyConstructRewardWithConsCostAgent
 from util import powerset, computePosteriorBelief, printOccSA
 
 
@@ -287,22 +288,29 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
 
 class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgent):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
+    JointUncertaintyQueryByMyopicSelectionAgent.__init__(self, mdp, consStates, goalStates=goalStates,
+                                                         consProbs=consProbs, costOfQuery=costOfQuery)
+
+    # use a reward query agent that considers querying cost
+    self.rewardQueryAgent = GreedyConstructRewardWithConsCostAgent(mdp, 2, consStates=consStates,
+                                                                   costOfQuery=costOfQuery, qi=True)
+
   def findBatchQuery(self):
     """
     find one reward query and some feature queries to possibly query about
     safety constraints are encoded in the transition function
     """
     psiSupports = filter(lambda _: _ > 0, self.mdp.psi)
-    assert len(psiSupports) > 0
-    if len(psiSupports) == 1: return None
 
     # going to modify the transition function of the mdp used by rewardQueryAgent
     mdp = copy.deepcopy(self.mdp)
 
     # consider the possible responses to the queried features
     self.encodeConstraintIntoTransition(mdp)
-    self.addFeatQueryCostToReward(mdp)
     self.rewardQueryAgent.mdp = mdp
+    # used for charging costOfQuery when visiting states with changed unknown features
+    self.rewardQueryAgent.consStates = [self.consStates[_] for _ in self.unknownCons]
 
     qPi = self.rewardQueryAgent.findPolicyQuery()
     qR = self.rewardQueryAgent.findRewardSetQuery(qPi)
@@ -312,19 +320,19 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
       violatedCons = self.findViolatedConstraints(pi)
       qFeats = qFeats.union(violatedCons)
 
+    # using set cover criterion to find the best feature query
     if len(qFeats) > 0: qFeat = self.findFeatureQuery(subsetCons=qFeats)
     else: qFeat = None
 
-    queries = [('R', q) for q in qR if 0 < len(q) < len(psiSupports)]\
-              + [('F', qFeat)]
+    queries = [('R', q) for q in qR if 0 < len(q) < len(psiSupports)] + [('F', qFeat)]
 
     # if the batch query has no positive evoi, stop querying
     eus = self.rewardQueryAgent.computeEUS(qPi, qR)
     priorValue = self.computeCurrentSafelyOptPiValue()
     batchQueryEVOI = eus - priorValue
-    assert batchQueryEVOI >= -1e-4
     # count the cost of reward query
     if any(_[0] == 'R' for _ in queries): batchQueryEVOI -= self.costOfQuery
+    # note: this is not exactly the definition of evoi since it could be negative. we counted the query cost!
 
     if config.VERBOSE: print 'evoi', eus, '-', priorValue, '=', batchQueryEVOI
     if batchQueryEVOI <= 1e-4: return None
@@ -339,144 +347,15 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     else: return self.selectQueryBasedOnEVOI(queries, considerCost=False)
 
 
-class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
-  """
-  Sample a set of dominating policies according to their probabilities of being free and their values.
-  Then query the features that would make them safely-optimal.
-  """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, heuristicID=0):
-    JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs,
-                                        costOfQuery=costOfQuery)
-
-    # initialize objectDomPiData to be None, will be computed in findQuery
-    self.objectDomPiData = None
-
-    self.heuristicID = heuristicID
-
-  class DomPiData:
-    """
-    For a dominating policy, we want to keep its weighted value
-    (prob that it is safe, prob that the reward it optimizes is the true reward, and the value of the policy),
-    the rewards it optimizes, and the constraints that it violates
-    """
-    def __init__(self):
-      self.pi = None
-      self.weightedValue = 0
-      self.optimizedRewards = []
-      self.violatedCons = None
-
-    def __repr__(self):
-      return 'DomPi score ' + str(self.weightedValue) + ' rewards optimized ' + str(self.optimizedRewards) +\
-             ' rel feats ' + str(self.violatedCons)
-
-  def findDomPi(self):
-    """
-    (re)compute all dominating policies given reward and safety uncertainty
-    and then sample one
-    stored in self.dompis = [(dompi, weighted_prob)]
-    """
-    domPisData = []
-
-    priorValue = self.computeCurrentSafelyOptPiValue()
-    consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
-
-    for rIndices in powerset(consistentRewardIndices, minimum=1, maximum=self.sizeOfRewards):
-      rewardPositiveMDP = copy.deepcopy(self.mdp)
-      rewardPositiveMDP.updatePsi(computePosteriorBelief(self.mdp.psi, consistentRewards=rIndices))
-
-      sumOfPsi = sum(self.mdp.psi[_] for _ in rIndices)
-
-      rewardPositiveConsAgent = ConsQueryAgent(rewardPositiveMDP, self.consStates, self.goalCons, self.consProbs,
-                                               knownFreeCons=self.knownFreeCons, knownLockedCons=self.knownLockedCons)
-      _, domPis = rewardPositiveConsAgent.findRelevantFeaturesAndDomPis()
-
-      for domPi in domPis:
-        relFeats = rewardPositiveConsAgent.findViolatedConstraints(domPi)
-
-        domPisDatum = self.DomPiData()
-        domPisDatum.pi = domPi
-        domPisDatum.optimizedRewards = rIndices
-        domPisDatum.violatedCons = relFeats
-
-        if self.heuristicID == 0:
-          # we are going to query about rIndices and relFeatures
-          # we regard them as batch queries and compute the possible responses
-          safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
-          rPositiveValue = rewardPositiveConsAgent.computeValue(domPi)
-
-          # at least (relFeats) feature queries and 1 reward-set query are needed
-          weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue)
-
-          weightedValue -= self.costOfQuery * len(relFeats)
-          # reward query cost
-          if len(rIndices) < self.sizeOfRewards: weightedValue -= self.costOfQuery
-
-          domPisDatum.weightedValue = weightedValue
-        elif self.heuristicID == 1:
-          domPisDatum.weightedValue = 1.0
-        else:
-          raise Exception('unknown heuristicID ' + str(self.heuristicID))
-
-        domPisData.append(domPisDatum)
-
-    if len(domPisData) > 0:
-      self.objectDomPiData = max(domPisData, key=lambda datum: datum.weightedValue)
-
-    if len(domPisData) == 0 or self.objectDomPiData.weightedValue <= 0:
-      # no dompis to consider, or the value says nothing worth querying
-      self.objectDomPiData = None
-      return
-
-    if config.VERBOSE: print 'chosen dom pi', self.objectDomPiData
-
-  def attemptToFindQuery(self):
-    """
-    try to find a query without re-sampling domPi
-    return None if can't do so
-    """
-    # if not assigned, compute it
-    if self.objectDomPiData is None:
-      if config.VERBOSE: print 'dompi not assigned'
-      return None
-
-    # if some relevant features are known-to-be-locked, we should find another dom pi
-    if len(set(self.knownLockedCons).intersection(self.objectDomPiData.violatedCons)) > 0:
-      if config.VERBOSE: print 'dompi not safe'
-      return None
-
-    # first consider reward queries
-    consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
-    # if any of the reward functions tha domPi optimizes is not possibly a true reward function
-    if not set(self.objectDomPiData.optimizedRewards).issubset(consistentRewardIndices):
-      if config.VERBOSE: print 'some optimized reward known to be false'
-      return None
-    # otherwise, try to find a reward query
-    qReward = set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices)
-    # make sure we have something to query about (not querying the whole conssitentRewardIndices set)
-    if len(qReward) < len(consistentRewardIndices):
-      return ('R', list(qReward))
-
-    # then we consider feature queries
-    unknownRelFeats = set(self.objectDomPiData.violatedCons).intersection(self.unknownCons)
-    if len(unknownRelFeats) > 0:
-      # pose a feature query with the largest p_f value
-      qFeat = max(unknownRelFeats, key=lambda _: self.consProbs[_])
-      return ('F', qFeat)
-
-    # otherwise, we have nothing to query about
-    if config.VERBOSE: print 'nothing to query'
-    return None
+class JointUncertaintyRandomQuery(JointUncertaintyQueryAgent):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
+    JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs, costOfQuery)
 
   def findQuery(self):
-    """
-    sample some dominating policies, find the most useful query?
-    :return: (query type, query)
-    """
-    query = self.attemptToFindQuery()
-    if query is None:
-      self.findDomPi()
-      query = self.attemptToFindQuery()
+    featQueries = [('F', feat) for feat in self.unknownCons]
 
-    # possibly query is still None, in which case return None and stop querying
-    return query
+    psiSupports = filter(lambda _: _ > 0, self.mdp.psi)
+    rewardQuery = ('R', filter(lambda _: random.random() > .5, psiSupports))
+    noneQuery = None
 
+    return random.choice(featQueries + [rewardQuery] + [noneQuery])
