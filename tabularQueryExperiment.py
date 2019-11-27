@@ -14,7 +14,8 @@ from algorithms.consQueryAgents import ConsQueryAgent, EXIST, NOTEXIST
 from algorithms.initialSafeAgent import OptQueryForSafetyAgent, GreedyForSafetyAgent, \
   MaxProbSafePolicyExistAgent, DomPiHeuForSafetyAgent, DescendProbQueryForSafetyAgent, OracleSafetyAgent
 from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent, \
-  JointUncertaintyOptimalQueryAgent, JointUncertaintyBatchQueryAgent, JointUncertaintyRandomQuery
+  JointUncertaintyOptimalQueryAgent, JointUncertaintyBatchQueryAgent, JointUncertaintyRandomQuery, \
+  JointUncertaintyQueryBySamplingDomPisAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
 from util import normalize, printOccSA
@@ -255,6 +256,12 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
       agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'batch':
       agent = JointUncertaintyBatchQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+    elif method == 'dompi':
+      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
+                                                         costOfQuery=costOfQuery, heuristicID=0)
+    elif method == 'dompiUniform':
+      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
+                                                         costOfQuery=costOfQuery, heuristicID=1)
     elif method == 'random':
       agent = JointUncertaintyRandomQuery(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     else:
@@ -361,8 +368,8 @@ if __name__ == '__main__':
   # the domain is size x size
   size = 5
 
-  numOfCarpets = 6
-  numOfWalls = 6
+  numOfCarpets = 10
+  numOfWalls = 0
   numOfSwitches = 3
   from config import costOfQuery, trialsStart, trialsEnd
 
@@ -399,7 +406,7 @@ if __name__ == '__main__':
     setRandomSeed(rnd)
 
     #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=False)
+    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     # uniform prior over rewards
     #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
