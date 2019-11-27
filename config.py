@@ -4,8 +4,8 @@ DEBUG = False
 OPT_METHOD = 'gurobi'
 #OPT_METHOD = 'cplex'
 
-earlyStop = None
-#earlyStop = 3
+# make this smaller because we need to find dom pis for 2^|\R| times in joint uncertainty works
+earlyStop = 0.1
 
 costOfQuery = 0.1
 

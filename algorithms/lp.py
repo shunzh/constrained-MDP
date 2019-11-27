@@ -168,7 +168,7 @@ def lpDualCPLEX(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstra
   return {'feasible': True, 'obj': obj, 'pi': {(S[s], A[a]): m[x][s, a] for s in Sr for a in Ar}}
 
 
-def milp(mdp, maxV, zeroConstraints=(), violationCost=()):
+def milp(mdp, maxV, zeroConstraints=(), violationCost=None):
   """
   Solve the MILP problem in greedy construction of policy query
 

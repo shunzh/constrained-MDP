@@ -414,7 +414,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
           # at least (relFeats) feature queries and 1 reward-set query are needed
           weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue)
-
+          # punish it by the number of queries asked
           weightedValue -= self.costOfQuery * len(relFeats)
           # reward query cost
           if len(rIndices) < self.sizeOfRewards: weightedValue -= self.costOfQuery
