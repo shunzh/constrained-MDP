@@ -368,9 +368,9 @@ if __name__ == '__main__':
   # the domain is size x size
   size = 6
 
-  numOfCarpets = 15
-  numOfWalls = 5
-  numOfSwitches = 5
+  numOfCarpets = 20
+  numOfWalls = 0
+  numOfSwitches = 3
   from config import costOfQuery, trialsStart, trialsEnd
 
   rnd = 0 # set a dummy random seed if no -r argument

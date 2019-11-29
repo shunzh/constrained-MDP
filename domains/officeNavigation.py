@@ -104,7 +104,7 @@ def carpetsAndWallsDomain():
   # example on notes
   map = [[R, C, C, _],
          [_, W, W, _],
-         [_, C, C, S]]
+         [_, _, C, S]]
   return toyWorldConstructor(map)
 
 # some toy domains for need-to-be-reverted features (boxes)

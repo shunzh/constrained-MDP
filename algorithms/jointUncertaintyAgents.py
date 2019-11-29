@@ -263,7 +263,6 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     queryAndEVOIs = []
 
     for query in queries:
-      #fixme a bit awkward to change the representation of features
       queryAndEVOIs.append((query, self.computeEVOI(query)))
 
     if config.VERBOSE: print queryAndEVOIs
@@ -321,10 +320,14 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
       qFeats = qFeats.union(violatedCons)
 
     # using set cover criterion to find the best feature query
+    # we only consider querying about one of the features tha are relevant to policies in qPi
+    # because others are not worth querying because of their costs? (although they may contribute to finding new safe policies)
     if len(qFeats) > 0: qFeat = self.findFeatureQuery(subsetCons=qFeats)
     else: qFeat = None
 
-    queries = [('R', q) for q in qR if 0 < len(q) < len(psiSupports)] + [('F', qFeat)]
+    # don't query about all or none of the reward candidates
+    queries = [('R', q) for q in qR if 0 < len(q) < len(psiSupports)]\
+              + [('F', qFeat)]
 
     # if the batch query has no positive evoi, stop querying
     eus = self.rewardQueryAgent.computeEUS(qPi, qR)
@@ -344,6 +347,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     queries = self.findBatchQuery()
 
     if queries is None or len(queries) == 0: return None
+    # don't consider immediate cost for query selection, so could select a query with EVOI < costOfQuery
     else: return self.selectQueryBasedOnEVOI(queries, considerCost=False)
 
 

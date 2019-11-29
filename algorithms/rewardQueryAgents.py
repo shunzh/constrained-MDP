@@ -59,8 +59,9 @@ class GreedyConstructRewardAgent:
 
     dominatingIndices = [[] for _ in qPi]
     for rewardIdx in range(len(self.mdp.psi)):
-      dominatingPi = max(range(len(qPi)), key=lambda piIndex: self.computeValue(qPi[piIndex], r=self.mdp.rFuncs[rewardIdx]))
-      # dominatingPi dominates rewardIdx
+      qPiValues = {piIdx: self.computeValue(qPi[piIdx], r=self.mdp.rFuncs[rewardIdx]) for piIdx in range(len(qPi))}
+      if config.VERBOSE: print 'r', rewardIdx, 'pi values', qPiValues
+      dominatingPi = max(qPiValues.keys(), key=lambda piIdx: qPiValues[piIdx])
       dominatingIndices[dominatingPi].append(rewardIdx)
 
     return dominatingIndices
@@ -70,7 +71,6 @@ class GreedyConstructRewardAgent:
     for (pi, rs) in zip(qPi, qR):
       for rIdx in rs:
         piValue = self.computeValue(pi, self.mdp.rFuncs[rIdx])
-        if config.VERBOSE: print 'reward', rIdx, 'value', piValue
 
         ret += self.mdp.psi[rIdx] * piValue
 
@@ -83,19 +83,21 @@ class GreedyConstructRewardAgent:
     """
     mdp = copy.deepcopy(self.mdp)
 
+    #map(lambda _: printOccSA(_), qPi)
     oldDominatingIndices = self.findRewardSetQuery(qPi)
     oldEUS = self.computeEUS(qPi, oldDominatingIndices)
 
     while True:
       newQPi = []
 
-      for piIdx in range(self.k):
+      for piIdx in range(len(qPi)):
         dominatedRewards = oldDominatingIndices[piIdx]
 
-        posteriorRewards = computePosteriorBelief(self.mdp.psi, consistentRewards=dominatedRewards)
-        mdp.updatePsi(posteriorRewards)
-        newPi = lpDualGurobi(mdp)['pi']
-        newQPi.append(newPi)
+        if len(dominatedRewards) > 0:
+          posteriorRewards = computePosteriorBelief(self.mdp.psi, consistentRewards=dominatedRewards)
+          mdp.updatePsi(posteriorRewards)
+          newPi = lpDualGurobi(mdp)['pi']
+          newQPi.append(newPi)
 
       newDominatingIndices = self.findRewardSetQuery(newQPi)
 
