@@ -126,6 +126,9 @@ class GreedyConstructRewardWithConsCostAgent(GreedyConstructRewardAgent):
     self.costOfQuery = costOfQuery
 
   def computeValue(self, x, r=None):
+    """
+    :return: the value of policy x under reward r
+    """
     if r is None: r = self.mdp.r
     value = computeValue(x, r, self.mdp.S, self.mdp.A)
 
@@ -143,6 +146,10 @@ class GreedyConstructRewardWithConsCostAgent(GreedyConstructRewardAgent):
     return lpDualGurobi(self.mdp, zeroConstraints=self.consStates, violationCost=self.costOfQuery)['pi']
 
   def findNextPolicy(self, q):
+    """
+    :param q: existing policies in the query
+    :return: the next policy that complement the previous ones in terms of reward functions and constraints
+    """
     maxV = []
     rewardCandNum = len(self.mdp.psi)
     for rewardIdx in xrange(rewardCandNum):
