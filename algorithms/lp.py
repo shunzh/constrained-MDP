@@ -167,8 +167,7 @@ def lpDualCPLEX(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstra
 
   return {'feasible': True, 'obj': obj, 'pi': {(S[s], A[a]): m[x][s, a] for s in Sr for a in Ar}}
 
-
-def milp(mdp, maxV, zeroConstraints=(), violationCost=None):
+def milp(mdp, maxV, zeroConstraints=()):
   """
   Solve the MILP problem in greedy construction of policy query
 
@@ -192,8 +191,6 @@ def milp(mdp, maxV, zeroConstraints=(), violationCost=None):
   Sr = range(len(S))
   Ar = range(len(A))
 
-  zC = m.addVars(len(zeroConstraints), vtype=GRB.BINARY, name='zC')
-
   # decision variables
   x = m.addVars(len(S), len(A), lb=0, name='x')
   z = m.addVars(rLen, vtype=GRB.BINARY, name='z')
@@ -208,21 +205,11 @@ def milp(mdp, maxV, zeroConstraints=(), violationCost=None):
   for sp in Sr:
     m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
 
-  if violationCost is None:
-    # the normal milp
-    # == constraints
-    for consIdx in range(len(zeroConstraints)):
-      m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints[consIdx]) == 0)
-    # obj
-    m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)]), GRB.MAXIMIZE)
-  else:
-    # decide which constraint is violated
-    for consIdx in range(len(zeroConstraints)):
-      m.addConstr(M * zC[consIdx] >= sum(x[S.index(s), A.index(a)] for s in zeroConstraints[consIdx] for a in A))
-    # obj
-    m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)])
-                   - sum(zC[consIdx] * violationCost for consIdx in range(len(zeroConstraints))),
-                   GRB.MAXIMIZE)
+  # == constraints
+  for consIdx in range(len(zeroConstraints)):
+    m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints[consIdx]) == 0)
+  # obj
+  m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)]), GRB.MAXIMIZE)
 
   m.optimize()
 
@@ -236,6 +223,85 @@ def milp(mdp, maxV, zeroConstraints=(), violationCost=None):
     # simply return infeasible
     raise Exception('milp problem optimal solution not found' + m.status)
 
+def jointUncertaintyMilp(mdp, oldPi, lockedFeatStates, unknownFeatStates, costOfQuery):
+  """
+  Find the MILP formulation in report 12/1/2019.
+  It finds the second policy in a batch policy query, considering when it outperforms the previous policy in terms of
+  reward functions and changeability of unknown features.
+
+  :param mdp: the transition function of this mdp should have be revised to encode p_f
+  :param oldPi: the first policy that is added.
+  :param lockedFeatStates: the states which the robot should not visit. They change some known-to-be-locked features.
+  :param unknownFeatStates: the states which the robot may change, but need to pay the query cost.
+  :param costOfQuery: the cost of querying.
+  """
+  m = Model()
+  m.setParam('OutputFlag', False)
+
+  # convert notation to previous implementation
+  S = mdp.S
+  A = mdp.A
+  R = mdp.rFuncs
+  psi = mdp.psi
+  T = mdp.T
+  alpha = mdp.alpha
+  gamma = mdp.gamma
+
+  # useful constants
+  rLen = len(R)
+  M = 10000  # a large number
+  Sr = range(len(S))
+  Ar = range(len(A))
+
+  zC = m.addVars(len(unknownFeatStates), vtype=GRB.BINARY, name='zC')
+
+  # decision variables
+  x = m.addVars(len(S), len(A), lb=0, name='x')
+  z = m.addVars(rLen, vtype=GRB.BINARY, name='z')
+  y = m.addVars(rLen, name='y')
+  # y prime, a helper variable
+  yP = m.addVars(rLen, name='yP')
+
+  valueFunc = lambda x_local, r, zC_local: sum([x_local[s, a] * r(S[s], A[a]) for s in Sr for a in Ar])\
+                                           - sum(zC_local[idx] * costOfQuery for idx in range(len(unknownFeatStates)))
+
+  # constraints on x (valid occupancy)
+  for sp in Sr:
+    m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
+
+  # known-to-be-locked features should never be changed
+  for consIdx in range(len(lockedFeatStates)):
+    m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in lockedFeatStates[consIdx]) == 0)
+
+  # unknown features can be changed
+  for consIdx in range(len(unknownFeatStates)):
+    m.addConstr(M * zC[consIdx] >= sum(x[S.index(s), A.index(a)] for s in unknownFeatStates[consIdx] for a in A))
+
+  # constraints on y
+  for i in range(rLen):
+    m.addConstr(yP[i] <= valueFunc(oldPi, R[i], oldZC) + (1 - z[i]) * M)
+
+  for i in range(rLen):
+    m.addConstr(y[i] <= valueFunc(x, R[i], zC) - yP[i] + (1 - z[i]) * M)
+    m.addConstr(y[i] <= 0 + z[i] * M)
+
+  # obj
+  m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)]), GRB.MAXIMIZE)
+  m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)])
+                 ,
+                 GRB.MAXIMIZE)
+
+  m.optimize()
+
+  pi = {(S[s], A[a]): x[s, a].X for s in Sr for a in Ar}
+
+  if m.status == GRB.Status.OPTIMAL:
+    # return feasible being true and the obj value, opt pi
+    # .X attribute is to retrieve the value of the variable
+    return pi
+  else:
+    # simply return infeasible
+    raise Exception('milp problem optimal solution not found' + m.status)
 
 #TODO the following functions still use CPLEX.
 def lp(S, A, r, T, s0):
