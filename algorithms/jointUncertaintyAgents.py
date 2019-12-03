@@ -157,7 +157,7 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
     queryAndValues = consQueryValues.copy()
     queryAndValues.update(rewardQueryValues)
 
-    # also, there's an option to no pose a query
+    # also, there's an option to not pose a query
     queryAndValues[None] = currentSafelyOptValue
 
     optQueryAndValue = max(queryAndValues.items(), key=lambda _: _[1])
@@ -176,20 +176,9 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
   """
   Planning several steps into the future
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
-    JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs, costOfQuery=costOfQuery)
-
-    # create two query agents specialized on reward / feature queries
-    self.rewardQueryAgent = GreedyConstructRewardAgent(mdp, 2, qi=True)
-    self.featureQueryAgent = GreedyForSafetyAgent(mdp, consStates, goalStates, consProbs, improveSafePis=True)
-
-  def updateFeats(self, newFreeCon=None, newLockedCon=None):
-    JointUncertaintyQueryAgent.updateFeats(self, newFreeCon, newLockedCon)
-    # need to update the feature partition of self.featureQueryAgent
-    self.featureQueryAgent.updateFeats(newFreeCon, newLockedCon)
-
   def findRewardQuery(self):
     """
+    locally construct a rewardQueryAgent for reward query selection.
     encode consStates and pf into the transition function,
     then use greedy construction and projection to find close-to-optimal reward query
     """
@@ -205,27 +194,33 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     # free features wouldn't pose any constraints
     mdp = copy.deepcopy(self.mdp)
     self.encodeConstraintIntoTransition(mdp)
-    self.rewardQueryAgent.mdp = mdp
+    rewardQueryAgent = GreedyConstructRewardAgent(mdp, 2, qi=True)
 
     # assume reward-set query has binary responses, so pose either one
-    return self.rewardQueryAgent.findRewardSetQuery()[0]
+    return rewardQueryAgent.findRewardSetQuery()[0]
 
   def findFeatureQuery(self, subsetCons=None):
     """
-    use set-cover based algorithm and use the mean reward function (mdp.r does that)
+    locally construct an AAAI 20 agent for feature query selection.
+    use set-cover based algorithm and use the mean reward function (which is mdp.r)
 
     when safe policies exist, need to modify the original algorithm:
     computing the set structures by first removing safe dominating policies (set includeSafePolicies to True),
     that is, we want to minimize the number of queries to find *additional* dominating policies.
     """
+    featureQueryAgent = GreedyForSafetyAgent(self.mdp, self.consStates, self.goalCons, self.consProbs, improveSafePis=True)
+    featureQueryAgent.knownFreeCons = self.knownFreeCons
+    featureQueryAgent.knownLockedCons = self.knownLockedCons
+    featureQueryAgent.unknownCons = self.unknownCons
+
     # recompute the set cover structure under the mean reward function (it will use self.mdp.r)
-    self.featureQueryAgent.computePolicyRelFeats(recompute=True)
-    self.featureQueryAgent.computeIISs(recompute=True)
+    featureQueryAgent.computePolicyRelFeats(recompute=True)
+    featureQueryAgent.computeIISs(recompute=True)
 
     # after computing rel feats, check if it's empty. if so, nothing need to be queried.
-    if len(self.featureQueryAgent.domPiFeats) == 0 or len(self.featureQueryAgent.iiss) == 0: return None
+    if len(featureQueryAgent.domPiFeats) == 0 or len(self.featureQueryAgent.iiss) == 0: return None
 
-    return self.featureQueryAgent.findQuery(subsetCons=subsetCons)
+    return featureQueryAgent.findQuery(subsetCons=subsetCons)
 
   def computeEVOI(self, query):
     (qType, qContent) = query
@@ -285,70 +280,6 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     return self.selectQueryBasedOnEVOI([rewardQuery, featureQuery])
 
-
-class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgent):
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
-    JointUncertaintyQueryByMyopicSelectionAgent.__init__(self, mdp, consStates, goalStates=goalStates,
-                                                         consProbs=consProbs, costOfQuery=costOfQuery)
-
-    # use a reward query agent that considers querying cost
-    self.rewardQueryAgent = GreedyConstructRewardWithConsCostAgent(mdp, 2, consStates=consStates,
-                                                                   costOfQuery=costOfQuery, qi=True)
-
-  def findBatchQuery(self):
-    """
-    find one reward query and some feature queries to possibly query about
-    safety constraints are encoded in the transition function
-    """
-    psiSupports = filter(lambda _: _ > 0, self.mdp.psi)
-
-    # going to modify the transition function of the mdp used by rewardQueryAgent
-    mdp = copy.deepcopy(self.mdp)
-
-    # consider the possible responses to the queried features
-    self.encodeConstraintIntoTransition(mdp)
-    self.rewardQueryAgent.mdp = mdp
-    # used for charging costOfQuery when visiting states with changed unknown features
-    self.rewardQueryAgent.consStates = [self.consStates[_] for _ in self.unknownCons]
-
-    qPi = self.rewardQueryAgent.findPolicyQuery()
-    qR = self.rewardQueryAgent.findRewardSetQuery(qPi)
-
-    qFeats = set()
-    for pi in qPi:
-      violatedCons = self.findViolatedConstraints(pi)
-      qFeats = qFeats.union(violatedCons)
-
-    # using set cover criterion to find the best feature query
-    # we only consider querying about one of the features tha are relevant to policies in qPi
-    # because others are not worth querying because of their costs? (although they may contribute to finding new safe policies)
-    if len(qFeats) > 0: qFeat = self.findFeatureQuery(subsetCons=qFeats)
-    else: qFeat = None
-
-    # don't query about all or none of the reward candidates
-    queries = [('R', q) for q in qR if 0 < len(q) < len(psiSupports)]\
-              + [('F', qFeat)]
-
-    # if the batch query has no positive evoi, stop querying
-    eus = self.rewardQueryAgent.computeEUS(qPi, qR)
-    priorValue = self.computeCurrentSafelyOptPiValue()
-    batchQueryEVOI = eus - priorValue
-    # count the cost of reward query
-    if any(_[0] == 'R' for _ in queries): batchQueryEVOI -= self.costOfQuery
-    # note: this is not exactly the definition of evoi since it could be negative. we counted the query cost!
-
-    if config.VERBOSE: print 'evoi', eus, '-', priorValue, '=', batchQueryEVOI
-    if batchQueryEVOI <= 1e-4: return None
-
-    return queries
-
-  def findQuery(self):
-    # find an instance of good reward query + feature queries
-    queries = self.findBatchQuery()
-
-    if queries is None or len(queries) == 0: return None
-    # don't consider immediate cost for query selection, so could select a query with EVOI < costOfQuery
-    else: return self.selectQueryBasedOnEVOI(queries, considerCost=False)
 
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):

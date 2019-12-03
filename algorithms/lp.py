@@ -33,13 +33,13 @@ def linearRegression(A, b):
 def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstraintsOcc=0, violationCost=None):
   """
   Solve the dual problem of lp, maybe with some constraints
-  :param violationCost: if not None, it's the cost of violating a constraints rather than enforcing it.
 
-  Note that this is a lower level function that does not consider feature extraction.
-  r should be a reward function, not a reward parameter.
+  :param violationCost: if not None, it's the cost of violating a constraints rather than enforcing it.
+  :return: {'feasible': if a feasible solution is found,
+            'obj': the objective value,
+            'pi': the (safely-)optimal policy}
   """
   if len(positiveConstraints) == 0 and positiveConstraintsOcc > 0:
-    print 'returned here'
     return {'feasible': False}
 
   S = mdp.S
@@ -111,12 +111,16 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
   if m.status == GRB.Status.OPTIMAL:
     # return feasible being true and the obj value, opt pi
     # .X attribute is to retrieve the value of the variable
-    return {'feasible': True, 'obj': m.objVal, 'pi': {(S[s], A[a]): x[s, a].X for s in Sr for a in Ar}}
+    ret = {'feasible': True, 'obj': m.objVal, 'pi': {(S[s], A[a]): x[s, a].X for s in Sr for a in Ar}}
+    # return the variable of which constraint is violated
+    if violationCost is not None: ret['zC'] = [zC[consIdx].X for consIdx in range(len(zeroConstraints))]
   elif m.status == GRB.Status.INF_OR_UNBD:
     # simply return infeasible
-    return {'feasible': False, 'obj': 0, 'pi': None}
+    ret = {'feasible': False, 'obj': 0, 'pi': None}
   else:
     raise Exception('error status: %d' % m.status)
+
+  return ret
 
 def lpDualCPLEX(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstraintsOcc=1):
   """
@@ -223,7 +227,7 @@ def milp(mdp, maxV, zeroConstraints=()):
     # simply return infeasible
     raise Exception('milp problem optimal solution not found' + m.status)
 
-def jointUncertaintyMilp(mdp, oldPi, lockedFeatStates, unknownFeatStates, costOfQuery):
+def jointUncertaintyMilp(mdp, oldPi, oldZC, lockedFeatStates, unknownFeatStates, costOfQuery):
   """
   Find the MILP formulation in report 12/1/2019.
   It finds the second policy in a batch policy query, considering when it outperforms the previous policy in terms of
@@ -253,19 +257,21 @@ def jointUncertaintyMilp(mdp, oldPi, lockedFeatStates, unknownFeatStates, costOf
   Sr = range(len(S))
   Ar = range(len(A))
 
-  zC = m.addVars(len(unknownFeatStates), vtype=GRB.BINARY, name='zC')
-
   # decision variables
   x = m.addVars(len(S), len(A), lb=0, name='x')
-  z = m.addVars(rLen, vtype=GRB.BINARY, name='z')
   y = m.addVars(rLen, name='y')
   # y prime, a helper variable
-  yP = m.addVars(rLen, name='yP')
+  y0 = m.addVars(rLen, name='y0')
+
+  # integer variables
+  zR = m.addVars(rLen, vtype=GRB.BINARY, name='zR')
+  zC = m.addVars(len(unknownFeatStates), vtype=GRB.BINARY, name='zC')
+  zSafe = m.addVar(vtype=GRB.BINARY, name='zSafe')
 
   valueFunc = lambda x_local, r, zC_local: sum([x_local[s, a] * r(S[s], A[a]) for s in Sr for a in Ar])\
                                            - sum(zC_local[idx] * costOfQuery for idx in range(len(unknownFeatStates)))
 
-  # constraints on x (valid occupancy)
+  # flow conservation constraint
   for sp in Sr:
     m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
 
@@ -277,19 +283,18 @@ def jointUncertaintyMilp(mdp, oldPi, lockedFeatStates, unknownFeatStates, costOf
   for consIdx in range(len(unknownFeatStates)):
     m.addConstr(M * zC[consIdx] >= sum(x[S.index(s), A.index(a)] for s in unknownFeatStates[consIdx] for a in A))
 
-  # constraints on y
+  # constraints on y^0_r
+  m.addConstr(sum(zC[idx] for idx in range(len(oldZC)) if oldZC[idx] == 1) <= sum(oldZC) - 1 + zSafe * M)
   for i in range(rLen):
-    m.addConstr(yP[i] <= valueFunc(oldPi, R[i], oldZC) + (1 - z[i]) * M)
+    m.addConstr(y0[i] >= valueFunc(oldPi, R[i], oldZC) - (1 - zSafe) * M)
 
+  # constraints on y_r
   for i in range(rLen):
-    m.addConstr(y[i] <= valueFunc(x, R[i], zC) - yP[i] + (1 - z[i]) * M)
-    m.addConstr(y[i] <= 0 + z[i] * M)
+    m.addConstr(y[i] <= valueFunc(x, R[i], zC) - y0[i] + (1 - zR[i]) * M)
+    m.addConstr(y[i] <= 0 + zR[i] * M)
 
   # obj
   m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)]), GRB.MAXIMIZE)
-  m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)])
-                 ,
-                 GRB.MAXIMIZE)
 
   m.optimize()
 

@@ -2,7 +2,7 @@ import copy
 
 import config
 from algorithms.consQueryAgents import ConsQueryAgent
-from algorithms.lp import lpDualGurobi, computeValue, milp
+from algorithms.lp import lpDualGurobi, computeValue, milp, jointUncertaintyMilp
 from util import computePosteriorBelief, printOccSA
 
 
@@ -112,49 +112,4 @@ class GreedyConstructRewardAgent:
 
     return newQPi
 
-
-class GreedyConstructRewardWithConsCostAgent(GreedyConstructRewardAgent):
-  """
-  Override the methods in the base class that need to consider query cost.
-  The value of a policy is its return under the reward function and the cost of query times the number of violated constraints
-  """
-  def __init__(self, mdp, k, consStates, costOfQuery, qi=False):
-    GreedyConstructRewardAgent.__init__(self, mdp, k, qi=qi)
-
-    # will be used for computing value of policies
-    self.consStates = consStates
-    self.costOfQuery = costOfQuery
-
-  def computeValue(self, x, r=None):
-    """
-    :return: the value of policy x under reward r
-    """
-    if r is None: r = self.mdp.r
-    value = computeValue(x, r, self.mdp.S, self.mdp.A)
-
-    violatedCons = []
-    for idx in range(len(self.consStates)):
-      # states violated by idx
-      for s, a in x.keys():
-        if any(x[s, a] > 0 for a in self.mdp.A) and s in self.consStates[idx]:
-          violatedCons.append(idx)
-          break
-
-    return value - self.costOfQuery * len(violatedCons)
-
-  def findInitialPolicy(self):
-    return lpDualGurobi(self.mdp, zeroConstraints=self.consStates, violationCost=self.costOfQuery)['pi']
-
-  def findNextPolicy(self, q):
-    """
-    :param q: existing policies in the query
-    :return: the next policy that complement the previous ones in terms of reward functions and constraints
-    """
-    maxV = []
-    rewardCandNum = len(self.mdp.psi)
-    for rewardIdx in xrange(rewardCandNum):
-      maxV.append(max([self.computeValue(pi, r=self.mdp.rFuncs[rewardIdx]) for pi in q]))
-
-    # solve a MILP problem
-    return milp(self.mdp, maxV, zeroConstraints=self.consStates, violationCost=self.costOfQuery)
 
