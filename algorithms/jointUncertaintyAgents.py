@@ -218,7 +218,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     featureQueryAgent.computeIISs(recompute=True)
 
     # after computing rel feats, check if it's empty. if so, nothing need to be queried.
-    if len(featureQueryAgent.domPiFeats) == 0 or len(self.featureQueryAgent.iiss) == 0: return None
+    if len(featureQueryAgent.domPiFeats) == 0 or len(featureQueryAgent.iiss) == 0: return None
 
     return featureQueryAgent.findQuery(subsetCons=subsetCons)
 

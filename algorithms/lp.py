@@ -102,7 +102,7 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
 
   # obj
   m.setObjective(sum([x[s, a] * r(S[s], A[a]) for s in Sr for a in Ar])
-                 - sum(zC[consIdx] * violationCost for consIdx in range(len(zeroConstraints))),
+                 - sum(zC[consIdx] * violationCost for consIdx in range(len(unknownStateCons))),
                  GRB.MAXIMIZE)
 
   m.optimize()
@@ -261,8 +261,9 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
   zC = m.addVars(len(unknownFeatStates), vtype=GRB.BINARY, name='zC')
   zSafe = m.addVar(vtype=GRB.BINARY, name='zSafe')
 
-  valueFunc = lambda x_local, r, zC_local: sum([x_local[s, a] * r(S[s], A[a]) for s in Sr for a in Ar])\
-                                           - sum(zC_local[idx] * costOfQuery for idx in range(len(unknownFeatStates)))
+  # U = value of policy - costOfQuery * # of relevant features
+  U = lambda x_local, r, zC_local: sum([x_local[s, a] * r(S[s], A[a]) for s in Sr for a in Ar])\
+                                   - sum(zC_local[idx] * costOfQuery for idx in range(len(unknownFeatStates)))
 
   # flow conservation constraint
   for sp in Sr:
@@ -279,11 +280,11 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
   # constraints on y^0_r
   m.addConstr(sum(zC[idx] for idx in range(len(oldZC)) if oldZC[idx] == 1) <= sum(oldZC) - 1 + zSafe * M)
   for i in range(rLen):
-    m.addConstr(y0[i] >= valueFunc(oldPi, R[i], oldZC) - (1 - zSafe) * M)
+    m.addConstr(y0[i] >= U(oldPi, R[i], oldZC) - (1 - zSafe) * M)
 
   # constraints on y_r
   for i in range(rLen):
-    m.addConstr(y[i] <= valueFunc(x, R[i], zC) - y0[i] + (1 - zR[i]) * M)
+    m.addConstr(y[i] <= U(x, R[i], zC) - y0[i] + (1 - zR[i]) * M)
     m.addConstr(y[i] <= 0 + zR[i] * M)
 
   # obj

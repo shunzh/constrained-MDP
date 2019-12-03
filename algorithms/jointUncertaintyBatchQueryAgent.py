@@ -16,6 +16,12 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
                                                          consProbs=consProbs, costOfQuery=costOfQuery)
     GreedyConstructRewardAgent.__init__(self, mdp, 2, qi)
 
+  def getLockedFeatCons(self):
+    return [self.consStates[idx] for idx in self.knownLockedCons]
+
+  def getUnknownFeatCons(self):
+    return [self.consStates[idx] for idx in self.unknownCons]
+
   def computeZC(self, pi):
     """
     convert relevant features to the format of zC
@@ -37,7 +43,8 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     else:
       mdp = self.mdp
 
-    return lpDualGurobi(mdp, zeroConstraints=self.consStates, violationCost=self.costOfQuery)['pi']
+    return lpDualGurobi(mdp, zeroConstraints=self.getLockedFeatCons(), unknownStateCons=self.getUnknownFeatCons(),
+                        violationCost=self.costOfQuery)['pi']
 
   def findNextPolicy(self, q):
     """
@@ -45,8 +52,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     """
     assert len(q) == 1
     return jointUncertaintyMilp(self.mdp, q[0], self.computeZC(q[0]),
-                                zeroConstraints=[self.consStates[idx] for idx in self.knownLockedCons],
-                                unknownFeatStates=[self.consStates[idx] for idx in self.unknownCons],
+                                zeroConstraints=self.getLockedFeatCons(), unknownFeatStates=self.getUnknownFeatCons(),
                                 costOfQuery=self.costOfQuery)
 
   def findBatchQuery(self):
