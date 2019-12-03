@@ -25,7 +25,7 @@ class GreedyConstructRewardAgent:
 
   def findPolicyQuery(self):
     # start with the prior optimal policy
-    q = [self.findInitialPolicy()]
+    q = [self.findOptPolicyUnderMeanRewards()]
 
     # start adding following policies
     for i in range(1, self.k):
@@ -37,9 +37,15 @@ class GreedyConstructRewardAgent:
 
     return q
 
-  def findInitialPolicy(self):
+  def findOptPolicyUnderMeanRewards(self, psi=None):
     # simply the optimal policy under the mean reward function
-    return lpDualGurobi(self.mdp)['pi']
+    if psi is not None:
+      mdp = copy.deepcopy(self.mdp)
+      mdp.updatePsi(psi)
+    else:
+      mdp = self.mdp
+
+    return lpDualGurobi(mdp)['pi']
 
   def findNextPolicy(self, q):
     maxV = []
@@ -81,8 +87,6 @@ class GreedyConstructRewardAgent:
     iteratively improve one policy while fixing other policies in the query
     :return: local optimum policy query
     """
-    mdp = copy.deepcopy(self.mdp)
-
     #map(lambda _: printOccSA(_), qPi)
     oldDominatingIndices = self.findRewardSetQuery(qPi)
     oldEUS = self.computeEUS(qPi, oldDominatingIndices)
@@ -94,9 +98,8 @@ class GreedyConstructRewardAgent:
         dominatedRewards = oldDominatingIndices[piIdx]
 
         if len(dominatedRewards) > 0:
-          posteriorRewards = computePosteriorBelief(self.mdp.psi, consistentRewards=dominatedRewards)
-          mdp.updatePsi(posteriorRewards)
-          newPi = lpDualGurobi(mdp)['pi']
+          posteriorBelief = computePosteriorBelief(self.mdp.psi, consistentRewards=dominatedRewards)
+          newPi = self.findOptPolicyUnderMeanRewards(posteriorBelief)
           newQPi.append(newPi)
 
       newDominatingIndices = self.findRewardSetQuery(newQPi)

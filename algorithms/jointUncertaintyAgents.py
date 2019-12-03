@@ -5,7 +5,7 @@ from operator import mul
 import config
 from algorithms.consQueryAgents import ConsQueryAgent
 from algorithms.initialSafeAgent import GreedyForSafetyAgent
-from algorithms.rewardQueryAgents import GreedyConstructRewardAgent, GreedyConstructRewardWithConsCostAgent
+from algorithms.rewardQueryAgents import GreedyConstructRewardAgent
 from util import powerset, computePosteriorBelief, printOccSA
 
 
@@ -13,7 +13,7 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   """
   Querying under reward uncertainty and safety-constraint uncertainty
   """
-  def __init__(self, mdp, consStates, goalStates, consProbs, costOfQuery):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
     ConsQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs)
 
     self.costOfQuery = costOfQuery

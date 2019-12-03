@@ -2,50 +2,52 @@ import copy
 
 import config
 from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent
-from algorithms.lp import computeValue, lpDualGurobi, jointUncertaintyMilp
+from algorithms.lp import lpDualGurobi, jointUncertaintyMilp, computeValue
+from algorithms.rewardQueryAgents import GreedyConstructRewardAgent
 
 
-class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgent):
+class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgent,GreedyConstructRewardAgent):
+  """
+  We fix k to be 2 since it is sufficient to get enough information by considering what an approximately-optimal binary query asks about.
+  It's a cons query agent and also a reward query agent, so deriving from two classes.
+  """
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, qi=True):
     JointUncertaintyQueryByMyopicSelectionAgent.__init__(self, mdp, consStates, goalStates=goalStates,
                                                          consProbs=consProbs, costOfQuery=costOfQuery)
-    # use query iteration
-    self.qi = qi
-    # a list of {'pi': ..., 'zC': ...} of each policy in the query
-    self.querySolns = None
+    GreedyConstructRewardAgent.__init__(self, mdp, 2, qi)
 
-  def findPolicyQuery(self):
+  def computeZC(self, pi):
     """
-    TODO only implemented for k = 2
-    :return: a two policy query
+    convert relevant features to the format of zC
     """
-    # initial policy
-    self.querySolns.append(firstPiSoln = lpDualGurobi(self.mdp, zeroConstraints=self.consStates, violationCost=self.costOfQuery))
-    # the second policy
-    self.findNextQuery()
+    relFeats = self.findViolatedConstraints(pi)
+    return [_ in relFeats for _ in range(len(self.unknownCons))]
 
-  def findNextQuery(self):
+  def computeValue(self, x, r=None):
     """
-    in-place find the next policy
-    :return:
+    compute value of policy - cost of querying
     """
-    self.querySolns.append(jointUncertaintyMilp(self.mdp, self.querySolns[0]['pi'], self.querySolns[0]['zC'],
-                                                lockedFeatStates=[self.consStates[idx] for idx in self.knownLockedCons],
-                                                unknownFeatStates=[self.consStates[idx] for idx in self.unknownCons],
-                                                costOfQuery=self.costOfQuery))
+    if r is None: r = self.mdp.r
+    return GreedyConstructRewardAgent.computeValue(x, r) - self.costOfQuery * sum(self.computeZC(x))
 
-  def queryIteration(self):
-    pass
+  def findOptPolicyUnderMeanRewards(self, psi=None):
+    if psi is not None:
+      mdp = copy.deepcopy(self.mdp)
+      mdp.updatePsi(psi)
+    else:
+      mdp = self.mdp
 
-  def findRewardSetQuery(self, qPi=None):
-    """
-    :param qPi: provided if already computed
-    :return: [indices of rewards being dominateded by policy, for policy in qPi]
-    """
-    if qPi is None: qPi = self.findPolicyQuery()
+    return lpDualGurobi(mdp, zeroConstraints=self.consStates, violationCost=self.costOfQuery)['pi']
 
-  def computeEUS(self):
-    pass
+  def findNextPolicy(self, q):
+    """
+    find the second policy given the previous one
+    """
+    assert len(q) == 1
+    return jointUncertaintyMilp(self.mdp, q[0], self.computeZC(q[0]),
+                                zeroConstraints=[self.consStates[idx] for idx in self.knownLockedCons],
+                                unknownFeatStates=[self.consStates[idx] for idx in self.unknownCons],
+                                costOfQuery=self.costOfQuery)
 
   def findBatchQuery(self):
     """
@@ -80,7 +82,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
               + [('F', qFeat)]
 
     # if the batch query has no positive evoi, stop querying
-    eus = self.rewardQueryAgent.computeEUS(qPi, qR)
+    eus = self.computeEUS(qPi, qR)
     priorValue = self.computeCurrentSafelyOptPiValue()
     batchQueryEVOI = eus - priorValue
     # count the cost of reward query
@@ -94,6 +96,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
 
   def findQuery(self):
     # find an instance of good reward query + feature queries
+    # for now, recompute batch queries in each step
     queries = self.findBatchQuery()
 
     if queries is None or len(queries) == 0: return None

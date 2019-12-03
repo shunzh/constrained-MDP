@@ -1,7 +1,7 @@
 import time
 from operator import mul
 
-from lp import lpDualGurobi, computeValue, lpDualCPLEX
+from lp import lpDualGurobi, computeValue
 from util import powerset, printOccSA
 import config
 
