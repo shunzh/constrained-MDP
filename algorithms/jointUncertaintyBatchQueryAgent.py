@@ -16,12 +16,6 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
                                                          consProbs=consProbs, costOfQuery=costOfQuery)
     GreedyConstructRewardAgent.__init__(self, mdp, 2, qi)
 
-  def getLockedFeatCons(self):
-    return [self.consStates[idx] for idx in self.knownLockedCons]
-
-  def getUnknownFeatCons(self):
-    return [self.consStates[idx] for idx in self.unknownCons]
-
   def computeZC(self, pi):
     """
     convert relevant features to the format of zC
@@ -34,7 +28,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     compute value of policy - cost of querying
     """
     if r is None: r = self.mdp.r
-    return GreedyConstructRewardAgent.computeValue(x, r) - self.costOfQuery * sum(self.computeZC(x))
+    return GreedyConstructRewardAgent.computeValue(self, x, r) - self.costOfQuery * sum(self.computeZC(x))
 
   def findOptPolicyUnderMeanRewards(self, psi=None):
     if psi is not None:
@@ -67,8 +61,6 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
 
     # consider the possible responses to the queried features
     self.encodeConstraintIntoTransition(mdp)
-    consStates = [self.consStates[_] for _ in self.unknownCons]
-
     qPi = self.findPolicyQuery()
     qR = self.findRewardSetQuery(qPi)
 

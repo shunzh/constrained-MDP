@@ -38,11 +38,11 @@ class GreedyConstructRewardAgent:
     return q
 
   def findOptPolicyUnderMeanRewards(self, psi=None):
-    # simply the optimal policy under the mean reward function
     if psi is not None:
       mdp = copy.deepcopy(self.mdp)
       mdp.updatePsi(psi)
     else:
+      # use the current psi
       mdp = self.mdp
 
     return lpDualGurobi(mdp)['pi']

@@ -89,11 +89,12 @@ def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstr
 
   # >= constraints. the occupancy should be at least positiveConstraintsOcc
   if len(positiveConstraints) > 0:
+    #FIXME positiveConstraints still have actions in them. in consistent with other types of constraints
     m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in positiveConstraints) >= positiveConstraintsOcc)
     
   if len(zeroConstraints) > 0:
     for consIdx in range(len(zeroConstraints)):
-      m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints[consIdx]) == 0)
+      m.addConstr(sum(x[S.index(s), A.index(a)] for s in zeroConstraints[consIdx] for a in A) == 0)
 
   # add cost of queries
   if len(unknownStateCons) > 0:
@@ -256,6 +257,10 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
   # y prime, a helper variable
   y0 = m.addVars(rLen, name='y0')
 
+  # oldPi is a mapping from state, action (in S x A) to occupancy
+  # to be consistent with x, convert it to a mapping from (s, a) where s in Sr, a in Ar
+  oldX = {(s, a): oldPi[S[s], A[a]] for s in Sr for a in Ar}
+
   # integer variables
   zR = m.addVars(rLen, vtype=GRB.BINARY, name='zR')
   zC = m.addVars(len(unknownFeatStates), vtype=GRB.BINARY, name='zC')
@@ -271,7 +276,7 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
 
   # known-to-be-locked features should never be changed
   for consIdx in range(len(zeroConstraints)):
-    m.addConstr(sum(x[S.index(s), A.index(a)] for s, a in zeroConstraints[consIdx]) == 0)
+    m.addConstr(sum(x[S.index(s), A.index(a)] for s in zeroConstraints[consIdx] for a in A) == 0)
 
   # unknown features can be changed
   for consIdx in range(len(unknownFeatStates)):
@@ -279,8 +284,9 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
 
   # constraints on y^0_r
   m.addConstr(sum(zC[idx] for idx in range(len(oldZC)) if oldZC[idx] == 1) <= sum(oldZC) - 1 + zSafe * M)
+
   for i in range(rLen):
-    m.addConstr(y0[i] >= U(oldPi, R[i], oldZC) - (1 - zSafe) * M)
+    m.addConstr(y0[i] >= U(oldX, R[i], oldZC) - (1 - zSafe) * M)
 
   # constraints on y_r
   for i in range(rLen):

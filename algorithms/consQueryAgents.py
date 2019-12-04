@@ -1,7 +1,7 @@
 import time
 from operator import mul
 
-from lp import lpDualGurobi, computeValue
+from lp import lpDualGurobi, computeValue, lpDualCPLEX
 from util import powerset, printOccSA
 import config
 
@@ -44,6 +44,15 @@ class ConsQueryAgent():
 
     return statusObj['feasible']
 
+  def getLockedFeatCons(self):
+    return [self.consStates[idx] for idx in self.knownLockedCons]
+
+  def getUnknownFeatCons(self):
+    return [self.consStates[idx] for idx in self.unknownCons]
+
+  def getGivenFeatCons(self, indices):
+    return [self.consStates[idx] for idx in indices]
+
   def findConstrainedOptPi(self, activeCons=(), addKnownLockedCons=True, mdp=None):
     """
     :param activeCons:  constraints that should be followed
@@ -56,7 +65,7 @@ class ConsQueryAgent():
 
     if addKnownLockedCons:
       activeCons = tuple(activeCons) + tuple(self.knownLockedCons)
-    zeroConstraints = self.constructConstraints(activeCons)
+    zeroConstraints = self.getGivenFeatCons(activeCons)
 
     if config.OPT_METHOD == 'gurobi':
       return lpDualGurobi(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)
@@ -65,7 +74,6 @@ class ConsQueryAgent():
       return lpDualCPLEX(mdp, zeroConstraints=zeroConstraints, positiveConstraints=self.goalCons)
     else:
       raise Exception('unknown method')
-
 
   """
   Methods for finding dominating policies and relevant features
@@ -156,14 +164,6 @@ class ConsQueryAgent():
     allCons = list(allCons)
     if config.DEBUG: print 'rel cons', allCons, 'num of domPis', len(domPis)
     return allCons, domPis
-
-  def constructConstraints(self, cons):
-    """
-    The set of state, action pairs that should not be visited when cons are active constraints.
-    :return: [[state, action pairs that should not be visited] for con ins all constraints]
-    """
-    mdp = self.mdp
-    return [[(s, a) for a in mdp.A for s in self.consStates[con]] for con in cons]
 
   def computeValue(self, x):
     """
