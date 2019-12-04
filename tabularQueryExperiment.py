@@ -367,18 +367,18 @@ if __name__ == '__main__':
   k = 5 # dummy for sequential queries?
 
   # the domain is size x size
-  size = 5
+  size = 3
 
-  numOfCarpets = 15
+  numOfCarpets = 4
   numOfWalls = 0
-  numOfSwitches = 3
+  numOfSwitches = 2
   from config import costOfQuery, trialsStart, trialsEnd
 
   rnd = 0 # set a dummy random seed if no -r argument
   dry = False # no output to files if dry run
 
   try:
-    opts, args = getopt.getopt(sys.argv[1:], 'm:k:n:s:r:R:dp:')
+    opts, args = getopt.getopt(sys.argv[1:], 'm:k:n:s:r:R:dp:v')
   except getopt.GetoptError:
     raise Exception('Unknown flag')
   for opt, arg in opts:
@@ -400,20 +400,21 @@ if __name__ == '__main__':
       trialsStart = int(arg)
     elif opt == '-d':
       dry = True
+    elif opt == '-v':
+      config.VERBOSE = True
     else:
       raise Exception('unknown argument')
 
   for rnd in range(trialsStart, trialsEnd):
     setRandomSeed(rnd)
 
-    spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-    #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
+    #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
+    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     # uniform prior over rewards
-    rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
-
+    #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
     # random prior over rewards (add 0.1 to reduce variance a little bit)
-    #rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
+    rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
     mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=.9)
-    experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0.8, pfStep=0, costOfQuery=costOfQuery)
+    experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0.5, pfStep=0, costOfQuery=costOfQuery)

@@ -115,8 +115,8 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     eus = self.computeEUS(qPi)
     priorValue = self.computeCurrentSafelyOptPiValue()
     batchQueryEVOI = eus - priorValue
-    # count the cost of reward query
-    if qR is None: batchQueryEVOI -= self.costOfQuery
+    # count the cost of reward query if posed
+    if qR is not None: batchQueryEVOI -= self.costOfQuery
     if config.VERBOSE: print 'evoi', eus, '-', priorValue, '=', batchQueryEVOI
 
     # note: this is not exactly the definition of evoi since it could be negative. we counted the query cost!
@@ -129,7 +129,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     queries = self.findBatchQuery()
 
     # in this case, not worth querying
-    if queries is None: return None
+    if queries is None or len(queries) == 0: return None
 
     # select one query from queries
     # don't consider immediate cost for query selection, so could select a query with EVOI < costOfQuery

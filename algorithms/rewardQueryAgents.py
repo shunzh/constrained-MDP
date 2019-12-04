@@ -65,7 +65,7 @@ class GreedyConstructRewardAgent:
 
     dominatingIndices = [[] for _ in qPi]
     for rewardIdx in range(len(self.mdp.psi)):
-      qPiValues = {piIdx: self.computeValue(qPi[piIdx], r=self.mdp.rFuncs[rewardIdx]) for piIdx in range(len(qPi))}
+      qPiValues = {piIdx: GreedyConstructRewardAgent.computeValue(self, qPi[piIdx], r=self.mdp.rFuncs[rewardIdx]) for piIdx in range(len(qPi))}
       if config.VERBOSE: print 'r', rewardIdx, 'pi values', qPiValues
       dominatingPi = max(qPiValues.keys(), key=lambda piIdx: qPiValues[piIdx])
       dominatingIndices[dominatingPi].append(rewardIdx)

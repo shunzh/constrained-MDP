@@ -284,7 +284,6 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
 
   # constraints on y^0_r
   m.addConstr(sum(zC[idx] for idx in range(len(oldZC)) if oldZC[idx] == 1) <= sum(oldZC) - 1 + zSafe * M)
-
   for i in range(rLen):
     m.addConstr(y0[i] >= U(oldX, R[i], oldZC) - (1 - zSafe) * M)
 
