@@ -256,7 +256,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     elif method == 'myopic':
       agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'batch':
-      agent = JointUncertaintyBatchQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+      agent = JointUncertaintyBatchQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery, qi=True)
     elif method == 'dompi':
       agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
                                                          costOfQuery=costOfQuery, heuristicID=0)
@@ -367,9 +367,9 @@ if __name__ == '__main__':
   k = 5 # dummy for sequential queries?
 
   # the domain is size x size
-  size = 6
+  size = 5
 
-  numOfCarpets = 20
+  numOfCarpets = 15
   numOfWalls = 0
   numOfSwitches = 3
   from config import costOfQuery, trialsStart, trialsEnd
@@ -410,10 +410,10 @@ if __name__ == '__main__':
     #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
     # uniform prior over rewards
-    #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
+    rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
 
     # random prior over rewards (add 0.1 to reduce variance a little bit)
-    rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
+    #rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
     mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=.9)
-    experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)
+    experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0.8, pfStep=0, costOfQuery=costOfQuery)

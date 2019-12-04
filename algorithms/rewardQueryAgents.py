@@ -72,7 +72,13 @@ class GreedyConstructRewardAgent:
 
     return dominatingIndices
 
-  def computeEUS(self, qPi, qR):
+  def computeEUS(self, qPi, qR=None):
+    """
+    :param qR: provided if pre-computed dominated rewards
+    :return:
+    """
+    if qR is None: qR = self.findRewardSetQuery(qPi)
+
     ret = 0
     for (pi, rs) in zip(qPi, qR):
       for rIdx in rs:
