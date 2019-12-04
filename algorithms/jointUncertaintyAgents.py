@@ -237,11 +237,14 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
       rIndices = qContent
 
       # we use the mdp with safety constraints encoded into the transition function
-      mdpIfTrueReward = copy.deepcopy(self.rewardQueryAgent.mdp)
+      mdp = copy.deepcopy(self.mdp)
+      self.encodeConstraintIntoTransition(mdp)
+
+      mdpIfTrueReward = copy.deepcopy(mdp)
       mdpIfTrueReward.updatePsi(computePosteriorBelief(mdpIfTrueReward.psi, consistentRewards=rIndices))
       posteriorValueIfTrue = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward)['obj']
 
-      mdpIfFalseReward = copy.deepcopy(self.rewardQueryAgent.mdp)
+      mdpIfFalseReward = copy.deepcopy(mdp)
       mdpIfFalseReward.updatePsi(computePosteriorBelief(mdpIfFalseReward.psi, inconsistentRewards=rIndices))
       posteriorValueIfFalse = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
 
