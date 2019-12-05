@@ -52,28 +52,17 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
 
   def computeEUS(self, qPi, qR=None):
     """
-    FIXME qR is dummy, just to be consistent with the func signature
     note that this is not the exact objective which qPi tries to optimize, since we do not want to consider all possible
     realizations of changeability of unknown features.
 
     :return: E_{r, \Phi \in \Phi_\unknown} \max_{\pi \in (qPi \cap \Pi_\Phi) } V^\pi_r
     """
     piIndices = range(len(qPi))
-
-    qPiRelFeats = [self.findViolatedConstraints(qPi[piIdx]) for piIdx in piIndices]
-
     ret = 0
     for (r, rProb) in zip(self.mdp.rFuncs, self.mdp.psi):
       piValues = [self.computeValue(qPi[piIdx], r) for piIdx in piIndices]
-      for assumedFreeFeats in powerset(self.unknownCons):
-        safePiIndices = filter(lambda piIdx: set(qPiRelFeats[piIdx]).issubset(assumedFreeFeats), piIndices)
-
-        if len(safePiIndices) > 0:
-          assumedLockedFeats = set(self.unknownCons) - set(assumedFreeFeats)
-          featProb = self.probFeatsBeingFree(assumedFreeFeats) * self.probFeatsBeingLocked(assumedLockedFeats)
-
-          maxSafePiValue = max(piValues[idx] for idx in safePiIndices)
-          ret += maxSafePiValue * featProb * rProb
+      maxSafePiValue = max(piValues)
+      ret += maxSafePiValue * rProb
 
     return ret
 
@@ -82,22 +71,20 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     find one reward query and some feature queries to possibly query about
     safety constraints are encoded in the transition function
     """
+    priorValue = self.computeCurrentSafelyOptPiValue()
     queries = []
 
-    # going to modify the transition function of the mdp used by rewardQueryAgent
-    mdp = copy.deepcopy(self.mdp)
-
-    # consider the possible responses to the queried features
-    self.encodeConstraintIntoTransition(mdp)
+    # going to modify the transition function of the mdp
+    self.encodeConstraintIntoTransition(self.mdp)
     qPi = self.findPolicyQuery()
 
     # find reward query
     # it's a 2-partition of reward functions, so pose either of them
-    qR = self.findRewardSetQuery(qPi)[0]
+    dominatedRewards = self.findRewardSetQuery(qPi)
+    qR = dominatedRewards[0]
     # if it queries about all the reward functions or none of them, then no reward query is needed
     psiSupports = filter(lambda _: _ > 0, self.mdp.psi)
-    if 0 < len(qR) < len(psiSupports):
-      queries.append(('R', qR))
+    if len(qR) == 0 or len(qR) >= len(psiSupports): qR = None
 
     # find feat query
     qFeats = set()
@@ -109,29 +96,42 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     # because others are not worth querying because of their costs? (although they may contribute to finding new safe policies)
     if len(qFeats) > 0:
       qFeat = self.findFeatureQuery(subsetCons=qFeats)
-      queries.append(('F', qFeat))
+    else:
+      qFeat = None
 
     # determine if continue querying is necessary
     eus = self.computeEUS(qPi)
-    priorValue = self.computeCurrentSafelyOptPiValue()
     batchQueryEVOI = eus - priorValue
     # count the cost of reward query if posed
     if qR is not None: batchQueryEVOI -= self.costOfQuery
-    if config.VERBOSE: print 'evoi', eus, '-', priorValue, '=', batchQueryEVOI
+    if config.VERBOSE:
+      print 'evoi', eus, '-', priorValue,
+      if qR is not None: print '-', self.costOfQuery,
+      print '=', batchQueryEVOI
 
     # note: this is not exactly the definition of evoi since it could be negative. we counted the query cost!
-    if batchQueryEVOI <= 1e-4: return None
-    else: return queries
+    if batchQueryEVOI <= 1e-4:
+      return None
+    else:
+      # return selected reward query and feature query
+      # if they ask about nothing (which is None), then don't include in the candidate queries
+      queries = filter(lambda _: _[1] is not None, [('R', qR), ('F', qFeat)])
+      return queries
 
   def findQuery(self):
     # find an instance of good reward query + feature queries
     # for now, recompute batch queries in each step
+    currentMDP = copy.deepcopy(self.mdp)
     queries = self.findBatchQuery()
+    # recover the current mdp FIXME better way to do this?
+    self.mdp = currentMDP
 
     # in this case, not worth querying
-    if queries is None or len(queries) == 0: return None
-
+    if queries is None or len(queries) == 0:
+      return None
     # select one query from queries
     # don't consider immediate cost for query selection, so could select a query with EVOI < costOfQuery
-    else: return self.selectQueryBasedOnEVOI(queries, considerCost=False)
+    else:
+      return self.selectQueryBasedOnEVOI(queries, considerCost=False)
+      #return queries[0]
 
