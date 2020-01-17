@@ -57,10 +57,10 @@ def plotLegend():
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
-def parseJointUncertaintyResults():
+if __name__ == '__main__':
   from config import trialsStart, trialsEnd, numsOfCarpets, methods, costOfQuery
 
-  constructStatsDict = lambda: {method: [] for method in methods}
+  constructStatsDict = lambda: {(method, numOfCarpets): [] for method in methods for numOfCarpets in numsOfCarpets}
 
   values = constructStatsDict()
   numOfQueries = constructStatsDict()
@@ -73,20 +73,18 @@ def parseJointUncertaintyResults():
       results = pickle.load(open(filename, 'rb'))
 
       for method in methods:
-        if method in results.keys():
-          for numOfCarpets in numsOfCarpets:
+        for numOfCarpets in numsOfCarpets:
+          if (method, numOfCarpets) in results.keys():
             numQ = len(results[method][numOfCarpets]['queries'])
 
-            values[method].append(results[method][numOfCarpets]['value'])
-            numOfQueries[method].append(numQ)
-            returns[method].append(results[method][numOfCarpets]['value'] - costOfQuery * numQ)
-            times[method].append(results[method][numOfCarpets]['time'])
+            values[method, numOfCarpets].append(results[method][numOfCarpets]['value'])
+            numOfQueries[method, numOfCarpets].append(numQ)
+            returns[method, numOfCarpets].append(results[method][numOfCarpets]['value'] - costOfQuery * numQ)
+            times[method, numOfCarpets].append(results[method][numOfCarpets]['time'])
 
+  print returns
   statNames = ['objective value', 'value of safely-optimal $\pi$', 'number of queries', 'computation time (sec.)']
   statFuncs = [returns, values, numOfQueries, times]
 
   for (sName, sFunc) in zip(statNames, statFuncs):
-    plot(numsOfCarpets, sFunc, methods, '# of carpets', sName, sName)
-
-if __name__ == '__main__':
-    parseJointUncertaintyResults()
+    plot(numsOfCarpets, lambda method, x: sFunc[method, x], methods, '# of carpets', sName, sName, intXAxis=True)

@@ -11,7 +11,7 @@ costOfQuery = 0.1
 
 # experiment configuration
 trialsStart = 0
-trialsEnd = 1000
+trialsEnd = 100
 
 methods = ['myopic', 'batch', 'dompi']
 
