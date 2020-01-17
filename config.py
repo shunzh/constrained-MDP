@@ -14,3 +14,5 @@ trialsStart = 0
 trialsEnd = 1000
 
 methods = ['myopic', 'batch', 'dompi']
+
+numsOfCarpets = [10, 12, 14]

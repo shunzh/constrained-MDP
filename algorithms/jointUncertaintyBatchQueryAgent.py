@@ -4,7 +4,6 @@ import config
 from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent
 from algorithms.lp import lpDualGurobi, jointUncertaintyMilp, computeValue
 from algorithms.rewardQueryAgents import GreedyConstructRewardAgent
-from util import powerset
 
 
 class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgent,GreedyConstructRewardAgent):
@@ -19,7 +18,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
 
   def computeZC(self, pi):
     """
-    convert relevant features to the format of zC
+    zC[i] = 1 if the i-th unknown feature is changed by pi, 0 otherwise.
     """
     relFeats = self.findViolatedConstraints(pi)
     return [_ in relFeats for _ in range(len(self.unknownCons))]
@@ -38,12 +37,13 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     else:
       mdp = self.mdp
 
+    # this objective subtracts costs of violating unknown features
     return lpDualGurobi(mdp, zeroConstraints=self.getLockedFeatCons(), unknownStateCons=self.getUnknownFeatCons(),
                         violationCost=self.costOfQuery)['pi']
 
   def findNextPolicy(self, q):
     """
-    find the second policy given the previous one
+    find the second policy given the previous one, using the modified MILP formulation.
     """
     assert len(q) == 1
     return jointUncertaintyMilp(self.mdp, q[0], self.computeZC(q[0]),
@@ -72,7 +72,6 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     safety constraints are encoded in the transition function
     """
     priorValue = self.computeCurrentSafelyOptPiValue()
-    queries = []
 
     # going to modify the transition function of the mdp
     self.encodeConstraintIntoTransition(self.mdp)
@@ -129,9 +128,11 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     # in this case, not worth querying
     if queries is None or len(queries) == 0:
       return None
-    # select one query from queries
-    # don't consider immediate cost for query selection, so could select a query with EVOI < costOfQuery
     else:
+      # select one query from queries
+      # don't consider immediate cost for query selection, so could select a query with EVOI < costOfQuery
       return self.selectQueryBasedOnEVOI(queries, considerCost=False)
+
+      # or always first ask the reward query? empirically this is worse than selecting based on EVOI
       #return queries[0]
 

@@ -23,6 +23,9 @@ class SimpleMDP:
     self.invertT = None
 
   def setReward(self, rInput):
+    """
+    rInput can be either a reward function or a list of [(rFunc, prob)]
+    """
     if callable(rInput):
       self.r = rInput
     elif type(rInput) is list:

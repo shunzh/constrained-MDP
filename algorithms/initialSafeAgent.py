@@ -26,14 +26,10 @@ class InitialSafePolicyAgent(ConsQueryAgent):
     self.numOfAskedQueries = 0
 
   def updateFeats(self, newFreeCon=None, newLockedCon=None):
-    # function as an interface. does nothing by default
-    if newFreeCon is not None:
-      self.unknownCons.remove(newFreeCon)
-      self.knownFreeCons.append(newFreeCon)
-    if newLockedCon is not None:
-      self.unknownCons.remove(newLockedCon)
-      self.knownLockedCons.append(newLockedCon)
+    # change partition of features
+    ConsQueryAgent.updateFeats(self, newFreeCon, newLockedCon)
 
+    # udpate the set cover structure
     # recompute dom pi and iiss every time if we're doing early stopping
     if config.earlyStop is not None:
       # delete corresponding attributes and re-compute

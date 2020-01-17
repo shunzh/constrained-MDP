@@ -28,13 +28,6 @@ def saveData(results, rnd):
   If prior results exist, update it
   """
   filename = str(rnd) + '.pkl'
-  if os.path.exists(filename):
-    existingResults = pickle.load(open(filename, 'rb'))
-  else:
-    existingResults = {}
-  existingResults.update(results)
-  results = existingResults
-
   pickle.dump(results, open(filename, 'wb'))
 
 def findInitialSafePolicy(mdp, consStates, goalStates, trueFreeFeatures, rnd, consProbs=None):
@@ -306,8 +299,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
 
     print 'rnd', rnd, method, value - len(queriesAsked) * costOfQuery, value, queriesAsked, duration
 
-  if not dry: saveData(results, rnd)
-
+    return results
 
 def experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0, pfStep=1, costOfQuery=0.0):
   """
@@ -352,7 +344,7 @@ def experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0, pfStep=1, costOfQ
   """
 
   # under joint uncertainty:
-  jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, dry, costOfQuery)
+  return jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, dry, costOfQuery)
 
 
 def setRandomSeed(rnd):
@@ -369,10 +361,10 @@ if __name__ == '__main__':
   # the domain is size x size
   size = 5
 
-  numOfCarpets = 15
+  numOfCarpets = None # should be set in config
   numOfWalls = 0
   numOfSwitches = 3
-  from config import costOfQuery, trialsStart, trialsEnd
+  from config import costOfQuery, trialsStart, trialsEnd, numsOfCarpets
 
   rnd = 0 # set a dummy random seed if no -r argument
   dry = False # no output to files if dry run
@@ -406,15 +398,19 @@ if __name__ == '__main__':
       raise Exception('unknown argument')
 
   for rnd in range(trialsStart, trialsEnd):
-    setRandomSeed(rnd)
+    results = {}
+    for numOfCarpets in numsOfCarpets:
+      setRandomSeed(rnd)
 
-    #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-    spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
+      #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
+      spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
-    # uniform prior over rewards
-    #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
-    # random prior over rewards (add 0.1 to reduce variance a little bit)
-    rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
+      # uniform prior over rewards
+      #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
+      # random prior over rewards (add 0.1 to reduce variance a little bit)
+      rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
-    mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=.9)
-    experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0.5, pfStep=0, costOfQuery=costOfQuery)
+      mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=.9)
+      results[numOfCarpets] = experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0.5, pfStep=0, costOfQuery=costOfQuery)
+
+    if not dry: saveData(results, rnd)

@@ -19,15 +19,6 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     self.costOfQuery = costOfQuery
     self.sizeOfRewards = len(mdp.psi)
 
-  def updateFeats(self, newFreeCon=None, newLockedCon=None):
-    # share some code as InitialSafeAgent, but I don't want to make this class a subclass of that
-    if newFreeCon is not None:
-      self.unknownCons.remove(newFreeCon)
-      self.knownFreeCons.append(newFreeCon)
-    if newLockedCon is not None:
-      self.unknownCons.remove(newLockedCon)
-      self.knownLockedCons.append(newLockedCon)
-
   def updateReward(self, consistentRewards=None, inconsistentRewards=None):
     posterPsi = computePosteriorBelief(self.mdp.psi,
                                        consistentRewards=consistentRewards,
@@ -83,6 +74,7 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
 
   def addFeatQueryCostToReward(self, mdp):
     """
+    DEPRECATED
     discourage the robot from violating safety constraints but put the cost of query into the reward.
     looks like the easiest way is to change all reward candidates
     """
@@ -174,7 +166,8 @@ class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
 
 class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
   """
-  Planning several steps into the future
+  Find the myopically optimal reward query and feature query, then choose the one with higher EVOI.
+  Stop when EVOI is 0.
   """
   def findRewardQuery(self):
     """
@@ -189,10 +182,8 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     if len(psiSupports) == 1: return None
 
     # going to modify the transition function in place, so make a copy of mdp
-    # for any unknown feature, with prob. pf, its transition goes through. Otherwise it's transited to a sink state
-    # for any locked feature, it transits to a sink state with prob. 1
-    # free features wouldn't pose any constraints
     mdp = copy.deepcopy(self.mdp)
+    # encode pf into the transition probabilities
     self.encodeConstraintIntoTransition(mdp)
     rewardQueryAgent = GreedyConstructRewardAgent(mdp, 2, qi=True)
 

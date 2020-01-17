@@ -1,7 +1,6 @@
 import copy
 
 import config
-from algorithms.consQueryAgents import ConsQueryAgent
 from algorithms.lp import lpDualGurobi, computeValue, milp, jointUncertaintyMilp
 from util import computePosteriorBelief, printOccSA
 

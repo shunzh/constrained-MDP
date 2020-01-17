@@ -44,6 +44,18 @@ class ConsQueryAgent():
 
     return statusObj['feasible']
 
+  def updateFeats(self, newFreeCon=None, newLockedCon=None):
+    """
+    update feature partition after response.
+    #fixme this should be only useful for sequential query agent
+    """
+    if newFreeCon is not None:
+      self.unknownCons.remove(newFreeCon)
+      self.knownFreeCons.append(newFreeCon)
+    if newLockedCon is not None:
+      self.unknownCons.remove(newLockedCon)
+      self.knownLockedCons.append(newLockedCon)
+
   def getLockedFeatCons(self):
     return [self.consStates[idx] for idx in self.knownLockedCons]
 

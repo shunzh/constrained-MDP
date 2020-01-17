@@ -32,9 +32,11 @@ def linearRegression(A, b):
 
 def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstraintsOcc=0, unknownStateCons=(), violationCost=None):
   """
-  Solve the dual problem of lp, maybe with some constraints
+  Solve the dual problem of lp.
+  This function is overriden. If violationCost is not None, then we punish the robot by changing an unknown feature.
+  Otherwise unknown features are imposed as hard constraints.
 
-  :param violationCost: if not None, it's the cost of violating a constraints rather than enforcing it.
+  :param violationCost: if not None, it's the cost of violating a constraint rather than enforcing it.
   :return: {'feasible': if a feasible solution is found,
             'obj': the objective value,
             'pi': the (safely-)optimal policy}
