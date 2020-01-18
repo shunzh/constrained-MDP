@@ -299,7 +299,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
 
     print 'rnd', rnd, method, value - len(queriesAsked) * costOfQuery, value, queriesAsked, duration
 
-    return results
+  return results
 
 def experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0, pfStep=1, costOfQuery=0.0):
   """
@@ -359,12 +359,14 @@ if __name__ == '__main__':
   k = 5 # dummy for sequential queries?
 
   # the domain is size x size
-  size = 5
+  size = 6
 
-  numOfCarpets = None # should be set in config
-  numOfWalls = 0
-  numOfSwitches = 3
-  from config import costOfQuery, trialsStart, trialsEnd, numsOfCarpets
+  # these should be set in config
+  numOfCarpets = None
+  numOfSwitches = None
+
+  numOfWalls = 5
+  from config import costOfQuery, trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches
 
   rnd = 0 # set a dummy random seed if no -r argument
   dry = False # no output to files if dry run
@@ -400,17 +402,18 @@ if __name__ == '__main__':
   for rnd in range(trialsStart, trialsEnd):
     results = {}
     for numOfCarpets in numsOfCarpets:
-      setRandomSeed(rnd)
+      for numOfSwitches in numsOfSwitches:
+        setRandomSeed(rnd)
 
-      #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-      spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
+        #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
+        spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
 
-      # uniform prior over rewards
-      #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
-      # random prior over rewards (add 0.1 to reduce variance a little bit)
-      rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
+        # uniform prior over rewards
+        #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
+        # random prior over rewards (add 0.1 to reduce variance a little bit)
+        rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
-      mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=.9)
-      results[numOfCarpets] = experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0.5, pfStep=0, costOfQuery=costOfQuery)
+        mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=.9)
+        results[(numOfCarpets, numOfSwitches)] = experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0.5, pfStep=0, costOfQuery=costOfQuery)
 
     if not dry: saveData(results, rnd)

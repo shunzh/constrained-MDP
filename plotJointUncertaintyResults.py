@@ -1,13 +1,14 @@
 import os
 import pickle
+import pprint
 
 import pylab
 from numpy import mean
 from matplotlib.ticker import MaxNLocator
-from util import standardErr
+from util import standardErr, createOrAppend
 
-names = {'myopic': 'Myopic', 'batch': 'Batch', 'dompi': 'Dom-Pi'}
-markers = {'myopic': 'bv-', 'batch': 'bo-', 'dompi': 'g^-'}
+names = {'opt': 'Optimal', 'myopic': 'Myopic', 'batch': 'Batch', 'dompi': 'Dom-Pi'}
+markers = {'opt': 'r*-', 'myopic': 'bv-', 'batch': 'bo-', 'dompi': 'g^-'}
 
 def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False, xAxis=None, ylim=None):
   """
@@ -25,10 +26,9 @@ def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False
   yMean = lambda method: [mean(y(method, xElem)) for xElem in x]
   yCI = lambda method: [standardErr(y(method, xElem)) for xElem in x]
 
-  fig = pylab.figure()
-
-  ax = pylab.gca()
   print xlabel, ylabel
+  fig = pylab.figure()
+  ax = pylab.gca()
   for method in methods:
     print method, yMean(method), yCI(method)
     ax.errorbar(xAxis, yMean(method), yCI(method), fmt=markers[method], mfc='none', label=names[method],
@@ -58,7 +58,7 @@ def plotLegend():
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
 if __name__ == '__main__':
-  from config import trialsStart, trialsEnd, numsOfCarpets, methods, costOfQuery
+  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costOfQuery
 
   constructStatsDict = lambda: {(method, numOfCarpets): [] for method in methods for numOfCarpets in numsOfCarpets}
 
@@ -72,19 +72,24 @@ if __name__ == '__main__':
     if os.path.exists(filename):
       results = pickle.load(open(filename, 'rb'))
 
-      for method in methods:
-        for numOfCarpets in numsOfCarpets:
-          if (method, numOfCarpets) in results.keys():
-            numQ = len(results[method][numOfCarpets]['queries'])
+      for numOfCarpets in numsOfCarpets:
+        for numOfSwitches in numsOfSwitches:
+          configKey = (numOfCarpets, numOfSwitches)
+          for method in methods:
+            numQ = len(results[configKey][method]['queries'])
 
-            values[method, numOfCarpets].append(results[method][numOfCarpets]['value'])
-            numOfQueries[method, numOfCarpets].append(numQ)
-            returns[method, numOfCarpets].append(results[method][numOfCarpets]['value'] - costOfQuery * numQ)
-            times[method, numOfCarpets].append(results[method][numOfCarpets]['time'])
+            createOrAppend(values, (configKey, method), results[configKey][method]['value'])
+            createOrAppend(numOfQueries, (configKey, method), numQ)
+            createOrAppend(returns, (configKey, method), results[configKey][method]['value'] - costOfQuery * numQ)
+            createOrAppend(times, (configKey, method), results[configKey][method]['time'])
 
-  print returns
-  statNames = ['objective value', 'value of safely-optimal $\pi$', 'number of queries', 'computation time (sec.)']
+  # plot different statistics in different figures
+  statNames = ['objective', 'optimal_pi', 'number_of_queries', 'computation_time']
   statFuncs = [returns, values, numOfQueries, times]
 
-  for (sName, sFunc) in zip(statNames, statFuncs):
-    plot(numsOfCarpets, lambda method, x: sFunc[method, x], methods, '# of carpets', sName, sName, intXAxis=True)
+  # just to be consistent with previous plotting, plot numOfCarpets as x-axis. plot different # of switches in different figures
+  for numOfSwitches in numsOfSwitches:
+    for (sName, sFunc) in zip(statNames, statFuncs):
+      plot(numsOfCarpets, lambda method, numOfCarpets: sFunc[(numOfCarpets, numOfSwitches), method], methods,
+           xlabel='# of carpets', ylabel=sName,
+           filename=sName + '_' + str(numOfSwitches), intXAxis=True)

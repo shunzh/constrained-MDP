@@ -257,7 +257,7 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
   x = m.addVars(len(S), len(A), lb=0, name='x')
   y = m.addVars(rLen, name='y')
   # y prime, a helper variable
-  y0 = m.addVars(rLen, name='y0')
+  y0 = m.addVars(rLen, name='y0', lb=0)
 
   # oldPi is a mapping from state, action (in S x A) to occupancy
   # to be consistent with x, convert it to a mapping from (s, a) where s in Sr, a in Ar
@@ -268,34 +268,34 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
   zC = m.addVars(len(unknownFeatStates), vtype=GRB.BINARY, name='zC')
   zSafe = m.addVar(vtype=GRB.BINARY, name='zSafe')
 
-  # U = value of policy - costOfQuery * # of relevant features
-  U = lambda x_local, r, zC_local: sum([x_local[s, a] * r(S[s], A[a]) for s in Sr for a in Ar])\
-                                   - sum(zC_local[idx] * costOfQuery for idx in range(len(unknownFeatStates)))
+  V = lambda x_local, r: sum([x_local[s, a] * r(S[s], A[a]) for s in Sr for a in Ar])
 
-  # flow conservation constraint
+  # (a) flow conservation constraint
   for sp in Sr:
     m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
 
-  # known-to-be-locked features should never be changed
+  # (b) known-to-be-locked features should never be changed
   for consIdx in range(len(zeroConstraints)):
     m.addConstr(sum(x[S.index(s), A.index(a)] for s in zeroConstraints[consIdx] for a in A) == 0)
 
-  # unknown features can be changed
+  # (c) unknown features can be changed
   for consIdx in range(len(unknownFeatStates)):
-    m.addConstr(M * zC[consIdx] >= sum(x[S.index(s), A.index(a)] for s in unknownFeatStates[consIdx] for a in A))
+    m.addConstr(M * (zC[consIdx] + oldZC[consIdx]) >= sum(x[S.index(s), A.index(a)] for s in unknownFeatStates[consIdx] for a in A))
 
-  # constraints on y^0_r
+  # (d) constraints on y^0_r
   m.addConstr(sum(zC[idx] for idx in range(len(oldZC)) if oldZC[idx] == 1) <= sum(oldZC) - 1 + zSafe * M)
   for i in range(rLen):
-    m.addConstr(y0[i] >= U(oldX, R[i], oldZC) - (1 - zSafe) * M)
+    m.addConstr(y0[i] >= V(oldX, R[i]) - (1 - zSafe) * M)
 
-  # constraints on y_r
+  # (e) constraints on y_r
   for i in range(rLen):
-    m.addConstr(y[i] <= U(x, R[i], zC) - y0[i] + (1 - zR[i]) * M)
+    m.addConstr(y[i] <= V(x, R[i]) - y0[i] + (1 - zR[i]) * M)
     m.addConstr(y[i] <= 0 + zR[i] * M)
 
   # obj
-  m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)]), GRB.MAXIMIZE)
+  m.setObjective(sum([psi[i] * y[i] for i in xrange(rLen)])
+                 - sum(zC[idx] * costOfQuery for idx in range(len(unknownFeatStates))),
+                 GRB.MAXIMIZE)
 
   m.optimize()
 

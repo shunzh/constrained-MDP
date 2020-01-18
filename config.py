@@ -11,8 +11,9 @@ costOfQuery = 0.1
 
 # experiment configuration
 trialsStart = 0
-trialsEnd = 100
+trialsEnd = 300
 
 methods = ['myopic', 'batch', 'dompi']
 
 numsOfCarpets = [10, 12, 14]
+numsOfSwitches = [2, 3, 4]

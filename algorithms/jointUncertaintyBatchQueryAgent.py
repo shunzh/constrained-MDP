@@ -75,6 +75,8 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
 
     # going to modify the transition function of the mdp
     self.encodeConstraintIntoTransition(self.mdp)
+
+    # find the batch query
     qPi = self.findPolicyQuery()
 
     # find reward query
