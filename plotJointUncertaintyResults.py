@@ -1,7 +1,5 @@
 import os
 import pickle
-import pprint
-
 import pylab
 from numpy import mean
 from matplotlib.ticker import MaxNLocator
@@ -26,7 +24,7 @@ def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False
   yMean = lambda method: [mean(y(method, xElem)) for xElem in x]
   yCI = lambda method: [standardErr(y(method, xElem)) for xElem in x]
 
-  print xlabel, ylabel
+  print xlabel, 'vs', ylabel
   fig = pylab.figure()
   ax = pylab.gca()
   for method in methods:
@@ -69,6 +67,7 @@ if __name__ == '__main__':
 
   for rnd in range(trialsStart, trialsEnd):
     filename = str(rnd) + '.pkl'
+    # simply skip trials that are not run
     if os.path.exists(filename):
       results = pickle.load(open(filename, 'rb'))
 

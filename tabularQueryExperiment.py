@@ -406,7 +406,7 @@ if __name__ == '__main__':
         setRandomSeed(rnd)
 
         #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-        spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches, randomSwitch=True)
+        spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
 
         # uniform prior over rewards
         #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches

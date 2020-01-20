@@ -130,7 +130,7 @@ A list of parameterized domains.
 These are randomly generated rather than hand-specified.
 """
 # parameterized worlds
-def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1, randomSwitch=False):
+def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1):
   """
   Squared world with width = height = size.
   The robot and the switch are at opposite corners (unless randomSwitch==True).
@@ -149,20 +149,12 @@ def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1, randomSwitch=Fa
   possibleLocs = [(x, y) for x in range(width) for y in range(height)]
   possibleLocs.remove((0, 0))
 
-  if randomSwitch:
-    switches = util.sampleSubset(possibleLocs, numOfSwitches)
-  else:
-    if numOfSwitches <= height:
-      switches = [((width - 1), (height - i - 1)) for i in range(numOfSwitches)]
-    else:
-      raise Exception('dont know how to deterministically place ' + str(numOfSwitches) + ' switches')
-
-  for switch in switches: possibleLocs.remove(switch)
-
   # generate the list of the locations of all objects, make sure they don't overlap
-  objectLocs = util.sampleSubset(possibleLocs, numOfCarpets + numOfWalls)
-  carpets = objectLocs[:numOfCarpets]
-  walls = objectLocs[numOfCarpets:numOfCarpets + numOfWalls]
+  objectLocs = util.sampleSubset(possibleLocs, numOfSwitches + numOfCarpets + numOfWalls)
+  switches = objectLocs[:numOfSwitches]
+  carpets = objectLocs[numOfSwitches:numOfSwitches + numOfCarpets]
+  walls = objectLocs[numOfSwitches + numOfCarpets:]
+  assert len(walls) == numOfWalls
 
   return Spec(width, height, robot, switches, walls, doors, boxes, carpets)
 
