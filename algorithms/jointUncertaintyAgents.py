@@ -233,11 +233,13 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
       mdpIfTrueReward = copy.deepcopy(mdp)
       mdpIfTrueReward.updatePsi(computePosteriorBelief(mdpIfTrueReward.psi, consistentRewards=rIndices))
-      posteriorValueIfTrue = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward)['obj']
+      posteriorValueIfTrue = self.findConstrainedOptPi(mdp=mdpIfTrueReward)['obj']
 
       mdpIfFalseReward = copy.deepcopy(mdp)
       mdpIfFalseReward.updatePsi(computePosteriorBelief(mdpIfFalseReward.psi, inconsistentRewards=rIndices))
-      posteriorValueIfFalse = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
+      posteriorValueIfFalse = self.findConstrainedOptPi(mdp=mdpIfFalseReward)['obj']
+
+      if config.VERBOSE: print 'value after reward response', posteriorValueIfTrue, posteriorValueIfFalse
 
       epu = sum(self.mdp.psi[_] for _ in rIndices) * posteriorValueIfTrue +\
           + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * posteriorValueIfFalse
@@ -254,7 +256,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     for query in queries:
       queryAndEVOIs.append((query, self.computeEVOI(query)))
 
-    if config.VERBOSE: print queryAndEVOIs
+    if config.VERBOSE: print 'query and EVOI', queryAndEVOIs
 
     optQueryAndEVOI = max(queryAndEVOIs, key=lambda _: _[1])
 

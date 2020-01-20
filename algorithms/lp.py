@@ -33,7 +33,7 @@ def linearRegression(A, b):
 def lpDualGurobi(mdp, zeroConstraints=(), positiveConstraints=(), positiveConstraintsOcc=0, unknownStateCons=(), violationCost=None):
   """
   Solve the dual problem of lp.
-  This function is overriden. If violationCost is not None, then we punish the robot by changing an unknown feature.
+  This function is overridden. If violationCost is not None, then we punish the robot by changing an unknown feature.
   Otherwise unknown features are imposed as hard constraints.
 
   :param violationCost: if not None, it's the cost of violating a constraint rather than enforcing it.
@@ -223,7 +223,7 @@ def milp(mdp, maxV, zeroConstraints=()):
     # simply return infeasible
     raise Exception('milp problem optimal solution not found' + m.status)
 
-def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, costOfQuery):
+def jointUncertaintyMilp(mdp, oldPi, oldZC, unknownFeatStates, costOfQuery):
   """
   Find the MILP formulation in report 12/1/2019.
   It finds the second policy in a batch policy query, considering when it outperforms the previous policy in terms of
@@ -266,6 +266,9 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
   # integer variables
   zR = m.addVars(rLen, vtype=GRB.BINARY, name='zR')
   zC = m.addVars(len(unknownFeatStates), vtype=GRB.BINARY, name='zC')
+  # zCNew indicates the newly changed features by x. note that it does not need to be constrained as integers
+  zCNew = m.addVars(len(unknownFeatStates), lb=0, name='zCNew')
+
   zSafe = m.addVar(vtype=GRB.BINARY, name='zSafe')
 
   V = lambda x_local, r: sum([x_local[s, a] * r(S[s], A[a]) for s in Sr for a in Ar])
@@ -274,20 +277,20 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
   for sp in Sr:
     m.addConstr(sum(x[s, a] * ((s == sp) - gamma * T(S[s], A[a], S[sp])) for s in Sr for a in Ar) == alpha(S[sp]))
 
-  # (b) known-to-be-locked features should never be changed
-  for consIdx in range(len(zeroConstraints)):
-    m.addConstr(sum(x[S.index(s), A.index(a)] for s in zeroConstraints[consIdx] for a in A) == 0)
+  # (b) is encoded in the transition function
 
-  # (c) unknown features can be changed
   for consIdx in range(len(unknownFeatStates)):
-    m.addConstr(M * (zC[consIdx] + oldZC[consIdx]) >= sum(x[S.index(s), A.index(a)] for s in unknownFeatStates[consIdx] for a in A))
+    # (c) unknown features can be changed
+    m.addConstr(M * zC[consIdx] >= sum(x[S.index(s), A.index(a)] for s in unknownFeatStates[consIdx] for a in A))
+    # (d) constrain z^{new}_\phi
+    m.addConstr(zCNew[consIdx] >= zC[consIdx] - oldZC[consIdx])
 
-  # (d) constraints on y^0_r
+  # (e) constraints on y^0_r
   m.addConstr(sum(zC[idx] for idx in range(len(oldZC)) if oldZC[idx] == 1) <= sum(oldZC) - 1 + zSafe * M)
   for i in range(rLen):
     m.addConstr(y0[i] >= V(oldX, R[i]) - (1 - zSafe) * M)
 
-  # (e) constraints on y_r
+  # (f) constraints on y_r
   for i in range(rLen):
     m.addConstr(y[i] <= V(x, R[i]) - y0[i] + (1 - zR[i]) * M)
     m.addConstr(y[i] <= 0 + zR[i] * M)
@@ -300,6 +303,13 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, zeroConstraints, unknownFeatStates, 
   m.optimize()
 
   pi = {(S[s], A[a]): x[s, a].X for s in Sr for a in Ar}
+
+  if config.VERBOSE:
+    # print decision variables other than pi for debugging
+    print 'oldZC', oldZC
+    print 'zC', [zC[consIdx].X for consIdx in range(len(unknownFeatStates))]
+    print 'y0 values', [y0[rIdx].X for rIdx in range(rLen)]
+    print 'y values', [y[rIdx].X for rIdx in range(rLen)]
 
   if m.status == GRB.Status.OPTIMAL:
     # return feasible being true and the obj value, opt pi

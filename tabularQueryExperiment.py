@@ -269,7 +269,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
       else:
         queriesAsked.append(query)
         (qType, qContent) = query
-        if config.VERBOSE: print query
+        if config.VERBOSE: print 'QUERY POSED', query
 
         if qType == 'F':
           # a feature query
@@ -297,7 +297,7 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
 
     if not dry: results[method] = {'value': value, 'queries': queriesAsked, 'time':duration}
 
-    print 'rnd', rnd, method, value - len(queriesAsked) * costOfQuery, value, queriesAsked, duration
+    print 'rnd', rnd, method, 'obj', value - len(queriesAsked) * costOfQuery, 'value', value, '# of q', queriesAsked, 'time', duration
 
   return results
 
@@ -365,7 +365,7 @@ if __name__ == '__main__':
   numOfCarpets = None
   numOfSwitches = None
 
-  numOfWalls = 5
+  numOfWalls = 0
   from config import costOfQuery, trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches
 
   rnd = 0 # set a dummy random seed if no -r argument
@@ -414,6 +414,6 @@ if __name__ == '__main__':
         rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
         mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=.9)
-        results[(numOfCarpets, numOfSwitches)] = experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0.5, pfStep=0, costOfQuery=costOfQuery)
+        results[(numOfCarpets, numOfSwitches)] = experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)
 
     if not dry: saveData(results, rnd)

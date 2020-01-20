@@ -2,7 +2,7 @@ import copy
 
 import config
 from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent
-from algorithms.lp import lpDualGurobi, jointUncertaintyMilp, computeValue
+from algorithms.lp import lpDualGurobi, jointUncertaintyMilp
 from algorithms.rewardQueryAgents import GreedyConstructRewardAgent
 
 
@@ -31,6 +31,11 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     return GreedyConstructRewardAgent.computeValue(self, x, r) - self.costOfQuery * sum(self.computeZC(x))
 
   def findOptPolicyUnderMeanRewards(self, psi=None):
+    """
+    Find the first policy in the policy query by optimizing the objective (V - cost of query)
+    :param psi: if set, use reward belief psi. otherwise, under self.mdp.psi
+    :return: the initial policy in the policy query
+    """
     if psi is not None:
       mdp = copy.deepcopy(self.mdp)
       mdp.updatePsi(psi)
@@ -38,16 +43,18 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
       mdp = self.mdp
 
     # this objective subtracts costs of violating unknown features
-    return lpDualGurobi(mdp, zeroConstraints=self.getLockedFeatCons(), unknownStateCons=self.getUnknownFeatCons(),
+    return lpDualGurobi(mdp,
+                        unknownStateCons=self.getUnknownFeatCons(),
                         violationCost=self.costOfQuery)['pi']
 
   def findNextPolicy(self, q):
     """
-    find the second policy given the previous one, using the modified MILP formulation.
+    Find the second policy given the previous one, using the modified MILP formulation.
     """
     assert len(q) == 1
+
     return jointUncertaintyMilp(self.mdp, q[0], self.computeZC(q[0]),
-                                zeroConstraints=self.getLockedFeatCons(), unknownFeatStates=self.getUnknownFeatCons(),
+                                unknownFeatStates=self.getUnknownFeatCons(),
                                 costOfQuery=self.costOfQuery)
 
   def computeEUS(self, qPi, qR=None):

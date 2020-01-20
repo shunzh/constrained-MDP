@@ -628,7 +628,7 @@ class OptQueryForSafetyAgent(InitialSafePolicyAgent):
     assert qAndV != None
 
     if config.VERBOSE:
-      print self.getQueryAndValue(relLockedCons, relFreeCons, allValues=True)
+      print 'query and value', self.getQueryAndValue(relLockedCons, relFreeCons, allValues=True)
 
     return qAndV[0]
 
