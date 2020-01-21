@@ -85,6 +85,59 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
 
     mdp.setReward(zip(newRFuncs, mdp.psi))
 
+  def computeEVOI(self, query):
+    (qType, qContent) = query
+    # if the query gives up, then epu is 0
+    if qContent is None: return 0
+
+    priorValue = self.computeCurrentSafelyOptPiValue()
+
+    if qType == 'F':
+      feat = qContent
+      epu = self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat})['obj']\
+          + (1 - self.consProbs[feat]) * self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
+    elif qType == 'R':
+      rIndices = qContent
+
+      # we use the mdp with safety constraints encoded into the transition function
+      mdp = copy.deepcopy(self.mdp)
+      self.encodeConstraintIntoTransition(mdp)
+
+      mdpIfTrueReward = copy.deepcopy(mdp)
+      mdpIfTrueReward.updatePsi(computePosteriorBelief(mdpIfTrueReward.psi, consistentRewards=rIndices))
+      posteriorValueIfTrue = self.findConstrainedOptPi(mdp=mdpIfTrueReward)['obj']
+
+      mdpIfFalseReward = copy.deepcopy(mdp)
+      mdpIfFalseReward.updatePsi(computePosteriorBelief(mdpIfFalseReward.psi, inconsistentRewards=rIndices))
+      posteriorValueIfFalse = self.findConstrainedOptPi(mdp=mdpIfFalseReward)['obj']
+
+      if config.VERBOSE: print 'value after reward response', posteriorValueIfTrue, posteriorValueIfFalse
+
+      epu = sum(self.mdp.psi[_] for _ in rIndices) * posteriorValueIfTrue +\
+          + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * posteriorValueIfFalse
+    else:
+      raise Exception('unknown query ' + query)
+
+    evoi = epu - priorValue
+    assert evoi >= -1e-4, 'evoi value %f' % evoi
+    return evoi
+
+  def selectQueryBasedOnEVOI(self, queries, considerCost=True):
+    queryAndEVOIs = []
+
+    for query in queries:
+      queryAndEVOIs.append((query, self.computeEVOI(query)))
+
+    if config.VERBOSE: print 'query and EVOI', queryAndEVOIs
+
+    optQueryAndEVOI = max(queryAndEVOIs, key=lambda _: _[1])
+
+    if considerCost and optQueryAndEVOI[1] < self.costOfQuery:
+      return None
+    elif optQueryAndEVOI[0][1] is None:
+      return None
+    else:
+      return optQueryAndEVOI[0]
 
 class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
   """
@@ -213,59 +266,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     return featureQueryAgent.findQuery(subsetCons=subsetCons)
 
-  def computeEVOI(self, query):
-    (qType, qContent) = query
-    # if the query gives up, then epu is 0
-    if qContent is None: return 0
 
-    priorValue = self.computeCurrentSafelyOptPiValue()
-
-    if qType == 'F':
-      feat = qContent
-      epu = self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat})['obj']\
-          + (1 - self.consProbs[feat]) * self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
-    elif qType == 'R':
-      rIndices = qContent
-
-      # we use the mdp with safety constraints encoded into the transition function
-      mdp = copy.deepcopy(self.mdp)
-      self.encodeConstraintIntoTransition(mdp)
-
-      mdpIfTrueReward = copy.deepcopy(mdp)
-      mdpIfTrueReward.updatePsi(computePosteriorBelief(mdpIfTrueReward.psi, consistentRewards=rIndices))
-      posteriorValueIfTrue = self.findConstrainedOptPi(mdp=mdpIfTrueReward)['obj']
-
-      mdpIfFalseReward = copy.deepcopy(mdp)
-      mdpIfFalseReward.updatePsi(computePosteriorBelief(mdpIfFalseReward.psi, inconsistentRewards=rIndices))
-      posteriorValueIfFalse = self.findConstrainedOptPi(mdp=mdpIfFalseReward)['obj']
-
-      if config.VERBOSE: print 'value after reward response', posteriorValueIfTrue, posteriorValueIfFalse
-
-      epu = sum(self.mdp.psi[_] for _ in rIndices) * posteriorValueIfTrue +\
-          + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * posteriorValueIfFalse
-    else:
-      raise Exception('unknown query ' + query)
-
-    evoi = epu - priorValue
-    assert evoi >= -1e-4, 'evoi value %f' % evoi
-    return evoi
-
-  def selectQueryBasedOnEVOI(self, queries, considerCost=True):
-    queryAndEVOIs = []
-
-    for query in queries:
-      queryAndEVOIs.append((query, self.computeEVOI(query)))
-
-    if config.VERBOSE: print 'query and EVOI', queryAndEVOIs
-
-    optQueryAndEVOI = max(queryAndEVOIs, key=lambda _: _[1])
-
-    if considerCost and optQueryAndEVOI[1] < self.costOfQuery:
-      return None
-    elif optQueryAndEVOI[0][1] is None:
-      return None
-    else:
-      return optQueryAndEVOI[0]
 
   def findQuery(self):
     """
@@ -286,7 +287,6 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, heuristicID=0):
     JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs,
                                         costOfQuery=costOfQuery)
-
     # initialize objectDomPiData to be None, will be computed in findQuery
     self.objectDomPiData = None
 
@@ -298,11 +298,11 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     (prob that it is safe, prob that the reward it optimizes is the true reward, and the value of the policy),
     the rewards it optimizes, and the constraints that it violates
     """
-    def __init__(self):
-      self.pi = None
+    def __init__(self, pi=None, optimizedRewards=[], violatedCons=[]):
+      self.pi = pi
       self.weightedValue = 0
-      self.optimizedRewards = []
-      self.violatedCons = None
+      self.optimizedRewards = optimizedRewards
+      self.violatedCons = violatedCons
 
     def __repr__(self):
       return 'DomPi score ' + str(self.weightedValue) + ' rewards optimized ' + str(self.optimizedRewards) +\
@@ -332,10 +332,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       for domPi in domPis:
         relFeats = rewardPositiveConsAgent.findViolatedConstraints(domPi)
 
-        domPisDatum = self.DomPiData()
-        domPisDatum.pi = domPi
-        domPisDatum.optimizedRewards = rIndices
-        domPisDatum.violatedCons = relFeats
+        domPisDatum = self.DomPiData(pi=domPi, optimizedRewards=rIndices, violatedCons=relFeats)
 
         if self.heuristicID == 0:
           # we are going to query about rIndices and relFeatures
@@ -373,17 +370,18 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     try to find a query without re-sampling domPi
     return None if can't do so
     """
+    queries = []
+
     # if not assigned, compute it
     if self.objectDomPiData is None:
       if config.VERBOSE: print 'dompi not assigned'
       return None
 
-    # if some relevant features are known-to-be-locked, we should find another dom pi
+    # if some relevant features are now known-to-be-locked, we should find another dom pi
     if len(set(self.knownLockedCons).intersection(self.objectDomPiData.violatedCons)) > 0:
       if config.VERBOSE: print 'dompi not safe'
       return None
 
-    # first consider reward queries
     consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
     # if any of the reward functions tha domPi optimizes is not possibly a true reward function
     if not set(self.objectDomPiData.optimizedRewards).issubset(consistentRewardIndices):
@@ -391,20 +389,17 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       return None
     # otherwise, try to find a reward query
     qReward = set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices)
-    # make sure we have something to query about (not querying the whole conssitentRewardIndices set)
-    if len(qReward) < len(consistentRewardIndices):
-      return ('R', list(qReward))
+    queries.append(('R', qReward))
 
     # then we consider feature queries
     unknownRelFeats = set(self.objectDomPiData.violatedCons).intersection(self.unknownCons)
-    if len(unknownRelFeats) > 0:
-      # pose a feature query with the largest p_f value
-      qFeat = max(unknownRelFeats, key=lambda _: self.consProbs[_])
-      return ('F', qFeat)
+    queries += [('F', feat) for feat in unknownRelFeats]
 
-    # otherwise, we have nothing to query about
-    if config.VERBOSE: print 'nothing to query'
-    return None
+    if len(queries) == 0:
+      if config.VERBOSE: print 'nothing to query'
+      return None
+    else:
+      return self.selectQueryBasedOnEVOI(queries)
 
   def findQuery(self):
     """
@@ -413,6 +408,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     """
     query = self.attemptToFindQuery()
     if query is None:
+      # unable to find a query, try to find a different dom pi
       self.findDomPi()
       query = self.attemptToFindQuery()
 
