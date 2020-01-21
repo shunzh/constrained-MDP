@@ -95,21 +95,17 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     if qType == 'F':
       feat = qContent
       epu = self.consProbs[feat] * self.findConstrainedOptPi(activeCons=set(self.unknownCons) - {feat})['obj']\
-          + (1 - self.consProbs[feat]) * self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
+          + (1 - self.consProbs[feat]) * priorValue
     elif qType == 'R':
       rIndices = qContent
 
-      # we use the mdp with safety constraints encoded into the transition function
-      mdp = copy.deepcopy(self.mdp)
-      self.encodeConstraintIntoTransition(mdp)
-
-      mdpIfTrueReward = copy.deepcopy(mdp)
+      mdpIfTrueReward = copy.deepcopy(self.mdp)
       mdpIfTrueReward.updatePsi(computePosteriorBelief(mdpIfTrueReward.psi, consistentRewards=rIndices))
-      posteriorValueIfTrue = self.findConstrainedOptPi(mdp=mdpIfTrueReward)['obj']
+      posteriorValueIfTrue = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfTrueReward)['obj']
 
-      mdpIfFalseReward = copy.deepcopy(mdp)
+      mdpIfFalseReward = copy.deepcopy(self.mdp)
       mdpIfFalseReward.updatePsi(computePosteriorBelief(mdpIfFalseReward.psi, inconsistentRewards=rIndices))
-      posteriorValueIfFalse = self.findConstrainedOptPi(mdp=mdpIfFalseReward)['obj']
+      posteriorValueIfFalse = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
 
       if config.VERBOSE: print 'value after reward response', posteriorValueIfTrue, posteriorValueIfFalse
 
@@ -266,8 +262,6 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     return featureQueryAgent.findQuery(subsetCons=subsetCons)
 
-
-
   def findQuery(self):
     """
     compute the myopically optimal reward query vs feature query, pose the on that has larger EPU value
@@ -389,7 +383,9 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       return None
     # otherwise, try to find a reward query
     qReward = set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices)
-    queries.append(('R', qReward))
+    if len(qReward) > 0 and len(qReward) < len(consistentRewardIndices):
+      # if we do have something to query about, that is, not asking about all or none of the consistent rewards
+      queries.append(('R', qReward))
 
     # then we consider feature queries
     unknownRelFeats = set(self.objectDomPiData.violatedCons).intersection(self.unknownCons)
@@ -399,7 +395,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       if config.VERBOSE: print 'nothing to query'
       return None
     else:
-      return self.selectQueryBasedOnEVOI(queries)
+      return self.selectQueryBasedOnEVOI(queries, considerCost=False)
 
   def findQuery(self):
     """

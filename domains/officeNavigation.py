@@ -23,9 +23,6 @@ CLEAN = 0
 ON = 1
 OFF = 0 
 
-INPROCESS = 0
-TERMINATED = 1
-
 OPENDOOR = 'openDoor'
 CLOSEDOOR = 'closeDoor'
 TURNOFFSWITCH = 'turnOffSwitch'
@@ -101,11 +98,27 @@ def toyWorldConstructor(map, horizon=None):
 A list of toy domains.
 """
 def carpetsAndWallsDomain():
-  # example on notes
-  map = [[R, C, C, S],
-         [_, W, W, W],
-         [_, C, C, S]]
-  return toyWorldConstructor(map)
+  """
+  some proof of concepts domains
+  the optimal query policy should be clear in these domains
+  """
+  map0 = [[R, S],
+          [_, S],
+          [_, S]]
+
+  map1 = [[R, C, C, S],
+          [_, W, W, W],
+          [_, C, C, S]]
+
+  map2 = [[R, C, C, _],
+          [_, W, W, S],
+          [_, C, C, _]]
+
+  map3 = [[_, C, S, S, S],
+          [R, W, W, W, W],
+          [_, C, S, S, S]]
+
+  return toyWorldConstructor(map3)
 
 # some toy domains for need-to-be-reverted features (boxes)
 def toySokobanWorld():
@@ -137,8 +150,11 @@ def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1):
   Carpets and walls are uniformly randomly generated.
   No doors.
   """
-  width = size
-  height = size
+  if type(size) is tuple:
+    width = size[0]
+    height = size[1]
+  else:
+    width = height = size
   
   robot = (0, 0)
 
@@ -150,11 +166,11 @@ def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1):
   possibleLocs.remove((0, 0))
 
   # generate the list of the locations of all objects, make sure they don't overlap
-  objectLocs = util.sampleSubset(possibleLocs, numOfSwitches + numOfCarpets + numOfWalls)
-  switches = objectLocs[:numOfSwitches]
-  carpets = objectLocs[numOfSwitches:numOfSwitches + numOfCarpets]
-  walls = objectLocs[numOfSwitches + numOfCarpets:]
-  assert len(walls) == numOfWalls
+  objectLocs = util.sampleSubset(possibleLocs, numOfWalls + numOfCarpets + numOfSwitches)
+  walls = objectLocs[:numOfWalls]
+  carpets = objectLocs[numOfWalls:numOfWalls + numOfCarpets]
+  switches = objectLocs[numOfWalls + numOfCarpets:]
+  assert len(switches) == numOfSwitches # make sure indexing is correct
 
   return Spec(width, height, robot, switches, walls, doors, boxes, carpets)
 
@@ -342,7 +358,7 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
     terminal = lambda s: any(s[sIndex] == OFF for sIndex in sIndices)
 
   # reward of turning off a non-target switch, uniformly-random in [0, 0.5]
-  #randomRewardDict = [random.random() for _ in spec.switches]
+  #randomRewardDict = [1 + random.random() for _ in spec.switches]
 
   # give reward of 2 when the target switch is turned off
   # otherwise, give reward of random.random(), stored in randomRewardDict

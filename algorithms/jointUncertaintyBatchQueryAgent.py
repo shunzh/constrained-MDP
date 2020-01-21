@@ -90,9 +90,10 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     # it's a 2-partition of reward functions, so pose either of them
     dominatedRewards = self.findRewardSetQuery(qPi)
     qR = dominatedRewards[0]
-    # if it queries about all the reward functions or none of them, then no reward query is needed
-    psiSupports = filter(lambda _: _ > 0, self.mdp.psi)
-    if len(qR) == 0 or len(qR) >= len(psiSupports): qR = None
+    # make sure qR queries about something, not none or all of support of psi
+    supportLen = sum(_ > 0 for _ in self.mdp.psi)
+    psiSupportsAndQR = sum(self.mdp.psi[idx] > 0 for idx in qR)
+    if len(qR) == 0 or psiSupportsAndQR == supportLen: qR = None
 
     # find feat query
     qFeats = set()

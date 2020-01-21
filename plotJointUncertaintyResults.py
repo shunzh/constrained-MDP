@@ -51,7 +51,7 @@ def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False
 
 def plotLegend():
   ax = pylab.gca()
-  figLegend = pylab.figure(figsize=(3.5, 4.2))
+  figLegend = pylab.figure(figsize=(1.5, 1))
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 

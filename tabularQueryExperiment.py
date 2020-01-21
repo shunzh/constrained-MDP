@@ -22,13 +22,13 @@ from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsA
 from util import normalize, printOccSA
 
 
-def saveData(results, rnd):
+def saveData(results, rnd, prefix=''):
   """
   Save results to [rnd].pkl
   If prior results exist, update it
   """
   filename = str(rnd) + '.pkl'
-  pickle.dump(results, open(filename, 'wb'))
+  pickle.dump(results, open(prefix + filename, 'wb'))
 
 def findInitialSafePolicy(mdp, consStates, goalStates, trueFreeFeatures, rnd, consProbs=None):
   queries = {}
@@ -297,7 +297,8 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
 
     if not dry: results[method] = {'value': value, 'queries': queriesAsked, 'time':duration}
 
-    print 'rnd', rnd, method, 'obj', value - len(queriesAsked) * costOfQuery, 'value', value, '# of q', queriesAsked, 'time', duration
+    print 'RESULTS: rnd', rnd, method, 'obj', value - len(queriesAsked) * costOfQuery, 'value', value, '# of q', queriesAsked, 'time', duration
+    print
 
   return results
 
@@ -365,7 +366,7 @@ if __name__ == '__main__':
   numOfCarpets = None
   numOfSwitches = None
 
-  numOfWalls = 0
+  numOfWalls = 5
   from config import costOfQuery, trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches
 
   rnd = 0 # set a dummy random seed if no -r argument
@@ -404,6 +405,7 @@ if __name__ == '__main__':
     for numOfCarpets in numsOfCarpets:
       for numOfSwitches in numsOfSwitches:
         setRandomSeed(rnd)
+        print '# of carpets:', numOfCarpets, '# of switches:', numOfSwitches
 
         #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
         spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
@@ -413,7 +415,7 @@ if __name__ == '__main__':
         # random prior over rewards (add 0.1 to reduce variance a little bit)
         rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
-        mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=.9)
+        mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=.99)
         results[(numOfCarpets, numOfSwitches)] = experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)
 
     if not dry: saveData(results, rnd)
