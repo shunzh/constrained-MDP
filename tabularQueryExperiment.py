@@ -357,16 +357,16 @@ def setRandomSeed(rnd):
 if __name__ == '__main__':
   # default values
   method = None
-  k = 5 # dummy for sequential queries?
+  k = 5 # DUMMY for joint uncertainty experiments
 
   # the domain is size x size
-  size = 6
+  size = (10, 5)
 
   # these should be set in config
   numOfCarpets = None
   numOfSwitches = None
 
-  numOfWalls = 5
+  numOfWalls = 10
   from config import costOfQuery, trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches
 
   rnd = 0 # set a dummy random seed if no -r argument

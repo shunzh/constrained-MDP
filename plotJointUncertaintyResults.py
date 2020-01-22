@@ -51,11 +51,14 @@ def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False
 
 def plotLegend():
   ax = pylab.gca()
-  figLegend = pylab.figure(figsize=(1.5, 1))
+  figLegend = pylab.figure(figsize=(3, 2))
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
 
 if __name__ == '__main__':
+  font = {'size': 19}
+  pylab.matplotlib.rc('font', **font)
+
   from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costOfQuery
 
   constructStatsDict = lambda: {(method, numOfCarpets): [] for method in methods for numOfCarpets in numsOfCarpets}
