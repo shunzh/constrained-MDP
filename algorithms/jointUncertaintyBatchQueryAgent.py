@@ -103,10 +103,10 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     # using set cover criterion to find the best feature query
     # we only consider querying about one of the features tha are relevant to policies in qPi
     # because others are not worth querying because of their costs? (although they may contribute to finding new safe policies)
-    if len(qFeats) > 0:
-      qFeat = self.findFeatureQuery(subsetCons=qFeats)
-    else:
-      qFeat = None
+    # if len(qFeats) > 0:
+    #   qFeat = self.findFeatureQuery(subsetCons=qFeats)
+    # else:
+    #   qFeat = None
 
     # determine if continue querying is necessary
     eus = self.computeEUS(qPi)
@@ -124,7 +124,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     else:
       # return selected reward query and feature query
       # if they ask about nothing (which is None), then don't include in the candidate queries
-      queries = filter(lambda _: _[1] is not None, [('R', qR), ('F', qFeat)])
+      queries = filter(lambda _: _[1] is not None, [('R', qR)] + [('F', qFeat) for qFeat in qFeats])
       return queries
 
   def findQuery(self):

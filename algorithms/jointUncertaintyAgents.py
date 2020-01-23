@@ -236,7 +236,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     self.encodeConstraintIntoTransition(mdp)
     rewardQueryAgent = GreedyConstructRewardAgent(mdp, 2, qi=True)
 
-    # assume reward-set query has binary responses, so pose either one
+    # reward-set query has binary responses, so pose either one
     return rewardQueryAgent.findRewardSetQuery()[0]
 
   def findFeatureQuery(self, subsetCons=None):

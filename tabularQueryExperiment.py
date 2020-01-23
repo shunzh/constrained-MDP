@@ -288,6 +288,8 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     end = time.time()
     duration = end - start
 
+    expectedValue = agent.computeCurrentSafelyOptPiValue()
+
     # find the robot's policy, and evaluate under the true reward function
     # this is for fair comparision between agents, since different agents have different reward beliefs
     agentPi = agent.computeCurrentSafelyOptPi()
@@ -295,9 +297,14 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
     agent.updateReward(consistentRewards=[trueRewardIdx])
     value = agent.computeValue(agentPi)
 
-    if not dry: results[method] = {'value': value, 'queries': queriesAsked, 'time':duration}
+    if not dry: results[method] = {'value': value, 'expValue': expectedValue, 'queries': queriesAsked, 'time':duration}
 
-    print 'RESULTS: rnd', rnd, method, 'obj', value - len(queriesAsked) * costOfQuery, 'value', value, '# of q', queriesAsked, 'time', duration
+    print 'RESULTS: rnd', rnd, method,\
+      'expObj', expectedValue - len(queriesAsked) * costOfQuery,\
+      'obj', value - len(queriesAsked) * costOfQuery,\
+      'value', value,\
+      '# of q', queriesAsked,\
+      'time', duration
     print
 
   return results
@@ -360,13 +367,13 @@ if __name__ == '__main__':
   k = 5 # DUMMY for joint uncertainty experiments
 
   # the domain is size x size
-  size = (10, 5)
+  size = 6
 
   # these should be set in config
   numOfCarpets = None
   numOfSwitches = None
 
-  numOfWalls = 10
+  numOfWalls = 5
   from config import costOfQuery, trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches
 
   rnd = 0 # set a dummy random seed if no -r argument
@@ -407,15 +414,15 @@ if __name__ == '__main__':
         setRandomSeed(rnd)
         print '# of carpets:', numOfCarpets, '# of switches:', numOfSwitches
 
-        #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-        spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
+        spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
+        #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
 
         # uniform prior over rewards
         #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
         # random prior over rewards (add 0.1 to reduce variance a little bit)
         rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
-        mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=.99)
+        mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=1- 1e-2)
         results[(numOfCarpets, numOfSwitches)] = experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)
 
     if not dry: saveData(results, rnd)

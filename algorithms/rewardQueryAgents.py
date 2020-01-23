@@ -94,7 +94,6 @@ class GreedyConstructRewardAgent:
     iteratively improve one policy while fixing other policies in the query
     :return: local optimum policy query
     """
-    #map(lambda _: printOccSA(_), qPi)
     oldDominatingIndices = self.findRewardSetQuery(qPi)
     oldEUS = self.computeEUS(qPi, oldDominatingIndices)
 
