@@ -61,12 +61,11 @@ if __name__ == '__main__':
 
   from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costOfQuery
 
-  constructStatsDict = lambda: {(method, numOfCarpets): [] for method in methods for numOfCarpets in numsOfCarpets}
-
-  values = constructStatsDict()
-  numOfQueries = constructStatsDict()
-  returns = constructStatsDict()
-  times = constructStatsDict()
+  values = {}
+  numOfQueries = {}
+  returns = {}
+  expectedReturns = {}
+  times = {}
 
   for rnd in range(trialsStart, trialsEnd):
     filename = str(rnd) + '.pkl'
@@ -83,11 +82,12 @@ if __name__ == '__main__':
             createOrAppend(values, (configKey, method), results[configKey][method]['value'])
             createOrAppend(numOfQueries, (configKey, method), numQ)
             createOrAppend(returns, (configKey, method), results[configKey][method]['value'] - costOfQuery * numQ)
+            createOrAppend(expectedReturns, (configKey, method), results[configKey][method]['expValue'] - costOfQuery * numQ)
             createOrAppend(times, (configKey, method), results[configKey][method]['time'])
 
   # plot different statistics in different figures
-  statNames = ['objective', 'optimal_pi', 'number_of_queries', 'computation_time']
-  statFuncs = [returns, values, numOfQueries, times]
+  statNames = ['objective', 'expected_obj', 'optimal_pi', 'number_of_queries', 'computation_time']
+  statFuncs = [returns, expectedReturns, values, numOfQueries, times]
 
   # just to be consistent with previous plotting, plot numOfCarpets as x-axis. plot different # of switches in different figures
   for numOfSwitches in numsOfSwitches:
