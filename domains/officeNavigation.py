@@ -120,7 +120,7 @@ def carpetsAndWallsDomain():
           [R, W, W, W, W],
           [_, C, S, S, S]]
 
-  return toyWorldConstructor(map1)
+  return toyWorldConstructor(map0)
 
 # some toy domains for need-to-be-reverted features (boxes)
 def toySokobanWorld():
@@ -165,8 +165,8 @@ def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1):
   boxes = [] # no need to put in boxes for now
 
   # leave a safe path to reach the exit state
-  possibleLocs = [(x, y) for x in range(1, width) for y in range(height - 1)]
-  #possibleLocs.remove(robot)
+  possibleLocs = [(x, y) for x in range(width) for y in range(height)]
+  possibleLocs.remove(robot)
 
   # generate the list of the locations of all objects, make sure they don't overlap
   objectLocs = util.sampleSubset(possibleLocs, numOfWalls + numOfCarpets + numOfSwitches)
@@ -358,9 +358,9 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
     terminal = lambda s: s[tIndex] == spec.horizon
   else:
     # let the episode end when any switch is off
-    #terminal = lambda s: any(s[sIndex] == OFF for sIndex in sIndices)
+    terminal = lambda s: any(s[sIndex] == OFF for sIndex in sIndices)
     # define a terminal state
-    terminal = lambda s: s[locIndex] == (spec.width - 1, spec.height - 1)
+    #terminal = lambda s: s[locIndex] == (spec.width - 1, spec.height - 1)
 
   # reward of turning off a non-target switch, uniformly-random in [0, 0.5]
   #randomRewardDict = [1 + random.random() for _ in spec.switches]

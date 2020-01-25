@@ -5,8 +5,12 @@ from numpy import mean
 from matplotlib.ticker import MaxNLocator
 from util import standardErr, createOrAppend
 
-names = {'opt': 'Optimal', 'myopic': 'Myopic', 'batch': 'Batch', 'dompi': 'Dom-Pi'}
-markers = {'opt': 'r*-', 'myopic': 'bv-', 'batch': 'bo-', 'dompi': 'g^-'}
+names = {'opt': 'Optimal',
+         'myopic': 'Myopic', 'myopicReward': 'Myopic (Reward First)', 'myopicFeature': 'Myopic (Feature First)',
+         'batch': 'Batch', 'dompi': 'Dom-Pi'}
+markers = {'opt': 'r*-',
+           'myopic': 'bv-', 'myopicReward': 'bv--', 'myopicFeature': 'bv.-',
+           'batch': 'bo-', 'dompi': 'g^-'}
 
 def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False, xAxis=None, ylim=None):
   """
@@ -49,17 +53,32 @@ def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False
 
   pylab.close()
 
+def histogram(x, xlabel, filename):
+  fig = pylab.figure()
+
+  pylab.hist(x)
+
+  pylab.xlabel(xlabel)
+
+  fig.savefig(filename + ".pdf", dpi=300, format="pdf")
+  pylab.close()
+
 def plotLegend():
   ax = pylab.gca()
   figLegend = pylab.figure(figsize=(3, 2))
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
+  pylab.close()
+
+def plotDifferenceOfTwoAlgs(x1, x2, xlabel, filename):
+  diff = map(lambda elem1, elem2: elem1 - elem2, x1, x2)
+  histogram(diff, xlabel, filename)
 
 if __name__ == '__main__':
   font = {'size': 19}
   pylab.matplotlib.rc('font', **font)
 
-  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costOfQuery
+  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costsOfQuery
 
   values = {}
   numOfQueries = {}
@@ -75,23 +94,39 @@ if __name__ == '__main__':
 
       for numOfCarpets in numsOfCarpets:
         for numOfSwitches in numsOfSwitches:
-          configKey = (numOfCarpets, numOfSwitches)
-          for method in methods:
-            numQ = len(results[configKey][method]['queries'])
+          for costOfQuery in costsOfQuery:
+            configKey = (numOfCarpets, numOfSwitches, costOfQuery)
+            for method in methods:
+              numQ = len(results[configKey][method]['queries'])
 
-            createOrAppend(values, (configKey, method), results[configKey][method]['value'])
-            createOrAppend(numOfQueries, (configKey, method), numQ)
-            createOrAppend(returns, (configKey, method), results[configKey][method]['value'] - costOfQuery * numQ)
-            createOrAppend(expectedReturns, (configKey, method), results[configKey][method]['expValue'] - costOfQuery * numQ)
-            createOrAppend(times, (configKey, method), results[configKey][method]['time'])
+              createOrAppend(values, (configKey, method), results[configKey][method]['value'])
+              createOrAppend(numOfQueries, (configKey, method), numQ)
+              createOrAppend(returns, (configKey, method), results[configKey][method]['value'] - costOfQuery * numQ)
+              createOrAppend(expectedReturns, (configKey, method), results[configKey][method]['expValue'] - costOfQuery * numQ)
+              createOrAppend(times, (configKey, method), results[configKey][method]['time'])
 
   # plot different statistics in different figures
   statNames = ['objective', 'expected_obj', 'optimal_pi', 'number_of_queries', 'computation_time']
   statFuncs = [returns, expectedReturns, values, numOfQueries, times]
 
-  # just to be consistent with previous plotting, plot numOfCarpets as x-axis. plot different # of switches in different figures
+  # plot numOfCarpets as x-axis. plot different # of switches in different figures
   for numOfSwitches in numsOfSwitches:
-    for (sName, sFunc) in zip(statNames, statFuncs):
-      plot(numsOfCarpets, lambda method, numOfCarpets: sFunc[(numOfCarpets, numOfSwitches), method], methods,
-           xlabel='# of carpets', ylabel=sName,
-           filename=sName + '_' + str(numOfSwitches), intXAxis=True)
+    for costOfQuery in costsOfQuery:
+      for (sName, sFunc) in zip(statNames, statFuncs):
+        plot(numsOfCarpets, lambda method, numOfCarpets: sFunc[(numOfCarpets, numOfSwitches, costOfQuery), method], methods,
+             xlabel='# of carpets', ylabel=sName,
+             filename=sName + '_' + str(numOfSwitches) + '_' + str(costOfQuery), intXAxis=True)
+
+  """
+  # to compare different algs
+  for numOfCarpets in numsOfCarpets:
+    for numOfSwitches in numsOfSwitches:
+      configKey = (numOfCarpets, numOfSwitches)
+
+      batchResults = expectedReturns[configKey, 'batch']
+      myopicResults = expectedReturns[configKey, 'myopic']
+      domPiResults = expectedReturns[configKey, 'dompi']
+
+      plotDifferenceOfTwoAlgs(batchResults, myopicResults, 'batch - myopic', 'batch_myopic_diff_' + str(numOfCarpets) + '_' + str(numOfSwitches))
+      plotDifferenceOfTwoAlgs(batchResults, domPiResults, 'batch - dompi', 'batch_domi_diff_' + str(numOfCarpets) + '_' + str(numOfSwitches))
+  """

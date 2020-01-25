@@ -7,13 +7,12 @@ OPT_METHOD = 'gurobi'
 # make this smaller because we need to find dom pis for 2^|\R| times in joint uncertainty works
 earlyStop = 1
 
-costOfQuery = 0.01
-
 # experiment configuration
 trialsStart = 0
 trialsEnd = 500
 
-methods = ['myopic', 'batch', 'dompi']
+methods = ['myopic', 'myopicReward', 'myopicFeature', 'batch', 'dompi']
 
-numsOfCarpets = [10]
-numsOfSwitches = [2]
+numsOfCarpets = [10, 14, 18]
+numsOfSwitches = [2, 4]
+costsOfQuery = [0.01, 0.1, 0.2]

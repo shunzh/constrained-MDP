@@ -248,6 +248,12 @@ def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFea
       agent = JointUncertaintyOptimalQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
     elif method == 'myopic':
       agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+    elif method == 'myopicReward':
+      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs,
+                                                          costOfQuery=costOfQuery, heuristic='rewardFirst')
+    elif method == 'myopicFeature':
+      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs,
+                                                          costOfQuery=costOfQuery, heuristic='featureFirst')
     elif method == 'batch':
       agent = JointUncertaintyBatchQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery, qi=True)
     elif method == 'dompi':
@@ -367,14 +373,14 @@ if __name__ == '__main__':
   k = 5 # DUMMY for joint uncertainty experiments
 
   # the domain is size x size
-  size = 6
+  size = 7
 
   # these should be set in config
   numOfCarpets = None
   numOfSwitches = None
 
-  numOfWalls = 5
-  from config import costOfQuery, trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches
+  numOfWalls = 8
+  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, costsOfQuery
 
   rnd = 0 # set a dummy random seed if no -r argument
   dry = False # no output to files if dry run
@@ -411,18 +417,19 @@ if __name__ == '__main__':
     results = {}
     for numOfCarpets in numsOfCarpets:
       for numOfSwitches in numsOfSwitches:
-        setRandomSeed(rnd)
-        print '# of carpets:', numOfCarpets, '# of switches:', numOfSwitches
+        for costOfQuery in costsOfQuery:
+          setRandomSeed(rnd)
+          print '# of carpets:', numOfCarpets, '# of switches:', numOfSwitches, 'query cost', costOfQuery
 
-        spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-        #spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
+          #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
+          spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
 
-        # uniform prior over rewards
-        #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
-        # random prior over rewards (add 0.1 to reduce variance a little bit)
-        rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
+          # uniform prior over rewards
+          #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
+          # random prior over rewards (add 0.1 to reduce variance a little bit)
+          rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
-        mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=1- 1e-2)
-        results[(numOfCarpets, numOfSwitches)] = experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)
+          mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.99)
+          results[(numOfCarpets, numOfSwitches, costOfQuery)] = experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)
 
     if not dry: saveData(results, rnd)

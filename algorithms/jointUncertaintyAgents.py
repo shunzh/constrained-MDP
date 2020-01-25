@@ -218,6 +218,11 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
   Find the myopically optimal reward query and feature query, then choose the one with higher EVOI.
   Stop when EVOI is 0.
   """
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, heuristic='evoi'):
+    JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs, costOfQuery)
+
+    self.heuristic = heuristic
+
   def findRewardQuery(self):
     """
     locally construct a rewardQueryAgent for reward query selection.
@@ -269,8 +274,26 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     rewardQuery = ('R', self.findRewardQuery())
     featureQuery = ('F', self.findFeatureQuery())
 
-    return self.selectQueryBasedOnEVOI([rewardQuery, featureQuery])
-
+    if self.heuristic == 'evoi':
+      return self.selectQueryBasedOnEVOI([rewardQuery, featureQuery])
+    elif self.heuristic == 'rewardFirst':
+      # pose reward query first if not None, otherwise pose feature query
+      if rewardQuery[1] is not None:
+        return rewardQuery
+      elif featureQuery[1] is not None:
+        return featureQuery
+      else:
+        return None
+    elif self.heuristic == 'featureFirst':
+      # pose feature query first if not None, otherwise pose reward query
+      if featureQuery[1] is not None:
+        return featureQuery
+      elif rewardQuery[1] is not None:
+        return rewardQuery
+      else:
+        return None
+    else:
+      raise Exception('unknown heuristic ' + self.heuristic)
 
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
@@ -336,10 +359,12 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
           # at least (relFeats) feature queries and 1 reward-set query are needed
           weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue)
+
+          # not considering costs of querying
           # punish it by the number of queries asked
-          weightedValue -= self.costOfQuery * len(relFeats)
+          #weightedValue -= self.costOfQuery * len(relFeats)
           # reward query cost
-          if len(rIndices) < self.sizeOfRewards: weightedValue -= self.costOfQuery
+          #if len(rIndices) < self.sizeOfRewards: weightedValue -= self.costOfQuery
 
           domPisDatum.weightedValue = weightedValue
         elif self.heuristicID == 1:
