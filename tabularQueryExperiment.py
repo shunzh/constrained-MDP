@@ -373,13 +373,13 @@ if __name__ == '__main__':
   k = 5 # DUMMY for joint uncertainty experiments
 
   # the domain is size x size
-  size = 7
+  size = 8
 
   # these should be set in config
   numOfCarpets = None
   numOfSwitches = None
 
-  numOfWalls = 8
+  numOfWalls = 10
   from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, costsOfQuery
 
   rnd = 0 # set a dummy random seed if no -r argument

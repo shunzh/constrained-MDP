@@ -242,7 +242,11 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     rewardQueryAgent = GreedyConstructRewardAgent(mdp, 2, qi=True)
 
     # reward-set query has binary responses, so pose either one
-    return rewardQueryAgent.findRewardSetQuery()[0]
+    rewardQuery = rewardQueryAgent.findRewardSetQuery()[0]
+    psiSupportsAndQR = sum(self.mdp.psi[idx] > 0 for idx in rewardQuery)
+
+    if psiSupportsAndQR == 0 or psiSupportsAndQR == len(psiSupports): return None
+    else: return rewardQuery
 
   def findFeatureQuery(self, subsetCons=None):
     """

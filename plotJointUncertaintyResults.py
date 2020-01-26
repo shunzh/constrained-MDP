@@ -9,7 +9,7 @@ names = {'opt': 'Optimal',
          'myopic': 'Myopic', 'myopicReward': 'Myopic (Reward First)', 'myopicFeature': 'Myopic (Feature First)',
          'batch': 'Batch', 'dompi': 'Dom-Pi'}
 markers = {'opt': 'r*-',
-           'myopic': 'bv-', 'myopicReward': 'bv--', 'myopicFeature': 'bv.-',
+           'myopic': 'bv-', 'myopicReward': 'bv--', 'myopicFeature': 'bv:',
            'batch': 'bo-', 'dompi': 'g^-'}
 
 def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False, xAxis=None, ylim=None):

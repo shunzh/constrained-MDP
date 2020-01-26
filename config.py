@@ -15,4 +15,4 @@ methods = ['myopic', 'myopicReward', 'myopicFeature', 'batch', 'dompi']
 
 numsOfCarpets = [10, 14, 18]
 numsOfSwitches = [2, 4]
-costsOfQuery = [0.01, 0.1, 0.2]
+costsOfQuery = [0.1, 0.2]

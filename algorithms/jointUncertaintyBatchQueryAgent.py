@@ -93,7 +93,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     # make sure qR queries about something, not none or all of support of psi
     supportLen = sum(_ > 0 for _ in self.mdp.psi)
     psiSupportsAndQR = sum(self.mdp.psi[idx] > 0 for idx in qR)
-    if len(qR) == 0 or psiSupportsAndQR == supportLen: qR = None
+    if psiSupportsAndQR == 0 or psiSupportsAndQR == supportLen: qR = None
 
     # find feat query
     qFeats = set()
