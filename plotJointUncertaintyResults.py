@@ -117,16 +117,17 @@ if __name__ == '__main__':
              xlabel='# of carpets', ylabel=sName,
              filename=sName + '_' + str(numOfSwitches) + '_' + str(costOfQuery), intXAxis=True)
 
-  """
   # to compare different algs
   for numOfCarpets in numsOfCarpets:
     for numOfSwitches in numsOfSwitches:
-      configKey = (numOfCarpets, numOfSwitches)
+      for costOfQuery in costsOfQuery:
+        configKey = (numOfCarpets, numOfSwitches, costOfQuery)
 
-      batchResults = expectedReturns[configKey, 'batch']
-      myopicResults = expectedReturns[configKey, 'myopic']
-      domPiResults = expectedReturns[configKey, 'dompi']
+        batchResults = expectedReturns[configKey, 'batch']
+        myopicResults = expectedReturns[configKey, 'myopic']
+        domPiResults = expectedReturns[configKey, 'dompi']
 
-      plotDifferenceOfTwoAlgs(batchResults, myopicResults, 'batch - myopic', 'batch_myopic_diff_' + str(numOfCarpets) + '_' + str(numOfSwitches))
-      plotDifferenceOfTwoAlgs(batchResults, domPiResults, 'batch - dompi', 'batch_domi_diff_' + str(numOfCarpets) + '_' + str(numOfSwitches))
-  """
+        plotDifferenceOfTwoAlgs(batchResults, myopicResults, 'batch - myopic', 'batch_myopic_diff_'
+                                + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
+        plotDifferenceOfTwoAlgs(batchResults, domPiResults, 'batch - dompi', 'batch_domi_diff_'
+                                + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
