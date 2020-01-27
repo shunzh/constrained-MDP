@@ -280,24 +280,18 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
 
     if self.heuristic == 'evoi':
       return self.selectQueryBasedOnEVOI([rewardQuery, featureQuery])
-    elif self.heuristic == 'rewardFirst':
-      # pose reward query first if not None, otherwise pose feature query
-      if rewardQuery[1] is not None:
-        return rewardQuery
-      elif featureQuery[1] is not None:
-        return featureQuery
-      else:
-        return None
-    elif self.heuristic == 'featureFirst':
-      # pose feature query first if not None, otherwise pose reward query
-      if featureQuery[1] is not None:
-        return featureQuery
-      elif rewardQuery[1] is not None:
-        return rewardQuery
-      else:
-        return None
     else:
-      raise Exception('unknown heuristic ' + self.heuristic)
+      rewardQuery = self.selectQueryBasedOnEVOI([rewardQuery])
+      featureQuery = self.selectQueryBasedOnEVOI([featureQuery])
+
+      if self.heuristic == 'rewardFirst':
+        # pose reward query first if not None, otherwise pose feature query
+        return rewardQuery if rewardQuery is not None else featureQuery
+      elif self.heuristic == 'featureFirst':
+        # pose feature query first if not None, otherwise pose reward query
+        return featureQuery if featureQuery is not None else rewardQuery
+      else:
+        raise Exception('unknown heuristic ' + self.heuristic)
 
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
@@ -424,7 +418,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       if config.VERBOSE: print 'nothing to query'
       return None
     else:
-      return self.selectQueryBasedOnEVOI(queries, considerCost=False)
+      return self.selectQueryBasedOnEVOI(queries)
 
   def findQuery(self):
     """

@@ -65,7 +65,7 @@ def histogram(x, xlabel, filename):
 
 def plotLegend():
   ax = pylab.gca()
-  figLegend = pylab.figure(figsize=(3, 2))
+  figLegend = pylab.figure(figsize=(4, 2.5))
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
   pylab.close()
