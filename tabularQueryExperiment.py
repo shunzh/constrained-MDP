@@ -1,6 +1,5 @@
 import copy
 import getopt
-import os
 import pickle
 import random
 import sys

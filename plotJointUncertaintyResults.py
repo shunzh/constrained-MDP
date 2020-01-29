@@ -59,7 +59,9 @@ def histogram(x, xlabel, filename):
   pylab.hist(x)
 
   pylab.xlabel(xlabel)
+  pylab.ylabel('frequency')
 
+  pylab.gcf().subplots_adjust(bottom=0.15, left=0.15)
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
   pylab.close()
 
@@ -72,6 +74,7 @@ def plotLegend():
 
 def plotDifferenceOfTwoAlgs(x1, x2, xlabel, filename):
   diff = map(lambda elem1, elem2: elem1 - elem2, x1, x2)
+  print filename, sum(_ == 0 for _ in diff)
   histogram(diff, xlabel, filename)
 
 if __name__ == '__main__':
@@ -106,7 +109,7 @@ if __name__ == '__main__':
               createOrAppend(times, (configKey, method), results[configKey][method]['time'])
 
   # plot different statistics in different figures
-  statNames = ['objective', 'expected_obj', 'optimal_pi', 'number_of_queries', 'computation_time']
+  statNames = ['objective', 'expected obj', 'policy value', 'number of queries', 'computation time (sec.)']
   statFuncs = [returns, expectedReturns, values, numOfQueries, times]
 
   # plot numOfCarpets as x-axis. plot different # of switches in different figures
@@ -123,9 +126,9 @@ if __name__ == '__main__':
       for costOfQuery in costsOfQuery:
         configKey = (numOfCarpets, numOfSwitches, costOfQuery)
 
-        batchResults = expectedReturns[configKey, 'batch']
-        myopicResults = expectedReturns[configKey, 'myopic']
-        domPiResults = expectedReturns[configKey, 'dompi']
+        batchResults = returns[configKey, 'batch']
+        myopicResults = returns[configKey, 'myopic']
+        domPiResults = returns[configKey, 'dompi']
 
         plotDifferenceOfTwoAlgs(batchResults, myopicResults, 'batch - myopic', 'batch_myopic_diff_'
                                 + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))

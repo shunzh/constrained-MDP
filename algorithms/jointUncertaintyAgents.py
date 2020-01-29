@@ -331,7 +331,6 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     """
     domPisData = []
 
-    priorValue = self.computeCurrentSafelyOptPiValue()
     consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
 
     for rIndices in powerset(consistentRewardIndices, minimum=1, maximum=self.sizeOfRewards):
@@ -356,7 +355,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
           rPositiveValue = rewardPositiveConsAgent.computeValue(domPi)
 
           # at least (relFeats) feature queries and 1 reward-set query are needed
-          weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue)
+          weightedValue = safeProb * sumOfPsi * rPositiveValue
 
           # not considering costs of querying
           # punish it by the number of queries asked
@@ -404,6 +403,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     if not set(self.objectDomPiData.optimizedRewards).issubset(consistentRewardIndices):
       if config.VERBOSE: print 'some optimized reward known to be false'
       return None
+
     # otherwise, try to find a reward query
     qReward = set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices)
     if len(qReward) > 0 and len(qReward) < len(consistentRewardIndices):
@@ -418,7 +418,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       if config.VERBOSE: print 'nothing to query'
       return None
     else:
-      return self.selectQueryBasedOnEVOI(queries)
+      return self.selectQueryBasedOnEVOI(queries, considerCost=False)
 
   def findQuery(self):
     """
