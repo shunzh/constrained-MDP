@@ -227,94 +227,88 @@ def improveSafePolicyMMR(mdp, consStates, k, rnd):
 
     print mrk, regret, runTime
 
-def jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardIdx, trueFreeFeatures, rnd, dry, costOfQuery):
+def jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardIdx, trueFreeFeatures, rnd, costOfQuery):
   """
   Query under both reward uncertainty and safety constraint uncertainty.
 
   For now, assume initial safe policies exist and the robot can pose at most k queries
   """
   results = {}
-  from config import methods
 
-  for method in methods:
-    # the agent is going to modify mdp.psi, so make copies here
-    mdpForAgent = copy.deepcopy(mdp)
-    queriesAsked = []
+  # the agent is going to modify mdp.psi, so make copies here
+  mdpForAgent = copy.deepcopy(mdp)
+  queriesAsked = []
 
-    start = time.time()
+  start = time.time()
 
-    if method == 'opt':
-      agent = JointUncertaintyOptimalQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
-    elif method == 'myopic':
-      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
-    elif method == 'myopicReward':
-      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs,
-                                                          costOfQuery=costOfQuery, heuristic='rewardFirst')
-    elif method == 'myopicFeature':
-      agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs,
-                                                          costOfQuery=costOfQuery, heuristic='featureFirst')
-    elif method == 'batch':
-      agent = JointUncertaintyBatchQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery, qi=True)
-    elif method == 'dompi':
-      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
-                                                         costOfQuery=costOfQuery, heuristicID=0)
-    elif method == 'dompiUniform':
-      agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
-                                                         costOfQuery=costOfQuery, heuristicID=1)
-    elif method == 'random':
-      agent = JointUncertaintyRandomQuery(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+  if method == 'opt':
+    agent = JointUncertaintyOptimalQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+  elif method == 'myopic':
+    agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+  elif method == 'myopicReward':
+    agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs,
+                                                        costOfQuery=costOfQuery, heuristic='rewardFirst')
+  elif method == 'myopicFeature':
+    agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs,
+                                                        costOfQuery=costOfQuery, heuristic='featureFirst')
+  elif method == 'batch':
+    agent = JointUncertaintyBatchQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery, qi=True)
+  elif method == 'dompi':
+    agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
+                                                       costOfQuery=costOfQuery, heuristicID=0)
+  elif method == 'dompiUniform':
+    agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
+                                                       costOfQuery=costOfQuery, heuristicID=1)
+  elif method == 'random':
+    agent = JointUncertaintyRandomQuery(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
+  else:
+    raise Exception('unknown method ' + str(method))
+
+  while True:
+    query = agent.findQuery()
+
+    if query is None:
+      break
     else:
-      raise Exception('unknown method ' + str(method))
+      queriesAsked.append(query)
+      (qType, qContent) = query
+      if config.VERBOSE: print 'QUERY POSED', query
 
-    while True:
-      query = agent.findQuery()
-
-      if query is None:
-        break
-      else:
-        queriesAsked.append(query)
-        (qType, qContent) = query
-        if config.VERBOSE: print 'QUERY POSED', query
-
-        if qType == 'F':
-          # a feature query
-          if qContent in trueFreeFeatures:
-            agent.updateFeats(newFreeCon=qContent)
-          else:
-            agent.updateFeats(newLockedCon=qContent)
-        elif qType == 'R':
-          if trueRewardIdx in qContent:
-            agent.updateReward(consistentRewards=qContent)
-          else:
-            agent.updateReward(inconsistentRewards=qContent)
+      if qType == 'F':
+        # a feature query
+        if qContent in trueFreeFeatures:
+          agent.updateFeats(newFreeCon=qContent)
         else:
-          raise Exception('unknown qType ' + qType)
+          agent.updateFeats(newLockedCon=qContent)
+      elif qType == 'R':
+        if trueRewardIdx in qContent:
+          agent.updateReward(consistentRewards=qContent)
+        else:
+          agent.updateReward(inconsistentRewards=qContent)
+      else:
+        raise Exception('unknown qType ' + qType)
 
-    end = time.time()
-    duration = end - start
+  end = time.time()
+  duration = end - start
 
-    expectedValue = agent.computeCurrentSafelyOptPiValue()
+  # find the robot's policy, and evaluate under the true reward function
+  # this is for fair comparision between agents, since different agents have different reward beliefs
+  agentPi = agent.computeCurrentSafelyOptPi()
+  # set the reward function in-place, we are not going to use agent after this anyway
+  agent.updateReward(consistentRewards=[trueRewardIdx])
+  value = agent.computeValue(agentPi)
 
-    # find the robot's policy, and evaluate under the true reward function
-    # this is for fair comparision between agents, since different agents have different reward beliefs
-    agentPi = agent.computeCurrentSafelyOptPi()
-    # set the reward function in-place, we are not going to use agent after this anyway
-    agent.updateReward(consistentRewards=[trueRewardIdx])
-    value = agent.computeValue(agentPi)
+  print 'RESULTS: rnd', rnd, method,\
+    'obj', value - len(queriesAsked) * costOfQuery,\
+    'value', value,\
+    'queries', queriesAsked,\
+    'time', duration
+  print
 
-    if not dry: results[method] = {'value': value, 'expValue': expectedValue, 'queries': queriesAsked, 'time':duration}
-
-    print 'RESULTS: rnd', rnd, method,\
-      'expObj', expectedValue - len(queriesAsked) * costOfQuery,\
-      'obj', value - len(queriesAsked) * costOfQuery,\
-      'value', value,\
-      '# of q', queriesAsked,\
-      'time', duration
-    print
-
+  results = {'value': value, 'queries': queriesAsked, 'time': duration}
   return results
 
-def experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0, pfStep=1, costOfQuery=0.0):
+def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, costOfQuery=0.0):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
@@ -331,34 +325,30 @@ def experiment(mdp, consStates, goalStates, k, rnd, dry, pf=0, pfStep=1, costOfQ
   consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
   print 'consProbs', zip(range(numOfCons), consProbs)
 
-  # true free features, randomly generated
-  trueFreeFeatures = filter(lambda idx: random.random() < consProbs[idx], range(numOfCons))
+  from config import sampleInstances, methods
 
-  trueRewardFuncIdx = numpy.random.choice(range(numOfRewards), p=mdp.psi)
+  keys = ['value', 'queries', 'time']
 
-  # or hand designed
-  print 'true free features', trueFreeFeatures
-  print 'true reward function index', trueRewardFuncIdx
+  batch_results = {}
+  for method in methods:
+    batch_results[method] = {key: [] for key in keys}
 
-  """
-  # build a cons query agent just for determining if any safe policy exists
-  agent = ConsQueryAgent(mdp, consStates, goalStates=goalStates, consProbs=consProbs)
-  
-  if not agent.initialSafePolicyExists():
-    print 'initial safe policy does not exist'
+  for instanceIdx in range(sampleInstances):
+    # true free features, randomly generated
+    trueFreeFeatures = filter(lambda idx: random.random() < consProbs[idx], range(numOfCons))
+    trueRewardFuncIdx = numpy.random.choice(range(numOfRewards), p=mdp.psi)
 
-    # when the initial safe policy does not exist, we sequentially pose queries to find one safe policy
-    findInitialSafePolicy(mdp, consStates, goalStates, trueFreeFeatures, rnd, consProbs)
-  else:
-    print 'initial policy exists'
+    for method in methods:
+      print 'true free features', trueFreeFeatures
+      print 'true reward function index', trueRewardFuncIdx
 
-    # IJCAI'18 paper: when initial safe policies exist, we want to improve such a safe policy using batch queries
-    improveSafePolicyMMR(mdp, consStates, k, rnd)
-  """
+      # under joint uncertainty:
+      results = jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, costOfQuery)
 
-  # under joint uncertainty:
-  return jointUncertaintyQuery(mdp, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, dry, costOfQuery)
+      for key in keys:
+        batch_results[method][key].append(results[key])
 
+  return batch_results
 
 def setRandomSeed(rnd):
   print 'random seed', rnd
