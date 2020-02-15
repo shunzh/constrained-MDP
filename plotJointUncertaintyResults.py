@@ -81,7 +81,7 @@ if __name__ == '__main__':
   font = {'size': 19}
   pylab.matplotlib.rc('font', **font)
 
-  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costsOfQuery
+  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costsOfQuery, sampleInstances
 
   values = {}
   numOfQueries = {}
@@ -100,17 +100,16 @@ if __name__ == '__main__':
           for costOfQuery in costsOfQuery:
             configKey = (numOfCarpets, numOfSwitches, costOfQuery)
             for method in methods:
-              numQ = len(results[configKey][method]['queries'])
+              numQs = map(lambda _: len(_), results[configKey][method]['queries'])
 
-              createOrAppend(values, (configKey, method), results[configKey][method]['value'])
-              createOrAppend(numOfQueries, (configKey, method), numQ)
-              createOrAppend(returns, (configKey, method), results[configKey][method]['value'] - costOfQuery * numQ)
-              createOrAppend(expectedReturns, (configKey, method), results[configKey][method]['expValue'] - costOfQuery * numQ)
-              createOrAppend(times, (configKey, method), results[configKey][method]['time'])
+              createOrAppend(values, (configKey, method), mean(results[configKey][method]['value']))
+              createOrAppend(numOfQueries, (configKey, method), mean(numQs))
+              createOrAppend(returns, (configKey, method), mean(results[configKey][method]['value']) - costOfQuery * mean(numQs))
+              createOrAppend(times, (configKey, method), mean(results[configKey][method]['time']))
 
   # plot different statistics in different figures
-  statNames = ['objective', 'expected obj', 'policy value', 'number of queries', 'computation time (sec.)']
-  statFuncs = [returns, expectedReturns, values, numOfQueries, times]
+  statNames = ['objective', 'policy value', 'number of queries', 'computation time (sec.)']
+  statFuncs = [returns, values, numOfQueries, times]
 
   # plot numOfCarpets as x-axis. plot different # of switches in different figures
   for numOfSwitches in numsOfSwitches:

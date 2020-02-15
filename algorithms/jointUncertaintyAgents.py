@@ -135,6 +135,7 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     else:
       return optQueryAndEVOI[0]
 
+
 class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):
   """
   Find the optimal query policy by dynamic programming.
@@ -348,26 +349,21 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
         domPisDatum = self.DomPiData(pi=domPi, optimizedRewards=rIndices, violatedCons=relFeats)
 
-        if self.heuristicID == 0:
-          # we are going to query about rIndices and relFeatures
-          # we regard them as batch queries and compute the possible responses
-          safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
-          rPositiveValue = rewardPositiveConsAgent.computeValue(domPi)
+        # we are going to query about rIndices and relFeatures
+        # we regard them as batch queries and compute the possible responses
+        safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
+        rPositiveValue = rewardPositiveConsAgent.computeValue(domPi)
 
-          # at least (relFeats) feature queries and 1 reward-set query are needed
-          weightedValue = safeProb * sumOfPsi * rPositiveValue
+        # at least (relFeats) feature queries and 1 reward-set query are needed
+        weightedValue = safeProb * sumOfPsi * rPositiveValue
 
-          # not considering costs of querying
-          # punish it by the number of queries asked
-          #weightedValue -= self.costOfQuery * len(relFeats)
-          # reward query cost
-          #if len(rIndices) < self.sizeOfRewards: weightedValue -= self.costOfQuery
+        # not considering costs of querying
+        # punish it by the number of queries asked
+        #weightedValue -= self.costOfQuery * len(relFeats)
+        # reward query cost
+        #if len(rIndices) < self.sizeOfRewards: weightedValue -= self.costOfQuery
 
-          domPisDatum.weightedValue = weightedValue
-        elif self.heuristicID == 1:
-          domPisDatum.weightedValue = 1.0
-        else:
-          raise Exception('unknown heuristicID ' + str(self.heuristicID))
+        domPisDatum.weightedValue = weightedValue
 
         domPisData.append(domPisDatum)
 
