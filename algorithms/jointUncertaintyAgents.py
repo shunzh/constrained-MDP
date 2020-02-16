@@ -332,6 +332,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     """
     domPisData = []
 
+    priorValue = self.computeCurrentSafelyOptPiValue()
     consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
 
     for rIndices in powerset(consistentRewardIndices, minimum=1, maximum=self.sizeOfRewards):
@@ -347,7 +348,6 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       for domPi in domPis:
         relFeats = rewardPositiveConsAgent.findViolatedConstraints(domPi)
 
-        domPisDatum = self.DomPiData(pi=domPi, optimizedRewards=rIndices, violatedCons=relFeats)
 
         # we are going to query about rIndices and relFeatures
         # we regard them as batch queries and compute the possible responses
@@ -355,25 +355,21 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
         rPositiveValue = rewardPositiveConsAgent.computeValue(domPi)
 
         # at least (relFeats) feature queries and 1 reward-set query are needed
-        weightedValue = safeProb * sumOfPsi * rPositiveValue
+        weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue - self.costOfQuery * len(relFeats))
 
-        # not considering costs of querying
-        # punish it by the number of queries asked
-        #weightedValue -= self.costOfQuery * len(relFeats)
         # reward query cost
         #if len(rIndices) < self.sizeOfRewards: weightedValue -= self.costOfQuery
 
-        domPisDatum.weightedValue = weightedValue
-
-        domPisData.append(domPisDatum)
+        if weightedValue > 0:
+          # only add dom pi info when it's beneficial to query about this
+          domPisDatum = self.DomPiData(pi=domPi, optimizedRewards=rIndices, violatedCons=relFeats)
+          domPisDatum.weightedValue = weightedValue
+          domPisData.append(domPisDatum)
 
     if len(domPisData) > 0:
       self.objectDomPiData = max(domPisData, key=lambda datum: datum.weightedValue)
-
-    if len(domPisData) == 0 or self.objectDomPiData.weightedValue <= 0:
-      # no dompis to consider, or the value says nothing worth querying
+    else:
       self.objectDomPiData = None
-      return
 
     if config.VERBOSE: print 'chosen dom pi', self.objectDomPiData
 
@@ -400,13 +396,13 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       if config.VERBOSE: print 'some optimized reward known to be false'
       return None
 
-    # otherwise, try to find a reward query
+    # compute a reward query based on objective dompi
     qReward = set(self.objectDomPiData.optimizedRewards).intersection(consistentRewardIndices)
     if len(qReward) > 0 and len(qReward) < len(consistentRewardIndices):
       # if we do have something to query about, that is, not asking about all or none of the consistent rewards
       queries.append(('R', qReward))
 
-    # then we consider feature queries
+    # compute feature queries based on objective dompi
     unknownRelFeats = set(self.objectDomPiData.violatedCons).intersection(self.unknownCons)
     queries += [('F', feat) for feat in unknownRelFeats]
 

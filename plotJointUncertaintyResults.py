@@ -54,9 +54,12 @@ def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False
   pylab.close()
 
 def histogram(x, xlabel, filename):
+  numOfMatch = sum(_ == 0 for _ in x)
+
   fig = pylab.figure()
 
   pylab.hist(x)
+  pylab.plot((0, 0), (0, numOfMatch), marker='+', color='black', linewidth=3, markersize=15)
 
   pylab.xlabel(xlabel)
   pylab.ylabel('frequency')
@@ -74,8 +77,8 @@ def plotLegend():
 
 def plotDifferenceOfTwoAlgs(x1, x2, xlabel, filename):
   diff = map(lambda elem1, elem2: elem1 - elem2, x1, x2)
-  print filename, sum(_ == 0 for _ in diff)
   histogram(diff, xlabel, filename)
+
 
 if __name__ == '__main__':
   font = {'size': 19}

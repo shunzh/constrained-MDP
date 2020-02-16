@@ -1,1 +1,1 @@
-rsync -avzh experiments shunzh@oncampus-course.engin.umich.edu:~/results/reward-uncertain-MDP
+rsync -avzh experiments shunzh@oncampus-course.engin.umich.edu:~/results/reward-uncertain-MDP --delete
