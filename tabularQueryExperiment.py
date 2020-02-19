@@ -383,10 +383,13 @@ if __name__ == '__main__':
       k = int(arg)
     elif opt == '-m':
       size = int(arg)
+
+    # only run specific set-ups
     elif opt == '-n':
-      numOfCarpets = int(arg)
+      numsOfCarpets = [int(arg)]
     elif opt == '-s':
-      numOfSwitches = int(arg)
+      numsOfSwitches = [int(arg)]
+
     elif opt == '-r':
       rnd = int(arg)
 
@@ -419,6 +422,6 @@ if __name__ == '__main__':
           rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
           mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.99)
-          results[(numOfCarpets, numOfSwitches, costOfQuery)] = experiment(mdp, consStates, goalStates, k, rnd, dry, costOfQuery=costOfQuery)
+          results[(numOfCarpets, numOfSwitches, costOfQuery)] = experiment(mdp, consStates, goalStates, k, rnd, costOfQuery=costOfQuery)
 
     if not dry: saveData(results, rnd)

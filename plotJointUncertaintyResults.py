@@ -58,8 +58,9 @@ def histogram(x, xlabel, filename):
 
   fig = pylab.figure()
 
-  pylab.hist(x)
-  pylab.plot((0, 0), (0, numOfMatch), marker='+', color='black', linewidth=3, markersize=15)
+  pylab.hist(x, bins=map((0.2).__mul__, range(-5, 6)))
+  # draw a vertical line that highlight the number of matches
+  pylab.plot((0, 0), (0, numOfMatch), marker='+', color='black', linewidth=3, markeredgewidth=2, markersize=15)
 
   pylab.xlabel(xlabel)
   pylab.ylabel('frequency')
@@ -77,6 +78,8 @@ def plotLegend():
 
 def plotDifferenceOfTwoAlgs(x1, x2, xlabel, filename):
   diff = map(lambda elem1, elem2: elem1 - elem2, x1, x2)
+  # print random seeds where diff is negative
+  print filter(lambda x: diff[x] < 0, range(len(diff)))
   histogram(diff, xlabel, filename)
 
 
@@ -84,7 +87,7 @@ if __name__ == '__main__':
   font = {'size': 19}
   pylab.matplotlib.rc('font', **font)
 
-  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costsOfQuery, sampleInstances
+  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costsOfQuery
 
   values = {}
   numOfQueries = {}
@@ -132,7 +135,10 @@ if __name__ == '__main__':
         myopicResults = returns[configKey, 'myopic']
         domPiResults = returns[configKey, 'dompi']
 
+        print numOfCarpets, numOfSwitches
+        print 'vs myopic'
         plotDifferenceOfTwoAlgs(batchResults, myopicResults, 'batch - myopic', 'batch_myopic_diff_'
                                 + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
+        print 'vs dompi'
         plotDifferenceOfTwoAlgs(batchResults, domPiResults, 'batch - dompi', 'batch_domi_diff_'
                                 + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))

@@ -332,7 +332,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     """
     domPisData = []
 
-    priorValue = self.computeCurrentSafelyOptPiValue()
+    priorPi = self.computeCurrentSafelyOptPi()
     consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
 
     for rIndices in powerset(consistentRewardIndices, minimum=1, maximum=self.sizeOfRewards):
@@ -348,11 +348,13 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       for domPi in domPis:
         relFeats = rewardPositiveConsAgent.findViolatedConstraints(domPi)
 
-
         # we are going to query about rIndices and relFeatures
         # we regard them as batch queries and compute the possible responses
         safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
         rPositiveValue = rewardPositiveConsAgent.computeValue(domPi)
+
+        # priorPi is feasible under relFeats since priorPi is safer (before querying)
+        priorValue = rewardPositiveConsAgent.computeValue(priorPi)
 
         # at least (relFeats) feature queries and 1 reward-set query are needed
         weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue - self.costOfQuery * len(relFeats))
