@@ -3,6 +3,8 @@ import pickle
 import pylab
 from numpy import mean
 from matplotlib.ticker import MaxNLocator
+
+from domains.officeNavigation import squareWorldStats
 from util import standardErr, createOrAppend
 
 names = {'opt': 'Optimal',
@@ -95,6 +97,8 @@ if __name__ == '__main__':
   expectedReturns = {}
   times = {}
 
+  domainStats = {}
+
   for rnd in range(trialsStart, trialsEnd):
     filename = str(rnd) + '.pkl'
     # simply skip trials that are not run
@@ -103,6 +107,9 @@ if __name__ == '__main__':
 
       for numOfCarpets in numsOfCarpets:
         for numOfSwitches in numsOfSwitches:
+          spec = results[(numOfCarpets, numOfSwitches)]
+          createOrAppend(domainStats, (numOfCarpets, numOfSwitches), squareWorldStats(spec))
+
           for costOfQuery in costsOfQuery:
             configKey = (numOfCarpets, numOfSwitches, costOfQuery)
             for method in methods:
