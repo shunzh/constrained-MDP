@@ -88,6 +88,15 @@ class ConsQueryAgent():
       raise Exception('unknown method')
 
   """
+  Useful wrapper functions for the one above.
+  """
+  def computeCurrentSafelyOptPi(self):
+    return self.findConstrainedOptPi(activeCons=self.unknownCons)['pi']
+
+  def computeCurrentSafelyOptPiValue(self):
+    return self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
+
+  """
   Methods for finding dominating policies and relevant features
   """
   def findRelevantFeaturesBruteForce(self):

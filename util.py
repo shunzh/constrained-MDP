@@ -46,6 +46,10 @@ def sampleSubset(elems, subsetSize):
   selectedIndices = np.random.choice(range(len(elems)), subsetSize, replace=False)
   return [elems[idx] for idx in selectedIndices]
 
+def getManhattanDistance(v1, v2):
+  assert len(v1) == len(v2)
+  return sum(abs(x - y) for x, y in zip(v1, v2))
+
 def getValueDistance(w1, w2):
   """
     Return:

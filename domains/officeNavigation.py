@@ -106,21 +106,21 @@ def carpetsAndWallsDomain():
           [_, S],
           [_, _]]
 
-  map1 = [[R, C, C, S],
-          [_, W, W, W],
-          [_, C, C, S],
-          [_, W, W, W],
-          [_, _, _, _]]
+  map1 = [[_, C, S],
+          [_, W, W],
+          [R, C, S],
+          [_, W, W],
+          [_, C, S]]
 
-  map2 = [[R, C, C, _],
-          [_, W, W, S],
-          [_, C, C, _]]
+  map2 = [[R, C, C, S],
+          [_, W, W, W],
+          [_, C, C, S]]
 
   map3 = [[_, C, S, S, S],
           [R, W, W, W, W],
           [_, C, S, S, S]]
 
-  return toyWorldConstructor(map0)
+  return toyWorldConstructor(map2)
 
 # some toy domains for need-to-be-reverted features (boxes)
 def toySokobanWorld():
@@ -177,6 +177,19 @@ def squareWorld(size, numOfCarpets, numOfWalls, numOfSwitches=1):
 
   return Spec(width, height, robot, switches, walls, doors, boxes, carpets)
 
+def squareWorldStats(spec):
+  """
+  :param spec: a square world instance
+  :return: some stats that see if they correlate with some empirical results
+  """
+  switchDis = 1.0 * sum(util.getManhattanDistance(switch1, switch2) for switch1 in spec.switches for switch2 in spec.switches if switch2 != switch1)\
+              / (len(spec.switches) * (len(spec.switches) - 1))
+
+  switchToRobotDis = 1.0 * sum(util.getManhattanDistance(spec.robot, switch) for switch in spec.switches)\
+                     / len(spec.switches)
+
+  return {'switchDis': switchDis, 'switchToRobotDis': switchToRobotDis}
+
 def parameterizedSokobanWorld(size, numOfBoxes):
   width = height = size
   
@@ -218,7 +231,7 @@ def plotDomain(spec):
     print '%4d' % x,
   print
 
-def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
+def officeNavigationTask(spec, rewardProbs, gamma=.9):
   """
   spec: specification of the factored mdp
   gamma: discounting factor
@@ -362,8 +375,8 @@ def officeNavigationTask(spec, rewardProbs=[1], gamma=.9):
     # define a terminal state
     #terminal = lambda s: s[locIndex] == (spec.width - 1, spec.height - 1)
 
-  # reward of turning off a non-target switch, uniformly-random in [0, 0.5]
-  #randomRewardDict = [1 + random.random() for _ in spec.switches]
+  # use random rewards?
+  #rewards = [1 + random.random() for _ in spec.switches]
 
   # give reward of 2 when the target switch is turned off
   # otherwise, give reward of random.random(), stored in randomRewardDict

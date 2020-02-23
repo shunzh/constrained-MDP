@@ -28,12 +28,6 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
   def computeConsistentRewardIndices(self, psi):
     return filter(lambda rIdx: psi[rIdx] > 0, range(self.sizeOfRewards))
 
-  def computeCurrentSafelyOptPi(self):
-    return self.findConstrainedOptPi(activeCons=self.unknownCons)['pi']
-
-  def computeCurrentSafelyOptPiValue(self):
-    return self.findConstrainedOptPi(activeCons=self.unknownCons)['obj']
-
   def encodeConstraintIntoTransition(self, mdp):
     """
     revise the transition function in-place
@@ -72,20 +66,12 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     mdp.transit = None
     mdp.invertT = None
 
-  def addFeatQueryCostToReward(self, mdp):
-    """
-    DEPRECATED
-    discourage the robot from violating safety constraints but put the cost of query into the reward.
-    looks like the easiest way is to change all reward candidates
-    """
-    cons = [self.consStates[_] for _ in self.unknownCons]
-
-    isAnUnsafeState = lambda s: any(s in conStates for conStates in cons)
-    newRFuncs = map(lambda r: lambda s, a: r(s, a) - self.costOfQuery if isAnUnsafeState(s) else r(s, a), mdp.rFuncs)
-
-    mdp.setReward(zip(newRFuncs, mdp.psi))
-
   def computeEVOI(self, query):
+    """
+    Compute the EVOI of the provided query (not query set)
+
+    :param query:  can be a feature query ('F', feat) or a reward query ('R', rewards)
+    """
     (qType, qContent) = query
     # if the query gives up, then epu is 0
     if qContent is None: return 0
@@ -119,6 +105,11 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     return evoi
 
   def selectQueryBasedOnEVOI(self, queries, considerCost=True):
+    """
+    :param queries: a set of queries
+    :param considerCost:  if True, then return None if the EVOI of the best query is < costOfQuery
+    :return: the query that has the highest EVOI
+    """
     queryAndEVOIs = []
 
     for query in queries:
@@ -314,9 +305,9 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     (prob that it is safe, prob that the reward it optimizes is the true reward, and the value of the policy),
     the rewards it optimizes, and the constraints that it violates
     """
-    def __init__(self, pi=None, optimizedRewards=[], violatedCons=[]):
+    def __init__(self, pi=None, weightedValue=0, optimizedRewards=[], violatedCons=[]):
       self.pi = pi
-      self.weightedValue = 0
+      self.weightedValue = weightedValue
       self.optimizedRewards = optimizedRewards
       self.violatedCons = violatedCons
 
@@ -359,14 +350,9 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
         # at least (relFeats) feature queries and 1 reward-set query are needed
         weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue - self.costOfQuery * len(relFeats))
 
-        # reward query cost
-        #if len(rIndices) < self.sizeOfRewards: weightedValue -= self.costOfQuery
-
         if weightedValue > 0:
           # only add dom pi info when it's beneficial to query about this
-          domPisDatum = self.DomPiData(pi=domPi, optimizedRewards=rIndices, violatedCons=relFeats)
-          domPisDatum.weightedValue = weightedValue
-          domPisData.append(domPisDatum)
+          domPisData.append(self.DomPiData(pi=domPi, weightedValue=weightedValue, optimizedRewards=rIndices, violatedCons=relFeats))
 
     if len(domPisData) > 0:
       self.objectDomPiData = max(domPisData, key=lambda datum: datum.weightedValue)
@@ -416,7 +402,8 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
   def findQuery(self):
     """
-    sample some dominating policies, find the most useful query?
+    Find the dom pi with the highest score, if any exists,
+    Then find its relevant feature that has the highest EVOI value.
     :return: (query type, query)
     """
     query = self.attemptToFindQuery()
@@ -441,4 +428,3 @@ class JointUncertaintyRandomQuery(JointUncertaintyQueryAgent):
     noneQuery = None
 
     return random.choice(featQueries + [rewardQuery] + [noneQuery])
-

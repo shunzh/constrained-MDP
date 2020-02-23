@@ -17,7 +17,7 @@ from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelec
   JointUncertaintyQueryBySamplingDomPisAgent
 from algorithms.jointUncertaintyBatchQueryAgent import JointUncertaintyBatchQueryAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
-from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
+from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain, squareWorldStats
 from util import normalize, printOccSA
 
 
@@ -409,19 +409,21 @@ if __name__ == '__main__':
     results = {}
     for numOfCarpets in numsOfCarpets:
       for numOfSwitches in numsOfSwitches:
+        setRandomSeed(rnd)
+
+        #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
+        spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
+
+        # uniform prior over rewards
+        #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
+        # random prior over rewards (add 0.1 to reduce variance a little bit)
+        rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
+
         for costOfQuery in costsOfQuery:
-          setRandomSeed(rnd)
           print '# of carpets:', numOfCarpets, '# of switches:', numOfSwitches, 'query cost', costOfQuery
-
-          #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-          spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
-
-          # uniform prior over rewards
-          #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
-          # random prior over rewards (add 0.1 to reduce variance a little bit)
-          rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
-
           mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.99)
           results[(numOfCarpets, numOfSwitches, costOfQuery)] = experiment(mdp, consStates, goalStates, k, rnd, costOfQuery=costOfQuery)
+
+        results[(numOfCarpets, numOfSwitches)] = squareWorldStats(spec)
 
     if not dry: saveData(results, rnd)
