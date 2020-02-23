@@ -17,7 +17,7 @@ from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelec
   JointUncertaintyQueryBySamplingDomPisAgent
 from algorithms.jointUncertaintyBatchQueryAgent import JointUncertaintyBatchQueryAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
-from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain, squareWorldStats
+from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
 from util import normalize, printOccSA
 
 
@@ -424,6 +424,6 @@ if __name__ == '__main__':
           mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.99)
           results[(numOfCarpets, numOfSwitches, costOfQuery)] = experiment(mdp, consStates, goalStates, k, rnd, costOfQuery=costOfQuery)
 
-        results[(numOfCarpets, numOfSwitches)] = squareWorldStats(spec)
+        results[(numOfCarpets, numOfSwitches)] = spec
 
     if not dry: saveData(results, rnd)
