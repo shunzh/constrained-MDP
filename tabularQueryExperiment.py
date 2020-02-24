@@ -1,5 +1,7 @@
+import collections
 import copy
 import getopt
+import os
 import pickle
 import random
 import sys
@@ -27,6 +29,12 @@ def saveData(results, rnd, prefix=''):
   If prior results exist, update it
   """
   filename = str(rnd) + '.pkl'
+
+  if os.path.exists(filename):
+    oldResults = pickle.load(open(filename, 'rb'))
+    oldResults.update(results)
+    results = oldResults
+
   pickle.dump(results, open(prefix + filename, 'wb'))
 
 def findInitialSafePolicy(mdp, consStates, goalStates, trueFreeFeatures, rnd, consProbs=None):
@@ -308,7 +316,7 @@ def jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardIdx, tru
     results['domPiNum'] = agent.domPiNum
   return results
 
-def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, costOfQuery=0.0):
+def experiment(mdp, consStates, goalStates, k, rnd, consProbs, costOfQuery=0.0):
   """
   Find queries to find initial safe policy or to improve an existing safe policy.
 
@@ -323,17 +331,13 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, costOfQuery=
 
   domPiNum = None
 
-  # consProbs is None then it's Bayesian setting, otherwise MMR
-  consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
-  print 'consProbs', zip(range(numOfCons), consProbs)
-
   from config import sampleInstances, methods
 
   keys = ['value', 'queries', 'time']
 
   batch_results = {}
   for method in methods:
-    batch_results[method] = {key: [] for key in keys}
+    batch_results[method] = collections.defaultdict(list)
 
   for instanceIdx in range(sampleInstances):
     # true free features, randomly generated
@@ -419,20 +423,25 @@ if __name__ == '__main__':
 
         #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
         spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
-        domPiNum = None
 
         # uniform prior over rewards
         #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
         # random prior over rewards (add 0.1 to reduce variance a little bit)
         rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
+        mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.99)
+
+        numOfCons = len(consStates)
+        consProbs = [random.random() for _ in range(numOfCons)]
+        print 'consProbs', zip(range(numOfCons), consProbs)
+
+        domPiNum = None
         for costOfQuery in costsOfQuery:
           print '# of carpets:', numOfCarpets, '# of switches:', numOfSwitches, 'query cost', costOfQuery
-          mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.99)
-          result, domPiNum = experiment(mdp, consStates, goalStates, k, rnd, costOfQuery=costOfQuery)
 
+          result, domPiNum = experiment(mdp, consStates, goalStates, k, rnd, consProbs, costOfQuery=costOfQuery)
           results[(numOfCarpets, numOfSwitches, costOfQuery)] = result
 
-        results[(numOfCarpets, numOfSwitches)] = (spec, domPiNum)
+        results[(numOfCarpets, numOfSwitches)] = (spec, domPiNum, rewardProbs, consProbs)
 
     if not dry: saveData(results, rnd)

@@ -102,8 +102,6 @@ if __name__ == '__main__':
   expectedReturns = collections.defaultdict(list)
   times = collections.defaultdict(list)
 
-  switchDis = collections.defaultdict(list)
-  switchToRobotDis = collections.defaultdict(list)
   domPiNums = collections.defaultdict(list)
 
   for rnd in range(trialsStart, trialsEnd):
@@ -114,11 +112,9 @@ if __name__ == '__main__':
 
       for numOfCarpets in numsOfCarpets:
         for numOfSwitches in numsOfSwitches:
-          spec, domPiNum = results[(numOfCarpets, numOfSwitches)]
+          spec, domPiNum, rewardProbs, consProbs = results[(numOfCarpets, numOfSwitches)]
           stats = squareWorldStats(spec)
 
-          switchDis[numOfCarpets, numOfSwitches].append(stats['switchDis'])
-          switchToRobotDis[numOfCarpets, numOfSwitches].append(stats['switchToRobotDis'])
           domPiNums[numOfCarpets, numOfSwitches].append(domPiNum)
 
           for costOfQuery in costsOfQuery:
@@ -158,9 +154,5 @@ if __name__ == '__main__':
           histogram(batchDiff, 'batch - ' + comparedHeuristic,
                     'batch_' + comparedHeuristic + '_diff_' + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
 
-          correlation(switchDis[numOfCarpets, numOfSwitches], batchDiff, 'average switch distances', 'batch - ' + comparedHeuristic,
-                      'batch_' + comparedHeuristic + '_switchDis_' + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
-          correlation(switchToRobotDis[numOfCarpets, numOfSwitches], batchDiff, 'switch to robot distances', 'batch - ' + comparedHeuristic,
-                      'batch_' + comparedHeuristic + '_switchToRobotDis_' + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
           correlation(domPiNums[numOfCarpets, numOfSwitches], batchDiff, '# of dominating policies', 'batch - ' + comparedHeuristic,
                       'batch_' + comparedHeuristic + '_dompis_' + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))

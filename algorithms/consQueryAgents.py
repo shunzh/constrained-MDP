@@ -117,6 +117,7 @@ class ConsQueryAgent():
     """
     beta = [] # rules to keep
     dominatingPolicies = {}
+    dominatingPiValues = {}
 
     allCons = set()
     allConsPowerset = set(powerset(allCons))
@@ -154,14 +155,20 @@ class ConsQueryAgent():
       sol = self.findConstrainedOptPi(list(activeCons))
       if sol['feasible']:
         x = sol['pi']
-        if config.DEBUG:
-          printOccSA(x)
-          print self.computeValue(x)
-
-        dominatingPolicies[activeCons] = x
-
         # check violated constraints
         violatedCons = self.findViolatedConstraints(x)
+
+        # if an old dominating policy violates more constraints than the current one, but not have as high value as the current one
+        # then remove that old dominating policy
+        for oldCons, oldViolated in beta:
+          oldCons = tuple(oldCons)
+          if oldCons in dominatingPiValues.keys() and set(violatedCons).issubset(oldViolated) and dominatingPiValues[oldCons] <= sol['obj']:
+            # the dom pi under cons is dominated by the current pi
+            dominatingPolicies.pop(oldCons)
+            dominatingPiValues.pop(oldCons)
+
+        dominatingPolicies[activeCons] = x
+        dominatingPiValues[activeCons] = sol['obj']
 
         if config.DEBUG: print 'this policy violates', violatedCons
       else:

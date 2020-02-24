@@ -340,8 +340,6 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       _, domPis = rewardPositiveConsAgent.findRelevantFeaturesAndDomPis()
 
       for domPi in domPis:
-        if domPi not in allDomPis:
-          allDomPis.append(domPi)
 
         relFeats = rewardPositiveConsAgent.findViolatedConstraints(domPi)
 
@@ -355,6 +353,9 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
         # at least (relFeats) feature queries and 1 reward-set query are needed
         weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue - self.costOfQuery * len(relFeats))
+
+        if domPi not in allDomPis:
+          allDomPis.append(domPi)
 
         if weightedValue > 0:
           # only add dom pi info when it's beneficial to query about this
