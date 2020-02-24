@@ -71,18 +71,22 @@ def histogram(x, xlabel, filename):
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
   pylab.close()
 
+def correlation(x, y, xlabel, ylabel, filename):
+  fig = pylab.figure()
+  pylab.scatter(x, y)
+
+  pylab.xlabel(xlabel)
+  pylab.ylabel(ylabel)
+
+  fig.savefig(filename + ".pdf", dpi=300, format="pdf")
+  pylab.close()
+
 def plotLegend():
   ax = pylab.gca()
   figLegend = pylab.figure(figsize=(4, 2.5))
   pylab.figlegend(*ax.get_legend_handles_labels(), loc='upper left')
   figLegend.savefig("legend.pdf", dpi=300, format="pdf")
   pylab.close()
-
-def plotDifferenceOfTwoAlgs(x1, x2, xlabel, filename):
-  diff = map(lambda elem1, elem2: elem1 - elem2, x1, x2)
-  # print random seeds where diff is negative
-  print filter(lambda x: diff[x] < 0, range(len(diff)))
-  histogram(diff, xlabel, filename)
 
 
 if __name__ == '__main__':
@@ -97,7 +101,9 @@ if __name__ == '__main__':
   expectedReturns = {}
   times = {}
 
-  domainStats = {}
+  switchDis = {}
+  switchToRobotDis = {}
+  domPiNums = {}
 
   for rnd in range(trialsStart, trialsEnd):
     filename = str(rnd) + '.pkl'
@@ -107,8 +113,11 @@ if __name__ == '__main__':
 
       for numOfCarpets in numsOfCarpets:
         for numOfSwitches in numsOfSwitches:
-          spec = results[(numOfCarpets, numOfSwitches)]
-          createOrAppend(domainStats, (numOfCarpets, numOfSwitches), squareWorldStats(spec))
+          spec, domPiNum = results[(numOfCarpets, numOfSwitches)]
+          stats = squareWorldStats(spec)
+          createOrAppend(switchDis, (numOfCarpets, numOfSwitches), stats['switchDis'])
+          createOrAppend(switchToRobotDis, (numOfCarpets, numOfSwitches), stats['switchToRobotDis'])
+          createOrAppend(domPiNums, (numOfCarpets, numOfSwitches), domPiNum)
 
           for costOfQuery in costsOfQuery:
             configKey = (numOfCarpets, numOfSwitches, costOfQuery)
@@ -138,14 +147,18 @@ if __name__ == '__main__':
       for costOfQuery in costsOfQuery:
         configKey = (numOfCarpets, numOfSwitches, costOfQuery)
 
-        batchResults = returns[configKey, 'batch']
-        myopicResults = returns[configKey, 'myopic']
-        domPiResults = returns[configKey, 'dompi']
+        for comparedHeuristic in ['myopic', 'dompi']:
+          batchResults = returns[configKey, 'batch']
+          comparedResults = returns[configKey, comparedHeuristic]
 
-        print numOfCarpets, numOfSwitches
-        print 'vs myopic'
-        plotDifferenceOfTwoAlgs(batchResults, myopicResults, 'batch - myopic', 'batch_myopic_diff_'
-                                + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
-        print 'vs dompi'
-        plotDifferenceOfTwoAlgs(batchResults, domPiResults, 'batch - dompi', 'batch_domi_diff_'
-                                + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
+          batchDiff = [e1 - e2 for e1, e2 in zip(batchResults, comparedResults)]
+
+          histogram(batchDiff, 'batch - ' + comparedHeuristic,
+                    'batch_' + comparedHeuristic + '_diff_' + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
+
+          correlation(switchDis[numOfCarpets, numOfSwitches], batchDiff, 'average switch distances', 'batch - ' + comparedHeuristic,
+                      'batch_' + comparedHeuristic + '_switchDis_' + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
+          correlation(switchToRobotDis[numOfCarpets, numOfSwitches], batchDiff, 'switch to robot distances', 'batch - ' + comparedHeuristic,
+                      'batch_' + comparedHeuristic + '_switchToRobotDis_' + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
+          correlation(domPiNums[numOfCarpets, numOfSwitches], batchDiff, '# of dominating policies', 'batch - ' + comparedHeuristic,
+                      'batch_' + comparedHeuristic + '_dompis_' + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))

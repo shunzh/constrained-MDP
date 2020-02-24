@@ -17,5 +17,5 @@ trialsEnd = 500
 methods = ['myopic', 'batch', 'dompi']
 
 numsOfCarpets = [10, 12, 14]
-numsOfSwitches = [2, 4]
+numsOfSwitches = [2]
 costsOfQuery = [0.1]

@@ -233,8 +233,6 @@ def jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardIdx, tru
 
   For now, assume initial safe policies exist and the robot can pose at most k queries
   """
-  results = {}
-
   # the agent is going to modify mdp.psi, so make copies here
   mdpForAgent = copy.deepcopy(mdp)
   queriesAsked = []
@@ -306,6 +304,8 @@ def jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardIdx, tru
   print
 
   results = {'value': value, 'queries': queriesAsked, 'time': duration}
+  if method == "dompi":
+    results['domPiNum'] = agent.domPiNum
   return results
 
 def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, costOfQuery=0.0):
@@ -320,6 +320,8 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, costOfQuery=
   """
   numOfCons = len(consStates)
   numOfRewards = len(mdp.psi)
+
+  domPiNum = None
 
   # consProbs is None then it's Bayesian setting, otherwise MMR
   consProbs = [pf + pfStep * random.random() for _ in range(numOfCons)]
@@ -348,7 +350,11 @@ def experiment(mdp, consStates, goalStates, k, rnd, pf=0, pfStep=1, costOfQuery=
       for key in keys:
         batch_results[method][key].append(results[key])
 
-  return batch_results
+      # get dom pi number from dompi query agent
+      if method == "dompi":
+        domPiNum = results['domPiNum']
+
+  return batch_results, domPiNum
 
 def setRandomSeed(rnd):
   print 'random seed', rnd
@@ -413,6 +419,7 @@ if __name__ == '__main__':
 
         #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
         spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
+        domPiNum = None
 
         # uniform prior over rewards
         #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
@@ -422,8 +429,10 @@ if __name__ == '__main__':
         for costOfQuery in costsOfQuery:
           print '# of carpets:', numOfCarpets, '# of switches:', numOfSwitches, 'query cost', costOfQuery
           mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.99)
-          results[(numOfCarpets, numOfSwitches, costOfQuery)] = experiment(mdp, consStates, goalStates, k, rnd, costOfQuery=costOfQuery)
+          result, domPiNum = experiment(mdp, consStates, goalStates, k, rnd, costOfQuery=costOfQuery)
 
-        results[(numOfCarpets, numOfSwitches)] = spec
+          results[(numOfCarpets, numOfSwitches, costOfQuery)] = result
+
+        results[(numOfCarpets, numOfSwitches)] = (spec, domPiNum)
 
     if not dry: saveData(results, rnd)

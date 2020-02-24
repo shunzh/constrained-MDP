@@ -299,6 +299,8 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
     self.heuristicID = heuristicID
 
+    self.domPiNum = None
+
   class DomPiData:
     """
     For a dominating policy, we want to keep its weighted value
@@ -337,6 +339,8 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       _, domPis = rewardPositiveConsAgent.findRelevantFeaturesAndDomPis()
 
       for domPi in domPis:
+        if domPi in [domPiDatum.pi for domPiDatum in domPisData]: continue
+
         relFeats = rewardPositiveConsAgent.findViolatedConstraints(domPi)
 
         # we are going to query about rIndices and relFeatures
@@ -353,6 +357,9 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
         if weightedValue > 0:
           # only add dom pi info when it's beneficial to query about this
           domPisData.append(self.DomPiData(pi=domPi, weightedValue=weightedValue, optimizedRewards=rIndices, violatedCons=relFeats))
+
+    if self.domPiNum is None:
+      self.domPiNum = len(domPisData)
 
     if len(domPisData) > 0:
       self.objectDomPiData = max(domPisData, key=lambda datum: datum.weightedValue)
