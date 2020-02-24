@@ -1,3 +1,4 @@
+import collections
 import os
 import pickle
 import pylab
@@ -5,7 +6,7 @@ from numpy import mean
 from matplotlib.ticker import MaxNLocator
 
 from domains.officeNavigation import squareWorldStats
-from util import standardErr, createOrAppend
+from util import standardErr
 
 names = {'opt': 'Optimal',
          'myopic': 'Myopic', 'myopicReward': 'Myopic (Reward First)', 'myopicFeature': 'Myopic (Feature First)',
@@ -95,15 +96,15 @@ if __name__ == '__main__':
 
   from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costsOfQuery
 
-  values = {}
-  numOfQueries = {}
-  returns = {}
-  expectedReturns = {}
-  times = {}
+  values = collections.defaultdict(list)
+  numOfQueries = collections.defaultdict(list)
+  returns = collections.defaultdict(list)
+  expectedReturns = collections.defaultdict(list)
+  times = collections.defaultdict(list)
 
-  switchDis = {}
-  switchToRobotDis = {}
-  domPiNums = {}
+  switchDis = collections.defaultdict(list)
+  switchToRobotDis = collections.defaultdict(list)
+  domPiNums = collections.defaultdict(list)
 
   for rnd in range(trialsStart, trialsEnd):
     filename = str(rnd) + '.pkl'
@@ -115,19 +116,20 @@ if __name__ == '__main__':
         for numOfSwitches in numsOfSwitches:
           spec, domPiNum = results[(numOfCarpets, numOfSwitches)]
           stats = squareWorldStats(spec)
-          createOrAppend(switchDis, (numOfCarpets, numOfSwitches), stats['switchDis'])
-          createOrAppend(switchToRobotDis, (numOfCarpets, numOfSwitches), stats['switchToRobotDis'])
-          createOrAppend(domPiNums, (numOfCarpets, numOfSwitches), domPiNum)
+
+          switchDis[numOfCarpets, numOfSwitches].append(stats['switchDis'])
+          switchToRobotDis[numOfCarpets, numOfSwitches].append(stats['switchToRobotDis'])
+          domPiNums[numOfCarpets, numOfSwitches].append(domPiNum)
 
           for costOfQuery in costsOfQuery:
             configKey = (numOfCarpets, numOfSwitches, costOfQuery)
             for method in methods:
               numQs = map(lambda _: len(_), results[configKey][method]['queries'])
 
-              createOrAppend(values, (configKey, method), mean(results[configKey][method]['value']))
-              createOrAppend(numOfQueries, (configKey, method), mean(numQs))
-              createOrAppend(returns, (configKey, method), mean(results[configKey][method]['value']) - costOfQuery * mean(numQs))
-              createOrAppend(times, (configKey, method), mean(results[configKey][method]['time']))
+              values[configKey, method].append(mean(results[configKey][method]['value']))
+              numOfQueries[configKey, method].append(mean(numQs))
+              returns[configKey, method].append(mean(results[configKey][method]['value']) - costOfQuery * mean(numQs))
+              times[configKey, method].append(mean(results[configKey][method]['time']))
 
   # plot different statistics in different figures
   statNames = ['objective', 'policy value', 'number of queries', 'computation time (sec.)']

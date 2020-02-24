@@ -15,13 +15,6 @@ import pickle
 import numpy as np
 from numpy import std, sqrt
 
-def createOrAppend(d, key, elem):
-  if key in d.keys():
-    assert type(d[key]) is list
-    d[key].append(elem)
-  else:
-    d[key] = [elem]
-
 def normalize(vec):
   sumOfMass = sum(vec)
   # if we have a zero vector, simply return it
