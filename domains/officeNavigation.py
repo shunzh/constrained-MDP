@@ -120,7 +120,7 @@ def carpetsAndWallsDomain():
           [R, W, W, W, W],
           [_, C, S, S, S]]
 
-  return toyWorldConstructor(map2)
+  return toyWorldConstructor(map0)
 
 # some toy domains for need-to-be-reverted features (boxes)
 def toySokobanWorld():

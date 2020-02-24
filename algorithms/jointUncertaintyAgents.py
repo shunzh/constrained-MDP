@@ -324,6 +324,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     stored in self.dompis = [(dompi, weighted_prob)]
     """
     domPisData = []
+    allDomPis = []
 
     priorPi = self.computeCurrentSafelyOptPi()
     consistentRewardIndices = self.computeConsistentRewardIndices(self.mdp.psi)
@@ -339,7 +340,8 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       _, domPis = rewardPositiveConsAgent.findRelevantFeaturesAndDomPis()
 
       for domPi in domPis:
-        if domPi in [domPiDatum.pi for domPiDatum in domPisData]: continue
+        if domPi not in allDomPis:
+          allDomPis.append(domPi)
 
         relFeats = rewardPositiveConsAgent.findViolatedConstraints(domPi)
 
@@ -359,7 +361,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
           domPisData.append(self.DomPiData(pi=domPi, weightedValue=weightedValue, optimizedRewards=rIndices, violatedCons=relFeats))
 
     if self.domPiNum is None:
-      self.domPiNum = len(domPisData)
+      self.domPiNum = len(allDomPis)
 
     if len(domPisData) > 0:
       self.objectDomPiData = max(domPisData, key=lambda datum: datum.weightedValue)

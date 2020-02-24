@@ -374,7 +374,7 @@ if __name__ == '__main__':
   numOfCarpets = None
   numOfSwitches = None
 
-  numOfWalls = 5
+  numOfWalls = 0
   from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, costsOfQuery
 
   rnd = 0 # set a dummy random seed if no -r argument
