@@ -79,6 +79,7 @@ def correlation(x, y, xlabel, ylabel, filename):
   pylab.xlabel(xlabel)
   pylab.ylabel(ylabel)
 
+  pylab.gcf().subplots_adjust(bottom=0.15, left=0.2)
   fig.savefig(filename + ".pdf", dpi=300, format="pdf")
   pylab.close()
 
@@ -102,6 +103,7 @@ if __name__ == '__main__':
   expectedReturns = collections.defaultdict(list)
   times = collections.defaultdict(list)
 
+  switchToRobotDis = collections.defaultdict(list)
   domPiNums = collections.defaultdict(list)
 
   for rnd in range(trialsStart, trialsEnd):
@@ -116,6 +118,7 @@ if __name__ == '__main__':
           stats = squareWorldStats(spec)
 
           domPiNums[numOfCarpets, numOfSwitches].append(domPiNum)
+          switchToRobotDis[numOfCarpets, numOfSwitches].append(stats['switchToRobotDis'])
 
           for costOfQuery in costsOfQuery:
             configKey = (numOfCarpets, numOfSwitches, costOfQuery)
@@ -140,19 +143,28 @@ if __name__ == '__main__':
              filename=sName + '_' + str(numOfSwitches) + '_' + str(costOfQuery), intXAxis=True)
 
   # to compare different algs
-  for numOfCarpets in numsOfCarpets:
+  for comparedHeuristic in ['myopic', 'dompi']:
     for numOfSwitches in numsOfSwitches:
-      for costOfQuery in costsOfQuery:
-        configKey = (numOfCarpets, numOfSwitches, costOfQuery)
+      allBatchDiff = []
+      allDomPiNums = []
+      allSwitchToRobotDis = []
 
-        for comparedHeuristic in ['myopic', 'dompi']:
+      for numOfCarpets in numsOfCarpets:
+        for costOfQuery in costsOfQuery:
+          configKey = (numOfCarpets, numOfSwitches, costOfQuery)
+
           batchResults = returns[configKey, 'batch']
           comparedResults = returns[configKey, comparedHeuristic]
 
           batchDiff = [e1 - e2 for e1, e2 in zip(batchResults, comparedResults)]
 
-          histogram(batchDiff, 'batch - ' + comparedHeuristic,
-                    'batch_' + comparedHeuristic + '_diff_' + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
+          allBatchDiff += batchDiff
+          allDomPiNums += domPiNums[numOfCarpets, numOfSwitches]
+          allSwitchToRobotDis += switchToRobotDis[numOfCarpets, numOfSwitches]
 
-          correlation(domPiNums[numOfCarpets, numOfSwitches], batchDiff, '# of dominating policies', 'batch - ' + comparedHeuristic,
-                      'batch_' + comparedHeuristic + '_dompis_' + str(numOfCarpets) + '_' + str(numOfSwitches) + '_' + str(costOfQuery))
+      histogram(allBatchDiff, 'batch - ' + comparedHeuristic,
+                'batch_' + comparedHeuristic + '_diff_' + str(numOfSwitches))
+      correlation(allDomPiNums, allBatchDiff, '# of dominating policies', 'batch - ' + comparedHeuristic,
+                  'batch_' + comparedHeuristic + '_dompis_' + str(numOfSwitches))
+      correlation(allSwitchToRobotDis, allBatchDiff, 'switch to robot distances', 'batch - ' + comparedHeuristic,
+                  'batch_' + comparedHeuristic + '_switchToRobotDis_' + str(numOfSwitches))
