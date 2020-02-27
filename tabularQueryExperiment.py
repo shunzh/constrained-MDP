@@ -301,7 +301,11 @@ def jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardIdx, tru
   # this is for fair comparision between agents, since different agents have different reward beliefs
   agentPi = agent.computeCurrentSafelyOptPi()
   # set the reward function in-place, we are not going to use agent after this anyway
-  agent.updateReward(consistentRewards=[trueRewardIdx])
+
+  # WAY 1: find the optimal policy, and evaluate it under the true reward function
+  # WAY 2: (comment out the following line)
+  #agent.updateReward(consistentRewards=[trueRewardIdx])
+
   value = agent.computeValue(agentPi)
 
   print 'RESULTS: rnd', rnd, method,\
@@ -371,15 +375,11 @@ if __name__ == '__main__':
   method = None
   k = 5 # DUMMY for joint uncertainty experiments
 
-  # the domain is size x size
-  size = 6
-
   # these should be set in config
   numOfCarpets = None
   numOfSwitches = None
 
-  numOfWalls = 5
-  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, costsOfQuery
+  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, costsOfQuery, size, walls
 
   rnd = 0 # set a dummy random seed if no -r argument
   dry = False # no output to files if dry run
@@ -422,7 +422,7 @@ if __name__ == '__main__':
         setRandomSeed(rnd)
 
         #spec = carpetsAndWallsDomain(); numOfSwitches = len(spec.switches)
-        spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=numOfWalls, numOfSwitches=numOfSwitches)
+        spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=walls, numOfSwitches=numOfSwitches)
 
         # uniform prior over rewards
         #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches

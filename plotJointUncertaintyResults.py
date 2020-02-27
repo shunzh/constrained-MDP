@@ -158,6 +158,10 @@ if __name__ == '__main__':
 
           batchDiff = [e1 - e2 for e1, e2 in zip(batchResults, comparedResults)]
 
+          # print random seeds where batch is worse
+          print "batch worse than ", comparedHeuristic,
+          print numOfCarpets, numOfSwitches, costOfQuery, filter(lambda _: batchDiff[_] < 0, range(len(batchDiff)))
+
           allBatchDiff += batchDiff
           allDomPiNums += domPiNums[numOfCarpets, numOfSwitches]
           allSwitchToRobotDis += switchToRobotDis[numOfCarpets, numOfSwitches]
