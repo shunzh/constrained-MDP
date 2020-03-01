@@ -56,14 +56,15 @@ def plot(x, y, methods, xlabel, ylabel, filename, intXAxis=False, intYAxis=False
 
   pylab.close()
 
-def histogram(x, xlabel, filename):
+def histogram(x, xlabel, filename, markZero=False):
   numOfMatch = sum(_ == 0 for _ in x)
 
   fig = pylab.figure()
 
-  pylab.hist(x, bins=map((0.2).__mul__, range(-5, 6)))
+  pylab.hist(x, bins=map((0.2).__mul__, range(0, 6)))
   # draw a vertical line that highlight the number of matches
-  pylab.plot((0, 0), (0, numOfMatch), marker='+', color='black', linewidth=3, markeredgewidth=2, markersize=15)
+  if markZero:
+    pylab.plot((0, 0), (0, numOfMatch), marker='+', color='black', linewidth=3, markeredgewidth=2, markersize=15)
 
   pylab.xlabel(xlabel)
   pylab.ylabel('frequency')
@@ -95,12 +96,12 @@ if __name__ == '__main__':
   font = {'size': 19}
   pylab.matplotlib.rc('font', **font)
 
-  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costsOfQuery
+  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costsOfQuery, sampleInstances
 
   values = collections.defaultdict(list)
   numOfQueries = collections.defaultdict(list)
   returns = collections.defaultdict(list)
-  expectedReturns = collections.defaultdict(list)
+  returnData = collections.defaultdict(list)
   times = collections.defaultdict(list)
 
   switchToRobotDis = collections.defaultdict(list)
@@ -127,8 +128,12 @@ if __name__ == '__main__':
 
               values[configKey, method].append(mean(results[configKey][method]['value']))
               numOfQueries[configKey, method].append(mean(numQs))
-              returns[configKey, method].append(mean(results[configKey][method]['value']) - costOfQuery * mean(numQs))
               times[configKey, method].append(mean(results[configKey][method]['time']))
+
+              ret = [results[configKey][method]['value'][_] - costOfQuery * numQs[_] for _ in range(sampleInstances)]
+
+              returns[configKey, method].append(mean(ret))
+              returnData[configKey, method].append(ret)
 
   # plot different statistics in different figures
   statNames = ['objective', 'policy value', 'number of queries', 'computation time (sec.)']
@@ -146,6 +151,7 @@ if __name__ == '__main__':
   for comparedHeuristic in ['myopic', 'dompi']:
     for numOfSwitches in numsOfSwitches:
       allBatchDiff = []
+      allBatchFreqDiff = []
       allDomPiNums = []
       allSwitchToRobotDis = []
 
@@ -158,16 +164,26 @@ if __name__ == '__main__':
 
           batchDiff = [e1 - e2 for e1, e2 in zip(batchResults, comparedResults)]
 
+          batchResultVec = returnData[configKey, 'batch']
+          comparedResultVec = returnData[configKey, comparedHeuristic]
+
+          batchFreqDiff = [1.0 * sum(e1 - e2 >= 0 for e1, e2 in zip(l1, l2)) / sampleInstances
+                           for l1, l2 in zip(batchResultVec, comparedResultVec)]
+
           # print random seeds where batch is worse
           print "batch worse than ", comparedHeuristic,
-          print numOfCarpets, numOfSwitches, costOfQuery, filter(lambda _: batchDiff[_] < 0, range(len(batchDiff)))
+          print numOfCarpets, numOfSwitches, costOfQuery, [(_, batchDiff[_]) for _ in range(len(batchDiff)) if batchDiff[_] < 0]
+          #print numOfCarpets, numOfSwitches, costOfQuery, [(_, batchFreqDiff[_]) for _ in range(len(batchFreqDiff)) if batchFreqDiff[_] <= 0.1]
 
           allBatchDiff += batchDiff
+          allBatchFreqDiff += batchFreqDiff
           allDomPiNums += domPiNums[numOfCarpets, numOfSwitches]
           allSwitchToRobotDis += switchToRobotDis[numOfCarpets, numOfSwitches]
 
       histogram(allBatchDiff, 'batch - ' + comparedHeuristic,
                 'batch_' + comparedHeuristic + '_diff_' + str(numOfSwitches))
+      histogram(allBatchFreqDiff, 'batch - ' + comparedHeuristic,
+                'batch_' + comparedHeuristic + '_freq_diff_' + str(numOfSwitches))
       correlation(allDomPiNums, allBatchDiff, '# of dominating policies', 'batch - ' + comparedHeuristic,
                   'batch_' + comparedHeuristic + '_dompis_' + str(numOfSwitches))
       correlation(allSwitchToRobotDis, allBatchDiff, 'switch to robot distances', 'batch - ' + comparedHeuristic,

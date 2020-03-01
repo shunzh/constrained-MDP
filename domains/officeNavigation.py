@@ -220,7 +220,7 @@ def plotDomain(spec):
       elif (x, y) == spec.robot:
         print '[ R]',
       elif spec.carpets.count((x, y)) == 1:
-        print '[%2d]' % spec.carpets.index((x, y)),
+        print '[C%1d]' % spec.carpets.index((x, y)),
       elif spec.carpets.count((x, y)) > 1:
         print '[%2d*' % spec.carpets.index((x, y)),
       else:

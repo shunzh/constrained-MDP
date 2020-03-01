@@ -251,20 +251,10 @@ def jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardIdx, tru
     agent = JointUncertaintyOptimalQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
   elif method == 'myopic':
     agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
-  elif method == 'myopicReward':
-    agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs,
-                                                        costOfQuery=costOfQuery, heuristic='rewardFirst')
-  elif method == 'myopicFeature':
-    agent = JointUncertaintyQueryByMyopicSelectionAgent(mdpForAgent, consStates, consProbs=consProbs,
-                                                        costOfQuery=costOfQuery, heuristic='featureFirst')
   elif method == 'batch':
     agent = JointUncertaintyBatchQueryAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery, qi=True)
   elif method == 'dompi':
-    agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
-                                                       costOfQuery=costOfQuery, heuristicID=0)
-  elif method == 'dompiUniform':
-    agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs,
-                                                       costOfQuery=costOfQuery, heuristicID=1)
+    agent = JointUncertaintyQueryBySamplingDomPisAgent(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
   elif method == 'random':
     agent = JointUncertaintyRandomQuery(mdpForAgent, consStates, consProbs=consProbs, costOfQuery=costOfQuery)
   else:
@@ -304,7 +294,7 @@ def jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardIdx, tru
 
   # WAY 1: find the optimal policy, and evaluate it under the true reward function
   # WAY 2: (comment out the following line)
-  #agent.updateReward(consistentRewards=[trueRewardIdx])
+  agent.updateReward(consistentRewards=[trueRewardIdx])
 
   value = agent.computeValue(agentPi)
 
@@ -433,6 +423,7 @@ if __name__ == '__main__':
 
         numOfCons = len(consStates)
         consProbs = [random.random() for _ in range(numOfCons)]
+        #consProbs = [0.5 for _ in range(numOfCons)]
         print 'consProbs', zip(range(numOfCons), consProbs)
 
         domPiNum = None

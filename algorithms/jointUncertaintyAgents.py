@@ -210,10 +210,8 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
   Find the myopically optimal reward query and feature query, then choose the one with higher EVOI.
   Stop when EVOI is 0.
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, heuristic='evoi'):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
     JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates, consProbs, costOfQuery)
-
-    self.heuristic = heuristic
 
   def findRewardQuery(self):
     """
@@ -237,8 +235,13 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     rewardQuery = rewardQueryAgent.findRewardSetQuery()[0]
     psiSupportsAndQR = sum(self.mdp.psi[idx] > 0 for idx in rewardQuery)
 
-    if psiSupportsAndQR == 0 or psiSupportsAndQR == len(psiSupports): return None
-    else: return rewardQuery
+    if config.VERBOSE: print 'reward query', rewardQuery
+
+    if psiSupportsAndQR == 0 or psiSupportsAndQR == len(psiSupports):
+      if config.VERBOSE: print 'not reporting reward query back'
+      return None
+    else:
+      return rewardQuery
 
   def findFeatureQuery(self, subsetCons=None):
     """
@@ -259,9 +262,13 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     featureQueryAgent.computeIISs(recompute=True)
 
     # after computing rel feats, check if it's empty. if so, nothing need to be queried.
-    if len(featureQueryAgent.domPiFeats) == 0 or len(featureQueryAgent.iiss) == 0: return None
-
-    return featureQueryAgent.findQuery(subsetCons=subsetCons)
+    if len(featureQueryAgent.domPiFeats) == 0 or len(featureQueryAgent.iiss) == 0:
+      if config.VERBOSE: print 'not reporting feature query back'
+      return None
+    else:
+      query = featureQueryAgent.findQuery(subsetCons=subsetCons)
+      if config.VERBOSE: print 'feature query', query
+      return query
 
   def findQuery(self):
     """
@@ -270,20 +277,7 @@ class JointUncertaintyQueryByMyopicSelectionAgent(JointUncertaintyQueryAgent):
     rewardQuery = ('R', self.findRewardQuery())
     featureQuery = ('F', self.findFeatureQuery())
 
-    if self.heuristic == 'evoi':
-      return self.selectQueryBasedOnEVOI([rewardQuery, featureQuery])
-    else:
-      rewardQuery = self.selectQueryBasedOnEVOI([rewardQuery])
-      featureQuery = self.selectQueryBasedOnEVOI([featureQuery])
-
-      if self.heuristic == 'rewardFirst':
-        # pose reward query first if not None, otherwise pose feature query
-        return rewardQuery if rewardQuery is not None else featureQuery
-      elif self.heuristic == 'featureFirst':
-        # pose feature query first if not None, otherwise pose reward query
-        return featureQuery if featureQuery is not None else rewardQuery
-      else:
-        raise Exception('unknown heuristic ' + self.heuristic)
+    return self.selectQueryBasedOnEVOI([rewardQuery, featureQuery])
 
 
 class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
@@ -291,13 +285,11 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
   Sample a set of dominating policies according to their probabilities of being free and their values.
   Then query the features that would make them safely-optimal.
   """
-  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, heuristicID=0):
+  def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0):
     JointUncertaintyQueryAgent.__init__(self, mdp, consStates, goalStates=goalStates, consProbs=consProbs,
                                         costOfQuery=costOfQuery)
     # initialize objectDomPiData to be None, will be computed in findQuery
     self.objectDomPiData = None
-
-    self.heuristicID = heuristicID
 
     self.domPiNum = None
 
@@ -340,7 +332,6 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
       _, domPis = rewardPositiveConsAgent.findRelevantFeaturesAndDomPis()
 
       for domPi in domPis:
-
         relFeats = rewardPositiveConsAgent.findViolatedConstraints(domPi)
 
         # we are going to query about rIndices and relFeatures
@@ -351,14 +342,17 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
         # priorPi is feasible under relFeats since priorPi is safer (before querying)
         priorValue = rewardPositiveConsAgent.computeValue(priorPi)
 
+        rewardQueryNeeded = (len(rIndices) < len(consistentRewardIndices))
+
         # at least (relFeats) feature queries and 1 reward-set query are needed
-        weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue - self.costOfQuery * len(relFeats))
+        weightedValue = safeProb * sumOfPsi * (rPositiveValue - priorValue - self.costOfQuery * (len(relFeats) + rewardQueryNeeded))
 
         if domPi not in allDomPis:
           allDomPis.append(domPi)
 
         if weightedValue > 0:
           # only add dom pi info when it's beneficial to query about this
+          if config.VERBOSE: print 'weightedValue', rIndices, relFeats, weightedValue
           domPisData.append(self.DomPiData(pi=domPi, weightedValue=weightedValue, optimizedRewards=rIndices, violatedCons=relFeats))
 
     if self.domPiNum is None:
