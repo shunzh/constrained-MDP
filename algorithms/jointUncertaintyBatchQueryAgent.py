@@ -4,6 +4,7 @@ import config
 from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelectionAgent
 from algorithms.lp import lpDualGurobi, jointUncertaintyMilp
 from algorithms.rewardQueryAgents import GreedyConstructRewardAgent
+from util import printOccSA
 
 
 class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgent,GreedyConstructRewardAgent):
@@ -14,7 +15,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, qi=True):
     JointUncertaintyQueryByMyopicSelectionAgent.__init__(self, mdp, consStates, goalStates=goalStates,
                                                          consProbs=consProbs, costOfQuery=costOfQuery)
-    GreedyConstructRewardAgent.__init__(self, mdp, 2, qi)
+    GreedyConstructRewardAgent.__init__(self, mdp, None, qi)
 
   def computeZC(self, pi):
     """
@@ -83,49 +84,53 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     # going to modify the transition function of the mdp
     self.encodeConstraintIntoTransition(self.mdp)
 
-    # find the batch query
-    qPi = self.findPolicyQuery()
+    if config.VERBOSE: print 'prior value is', priorValue
 
-    # find reward query
-    # it's a 2-partition of reward functions, so pose either of them
-    dominatedRewards = self.findRewardSetQuery(qPi)
-    qR = dominatedRewards[0]
-    # make sure qR queries about something, not none or all of support of psi
-    supportLen = sum(_ > 0 for _ in self.mdp.psi)
-    psiSupportsAndQR = sum(self.mdp.psi[idx] > 0 for idx in qR)
-    if psiSupportsAndQR == 0 or psiSupportsAndQR == supportLen: qR = None
+    # find the batch query
+    if config.VERBOSE: print 'find one policy'
+    singlePiQ = self.findPolicyQuery(k=1)
+
+    if config.VERBOSE: print 'find two policies'
+    binaryPiQ = self.findPolicyQuery(k=2)
+
+    eusSingle = self.computeEUS(singlePiQ)
+    evoiSingle = eusSingle - priorValue
+    if config.VERBOSE: print 'single pi EUS', eusSingle, 'EVOI', evoiSingle
+
+    eusBinary = self.computeEUS(binaryPiQ)
+    evoiBinary = eusBinary - self.costOfQuery - priorValue
+    if config.VERBOSE: print 'binary pi EUS', eusBinary, 'EVOI', evoiBinary
+
+    if max(evoiSingle, evoiBinary) <= 1e-4:
+      return None
+    elif evoiSingle >= evoiBinary:
+      # single policy query
+      qPi = singlePiQ
+      qR = None
+    else:
+      qPi = binaryPiQ
+
+      # find reward query
+      # it's a 2-partition of reward functions, so pose either of them
+      dominatedRewards = self.findRewardSetQuery(qPi)
+      qR = dominatedRewards[0]
+      support = [idx for idx in range(len(self.mdp.psi)) if self.mdp.psi[idx] > 0]
+
+      print 'qR is', qR
+
+      # make sure qR queries about something, not none or all of support of psi
+      if len(set(qR).intersection(support)) == 0 or set(support).issubset(qR): qR = None
 
     # find feat query
     qFeats = set()
     for pi in qPi:
       violatedCons = self.findViolatedConstraints(pi)
       qFeats = qFeats.union(violatedCons)
-    # using set cover criterion to find the best feature query
-    # we only consider querying about one of the features tha are relevant to policies in qPi
-    # because others are not worth querying because of their costs? (although they may contribute to finding new safe policies)
-    # if len(qFeats) > 0:
-    #   qFeat = self.findFeatureQuery(subsetCons=qFeats)
-    # else:
-    #   qFeat = None
 
-    # determine if continue querying is necessary
-    eus = self.computeEUS(qPi)
-    batchQueryEVOI = eus - priorValue
-    # count the cost of reward query if posed
-    if qR is not None: batchQueryEVOI -= self.costOfQuery
-    if config.VERBOSE:
-      print 'evoi', eus, '-', priorValue,
-      if qR is not None: print '-', self.costOfQuery,
-      print '=', batchQueryEVOI
-
-    # note: this is not exactly the definition of evoi since it could be negative. we counted the query cost!
-    if batchQueryEVOI <= 1e-4:
-      return None
-    else:
-      # return selected reward query and feature query
-      # if they ask about nothing (which is None), then don't include in the candidate queries
-      queries = filter(lambda _: _[1] is not None, [('R', qR)] + [('F', qFeat) for qFeat in qFeats])
-      return queries
+    # return selected reward query and feature query
+    # if they ask about nothing (which is None), then don't include in the candidate queries
+    queries = filter(lambda _: _[1] is not None, [('R', qR)] + [('F', qFeat) for qFeat in qFeats])
+    return queries
 
   def findQuery(self):
     # find an instance of good reward query + feature queries

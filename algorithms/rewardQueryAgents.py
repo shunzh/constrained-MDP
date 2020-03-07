@@ -22,7 +22,10 @@ class GreedyConstructRewardAgent:
     if r is None: r = self.mdp.r
     return computeValue(x, r, self.mdp.S, self.mdp.A)
 
-  def findPolicyQuery(self):
+  def findPolicyQuery(self, k=None):
+    if k is not None:
+      self.k = k
+
     # start with the prior optimal policy
     q = [self.findOptPolicyUnderMeanRewards()]
 

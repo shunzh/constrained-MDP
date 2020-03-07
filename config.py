@@ -8,7 +8,7 @@ OPT_METHOD = 'gurobi'
 earlyStop = 1
 
 # for each domain configuration, sample the true reward function and the true free features
-sampleInstances = 10
+sampleInstances = 50
 
 # experiment configuration
 trialsStart = 0
