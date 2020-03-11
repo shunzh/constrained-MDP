@@ -297,16 +297,8 @@ def jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardIdx, tru
   agent.updateReward(consistentRewards=[trueRewardIdx])
 
   value = agent.computeValue(agentPi)
-  queryLen = len(queriesAsked)
 
-  print 'RESULTS: rnd', rnd, method,\
-    'obj', value - len(queriesAsked) * costOfQuery,\
-    'value', value,\
-    'queries', queryLen,\
-    'time', duration
-  print
-
-  results = {'value': value, 'queries': queryLen, 'time': duration}
+  results = {'obj': value - len(queriesAsked) * costOfQuery, 'value': value, 'queriesAsked': queriesAsked, 'time': duration}
   if method == "dompi":
     results['domPiNum'] = agent.domPiNum
   return results
@@ -328,7 +320,7 @@ def experiment(mdp, consStates, goalStates, k, rnd, consProbs, costOfQuery=0.0):
 
   from config import methods
 
-  keys = ['value', 'queries', 'time']
+  keys = ['obj', 'value', 'queries', 'time']
 
   batch_results = {}
   for method in methods:
@@ -336,22 +328,26 @@ def experiment(mdp, consStates, goalStates, k, rnd, consProbs, costOfQuery=0.0):
 
   for trueRewardFuncIdx in range(numOfRewards):
     for trueFreeFeatures in powerset(range(numOfCons)):
+      thisResult = collections.defaultdict(int)
+
       for method in methods:
-        print 'true free features', trueFreeFeatures
-        print 'true reward function index', trueRewardFuncIdx
-
-        # the result will be weighted by the probability that we see this reward index and these free features
-        weight = mdp.psi[trueRewardFuncIdx] * numpy.prod([consProbs[freeFeat] for freeFeat in trueFreeFeatures]) *\
-                                              numpy.prod([1 - consProbs[lockedFeat] for lockedFeat in set(range(numOfCons)).difference(trueFreeFeatures)])
         # under joint uncertainty:
-        results = jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, costOfQuery)
-
-        for key in keys:
-          batch_results[method][key] += weight * results[key]
+        thisResult[method] = jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, costOfQuery)
+        thisResult[method]['queries'] = len(thisResult[method]['queriesAsked'])
 
         # get dom pi number from dompi query agent
         if method == "dompi":
-          domPiNum = results['domPiNum']
+          domPiNum = thisResult[method]['domPiNum']
+
+        # the result will be weighted by the probability that we see this reward index and these free features
+        weight = mdp.psi[trueRewardFuncIdx] * numpy.prod([consProbs[freeFeat] for freeFeat in trueFreeFeatures]) * \
+                 numpy.prod([1 - consProbs[lockedFeat] for lockedFeat in set(range(numOfCons)).difference(trueFreeFeatures)])
+        for key in keys:
+          batch_results[method][key] += weight * thisResult[method][key]
+
+      for comparedMethod in ['myopic', 'dompi']:
+        if thisResult['batch']['obj'] < thisResult[comparedMethod]['obj']:
+          print trueRewardFuncIdx, trueFreeFeatures, {method: (thisResult[method]['obj'], thisResult[method]['queriesAsked']) for method in ['batch', comparedMethod]}
 
   return batch_results, domPiNum
 
