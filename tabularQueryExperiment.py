@@ -20,7 +20,7 @@ from algorithms.jointUncertaintyAgents import JointUncertaintyQueryByMyopicSelec
 from algorithms.jointUncertaintyBatchQueryAgent import JointUncertaintyBatchQueryAgent
 from algorithms.safeImprovementAgent import SafeImproveAgent
 from domains.officeNavigation import officeNavigationTask, squareWorld, carpetsAndWallsDomain
-from util import normalize, printOccSA
+from util import normalize, printOccSA, powerset
 
 
 def saveData(results, rnd, prefix=''):
@@ -297,15 +297,16 @@ def jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardIdx, tru
   agent.updateReward(consistentRewards=[trueRewardIdx])
 
   value = agent.computeValue(agentPi)
+  queryLen = len(queriesAsked)
 
   print 'RESULTS: rnd', rnd, method,\
     'obj', value - len(queriesAsked) * costOfQuery,\
     'value', value,\
-    'queries', queriesAsked,\
+    'queries', queryLen,\
     'time', duration
   print
 
-  results = {'value': value, 'queries': queriesAsked, 'time': duration}
+  results = {'value': value, 'queries': queryLen, 'time': duration}
   if method == "dompi":
     results['domPiNum'] = agent.domPiNum
   return results
@@ -325,32 +326,32 @@ def experiment(mdp, consStates, goalStates, k, rnd, consProbs, costOfQuery=0.0):
 
   domPiNum = None
 
-  from config import sampleInstances, methods
+  from config import methods
 
   keys = ['value', 'queries', 'time']
 
   batch_results = {}
   for method in methods:
-    batch_results[method] = collections.defaultdict(list)
+    batch_results[method] = collections.defaultdict(int)
 
-  for instanceIdx in range(sampleInstances):
-    # true free features, randomly generated
-    trueFreeFeatures = filter(lambda idx: random.random() < consProbs[idx], range(numOfCons))
-    trueRewardFuncIdx = numpy.random.choice(range(numOfRewards), p=mdp.psi)
+  for trueRewardFuncIdx in range(numOfRewards):
+    for trueFreeFeatures in powerset(range(numOfCons)):
+      for method in methods:
+        print 'true free features', trueFreeFeatures
+        print 'true reward function index', trueRewardFuncIdx
 
-    for method in methods:
-      print 'true free features', trueFreeFeatures
-      print 'true reward function index', trueRewardFuncIdx
+        # the result will be weighted by the probability that we see this reward index and these free features
+        weight = mdp.psi[trueRewardFuncIdx] * numpy.prod([consProbs[freeFeat] for freeFeat in trueFreeFeatures]) *\
+                                              numpy.prod([1 - consProbs[lockedFeat] for lockedFeat in set(range(numOfCons)).difference(trueFreeFeatures)])
+        # under joint uncertainty:
+        results = jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, costOfQuery)
 
-      # under joint uncertainty:
-      results = jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, costOfQuery)
+        for key in keys:
+          batch_results[method][key] += weight * results[key]
 
-      for key in keys:
-        batch_results[method][key].append(results[key])
-
-      # get dom pi number from dompi query agent
-      if method == "dompi":
-        domPiNum = results['domPiNum']
+        # get dom pi number from dompi query agent
+        if method == "dompi":
+          domPiNum = results['domPiNum']
 
   return batch_results, domPiNum
 

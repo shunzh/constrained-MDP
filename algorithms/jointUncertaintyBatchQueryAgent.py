@@ -15,7 +15,7 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
   def __init__(self, mdp, consStates, goalStates=(), consProbs=None, costOfQuery=0, qi=True):
     JointUncertaintyQueryByMyopicSelectionAgent.__init__(self, mdp, consStates, goalStates=goalStates,
                                                          consProbs=consProbs, costOfQuery=costOfQuery)
-    GreedyConstructRewardAgent.__init__(self, mdp, None, qi)
+    GreedyConstructRewardAgent.__init__(self, mdp, 2, qi)
 
   def computeZC(self, pi):
     """
@@ -86,40 +86,21 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
 
     if config.VERBOSE: print 'prior value is', priorValue
 
-    # find the batch query
-    if config.VERBOSE: print 'find one policy'
-    singlePiQ = self.findPolicyQuery(k=1)
+    qPi = self.findPolicyQuery()
 
-    if config.VERBOSE: print 'find two policies'
-    binaryPiQ = self.findPolicyQuery(k=2)
+    # find reward query
+    # it's a 2-partition of reward functions, so pose either of them
+    dominatedRewards = self.findRewardSetQuery(qPi)
+    qR = dominatedRewards[0]
+    support = [idx for idx in range(len(self.mdp.psi)) if self.mdp.psi[idx] > 0]
 
-    eusSingle = self.computeEUS(singlePiQ)
-    evoiSingle = eusSingle - priorValue
-    if config.VERBOSE: print 'single pi EUS', eusSingle, 'EVOI', evoiSingle
+    # make sure qR queries about something, not none or all of support of psi
+    if len(set(qR).intersection(support)) == 0 or set(support).issubset(qR): qR = None
 
-    eusBinary = self.computeEUS(binaryPiQ)
-    evoiBinary = eusBinary - self.costOfQuery - priorValue
-    if config.VERBOSE: print 'binary pi EUS', eusBinary, 'EVOI', evoiBinary
+    evoi = self.computeEUS(qPi) - self.costOfQuery * (qR is not None) - priorValue
 
-    if max(evoiSingle, evoiBinary) <= 1e-4:
+    if evoi <= 1e-4:
       return None
-    elif evoiSingle >= evoiBinary:
-      # single policy query
-      qPi = singlePiQ
-      qR = None
-    else:
-      qPi = binaryPiQ
-
-      # find reward query
-      # it's a 2-partition of reward functions, so pose either of them
-      dominatedRewards = self.findRewardSetQuery(qPi)
-      qR = dominatedRewards[0]
-      support = [idx for idx in range(len(self.mdp.psi)) if self.mdp.psi[idx] > 0]
-
-      print 'qR is', qR
-
-      # make sure qR queries about something, not none or all of support of psi
-      if len(set(qR).intersection(support)) == 0 or set(support).issubset(qR): qR = None
 
     # find feat query
     qFeats = set()

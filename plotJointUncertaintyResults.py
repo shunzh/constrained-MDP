@@ -96,12 +96,11 @@ if __name__ == '__main__':
   font = {'size': 19}
   pylab.matplotlib.rc('font', **font)
 
-  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costsOfQuery, sampleInstances
+  from config import trialsStart, trialsEnd, numsOfCarpets, numsOfSwitches, methods, costsOfQuery
 
   values = collections.defaultdict(list)
   numOfQueries = collections.defaultdict(list)
   returns = collections.defaultdict(list)
-  returnData = collections.defaultdict(list)
   times = collections.defaultdict(list)
 
   switchToRobotDis = collections.defaultdict(list)
@@ -124,16 +123,16 @@ if __name__ == '__main__':
           for costOfQuery in costsOfQuery:
             configKey = (numOfCarpets, numOfSwitches, costOfQuery)
             for method in methods:
-              numQs = map(lambda _: len(_), results[configKey][method]['queries'])
+              value = results[configKey][method]['value']
+              numQs = results[configKey][method]['queries']
 
-              values[configKey, method].append(mean(results[configKey][method]['value']))
-              numOfQueries[configKey, method].append(mean(numQs))
-              times[configKey, method].append(mean(results[configKey][method]['time']))
+              values[configKey, method].append(value)
+              numOfQueries[configKey, method].append(numQs)
+              times[configKey, method].append(results[configKey][method]['time'])
 
-              ret = [results[configKey][method]['value'][_] - costOfQuery * numQs[_] for _ in range(sampleInstances)]
+              ret = value - costOfQuery * numQs
 
-              returns[configKey, method].append(mean(ret))
-              returnData[configKey, method].append(ret)
+              returns[configKey, method].append(ret)
 
   # plot different statistics in different figures
   statNames = ['objective', 'policy value', 'number of queries', 'computation time (sec.)']
@@ -164,19 +163,12 @@ if __name__ == '__main__':
 
           batchDiff = [e1 - e2 for e1, e2 in zip(batchResults, comparedResults)]
 
-          batchResultVec = returnData[configKey, 'batch']
-          comparedResultVec = returnData[configKey, comparedHeuristic]
-
-          batchFreqDiff = [1.0 * sum(e1 - e2 >= 0 for e1, e2 in zip(l1, l2)) / sampleInstances
-                           for l1, l2 in zip(batchResultVec, comparedResultVec)]
-
           # print random seeds where batch is worse
           print "batch worse than ", comparedHeuristic,
           print numOfCarpets, numOfSwitches, costOfQuery, [(_, batchDiff[_]) for _ in range(len(batchDiff)) if batchDiff[_] < 0]
           #print numOfCarpets, numOfSwitches, costOfQuery, [(_, batchFreqDiff[_]) for _ in range(len(batchFreqDiff)) if batchFreqDiff[_] <= 0.1]
 
           allBatchDiff += batchDiff
-          allBatchFreqDiff += batchFreqDiff
           allDomPiNums += domPiNums[numOfCarpets, numOfSwitches]
           allSwitchToRobotDis += switchToRobotDis[numOfCarpets, numOfSwitches]
 
@@ -184,7 +176,7 @@ if __name__ == '__main__':
                 'batch_' + comparedHeuristic + '_diff_' + str(numOfSwitches))
       histogram(allBatchFreqDiff, 'batch - ' + comparedHeuristic,
                 'batch_' + comparedHeuristic + '_freq_diff_' + str(numOfSwitches))
-      correlation(allDomPiNums, allBatchDiff, '# of dominating policies', 'batch - ' + comparedHeuristic,
-                  'batch_' + comparedHeuristic + '_dompis_' + str(numOfSwitches))
-      correlation(allSwitchToRobotDis, allBatchDiff, 'switch to robot distances', 'batch - ' + comparedHeuristic,
-                  'batch_' + comparedHeuristic + '_switchToRobotDis_' + str(numOfSwitches))
+      #correlation(allDomPiNums, allBatchDiff, '# of dominating policies', 'batch - ' + comparedHeuristic,
+      #            'batch_' + comparedHeuristic + '_dompis_' + str(numOfSwitches))
+      #correlation(allSwitchToRobotDis, allBatchDiff, 'switch to robot distances', 'batch - ' + comparedHeuristic,
+      #            'batch_' + comparedHeuristic + '_switchToRobotDis_' + str(numOfSwitches))

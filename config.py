@@ -8,16 +8,16 @@ OPT_METHOD = 'gurobi'
 earlyStop = 1
 
 # for each domain configuration, sample the true reward function and the true free features
-sampleInstances = 30
+#sampleInstances = 20
 
 # experiment configuration
 trialsStart = 0
-trialsEnd = 500
+trialsEnd = 100
 
 methods = ['myopic', 'batch', 'dompi']
 
-size = 6
-walls = 5
-numsOfCarpets = [10, 12, 14]
-numsOfSwitches = [2, 4]
+size = 3
+walls = 0
+numsOfCarpets = [4]
+numsOfSwitches = [2]
 costsOfQuery = [0.1]
