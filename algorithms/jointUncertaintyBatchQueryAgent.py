@@ -84,8 +84,6 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     # going to modify the transition function of the mdp
     self.encodeConstraintIntoTransition(self.mdp)
 
-    if config.VERBOSE: print 'prior value is', priorValue
-
     qPi = self.findPolicyQuery()
 
     # find reward query
@@ -97,7 +95,11 @@ class JointUncertaintyBatchQueryAgent(JointUncertaintyQueryByMyopicSelectionAgen
     # make sure qR queries about something, not none or all of support of psi
     if len(set(qR).intersection(support)) == 0 or set(support).issubset(qR): qR = None
 
-    evoi = self.computeEUS(qPi) - self.costOfQuery * (qR is not None) - priorValue
+    eus = self.computeEUS(qPi)
+    evoi = eus - self.costOfQuery * (qR is not None) - priorValue
+
+    if config.VERBOSE:
+      print 'evoi', evoi, '=', eus, '-', self.costOfQuery, '*', (qR is not None), '-', priorValue
 
     if evoi <= 1e-4:
       return None

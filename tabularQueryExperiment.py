@@ -328,9 +328,18 @@ def experiment(mdp, consStates, goalStates, k, rnd, consProbs, costOfQuery=0.0):
 
   for trueRewardFuncIdx in range(numOfRewards):
     for trueFreeFeatures in powerset(range(numOfCons)):
+      if config.VERBOSE:
+        print
+        print 'reward', trueRewardFuncIdx
+        print 'free features', trueFreeFeatures
+
       thisResult = collections.defaultdict(int)
 
       for method in methods:
+        if config.VERBOSE:
+          print
+          print 'method', method
+
         # under joint uncertainty:
         thisResult[method] = jointUncertaintyQuery(mdp, method, consStates, consProbs, trueRewardFuncIdx, trueFreeFeatures, rnd, costOfQuery)
         thisResult[method]['queries'] = len(thisResult[method]['queriesAsked'])

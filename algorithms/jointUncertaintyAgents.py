@@ -117,14 +117,16 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
 
     if config.VERBOSE: print 'query and EVOI', queryAndEVOIs
 
-    optQueryAndEVOI = max(queryAndEVOIs, key=lambda _: _[1])
+    maxEVOI = max(evoi for (q, evoi) in queryAndEVOIs)
+    # break the tie randomly
+    optQuery = random.choice([q for (q, evoi) in queryAndEVOIs if evoi == maxEVOI])
 
-    if considerCost and optQueryAndEVOI[1] < self.costOfQuery:
+    if considerCost and maxEVOI < self.costOfQuery:
       return None
-    elif optQueryAndEVOI[0][1] is None:
+    elif optQuery[1] is None:
       return None
     else:
-      return optQueryAndEVOI[0]
+      return optQuery
 
 
 class JointUncertaintyOptimalQueryAgent(JointUncertaintyQueryAgent):

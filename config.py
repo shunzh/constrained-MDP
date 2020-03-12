@@ -12,7 +12,7 @@ earlyStop = 1
 
 # experiment configuration
 trialsStart = 0
-trialsEnd = 100
+trialsEnd = 500
 
 methods = ['myopic', 'batch', 'dompi']
 
