@@ -2,6 +2,8 @@ import copy
 import random
 from operator import mul
 
+import numpy
+
 import config
 from algorithms.consQueryAgents import ConsQueryAgent
 from algorithms.initialSafeAgent import GreedyForSafetyAgent
@@ -293,6 +295,7 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     # initialize objectDomPiData to be None, will be computed in findQuery
     self.objectDomPiData = None
 
+    # return as stats
     self.domPiNum = None
 
   class DomPiData:
@@ -338,12 +341,13 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
         # we are going to query about rIndices and relFeatures
         # we regard them as batch queries and compute the possible responses
-        safeProb = reduce(mul, [self.consProbs[feat] for feat in relFeats], 1)
+        safeProb = numpy.prod([self.consProbs[feat] for feat in relFeats])
         rPositiveValue = rewardPositiveConsAgent.computeValue(domPi)
 
         # priorPi is feasible under relFeats since priorPi is safer (before querying)
         priorValue = rewardPositiveConsAgent.computeValue(priorPi)
 
+        # 1 <= len(rIndices) <= sizeOfRewards
         rewardQueryNeeded = (len(rIndices) < len(consistentRewardIndices))
 
         # at least (relFeats) feature queries and 1 reward-set query are needed
@@ -412,13 +416,11 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
     Then find its relevant feature that has the highest EVOI value.
     :return: (query type, query)
     """
+    # unable to find a query, try to find a different dom pi
+    self.findDomPi()
     query = self.attemptToFindQuery()
-    if query is None:
-      # unable to find a query, try to find a different dom pi
-      self.findDomPi()
-      query = self.attemptToFindQuery()
 
-    # possibly query is still None, in which case return None and stop querying
+    # could be None, in which case we stop querying
     return query
 
 
