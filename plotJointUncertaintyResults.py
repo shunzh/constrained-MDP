@@ -165,7 +165,8 @@ if __name__ == '__main__':
 
           # print random seeds where batch is worse
           print "batch worse than ", comparedHeuristic,
-          print numOfCarpets, numOfSwitches, costOfQuery, [(_, batchDiff[_]) for _ in range(len(batchDiff)) if batchDiff[_] < 0]
+          diffInstances = [(_, batchDiff[_]) for _ in range(len(batchDiff)) if batchDiff[_] < 0]
+          print numOfCarpets, numOfSwitches, costOfQuery, sorted(diffInstances, key=lambda x: x[1])
           #print numOfCarpets, numOfSwitches, costOfQuery, [(_, batchFreqDiff[_]) for _ in range(len(batchFreqDiff)) if batchFreqDiff[_] <= 0.1]
 
           allBatchDiff += batchDiff
