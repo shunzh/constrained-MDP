@@ -95,8 +95,6 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
       mdpIfFalseReward.updatePsi(computePosteriorBelief(mdpIfFalseReward.psi, inconsistentRewards=rIndices))
       posteriorValueIfFalse = self.findConstrainedOptPi(activeCons=self.unknownCons, mdp=mdpIfFalseReward)['obj']
 
-      if config.VERBOSE: print 'value after reward response', posteriorValueIfTrue, posteriorValueIfFalse
-
       epu = sum(self.mdp.psi[_] for _ in rIndices) * posteriorValueIfTrue +\
           + (1 - sum(self.mdp.psi[_] for _ in rIndices)) * posteriorValueIfFalse
     else:
@@ -117,11 +115,13 @@ class JointUncertaintyQueryAgent(ConsQueryAgent):
     for query in queries:
       queryAndEVOIs.append((query, self.computeEVOI(query)))
 
-    if config.VERBOSE: print 'query and EVOI', queryAndEVOIs
+    if config.VERBOSE: print 'select query by EVOI', queryAndEVOIs
 
-    maxEVOI = max(evoi for (q, evoi) in queryAndEVOIs)
     # break the tie randomly
-    optQuery = random.choice([q for (q, evoi) in queryAndEVOIs if evoi == maxEVOI])
+    #maxEVOI = max(evoi for (q, evoi) in queryAndEVOIs)
+    #optQuery = random.choice([q for (q, evoi) in queryAndEVOIs if evoi == maxEVOI])
+
+    (optQuery, maxEVOI) = max(queryAndEVOIs, key=lambda x: x[1])
 
     if considerCost and maxEVOI < self.costOfQuery:
       return None

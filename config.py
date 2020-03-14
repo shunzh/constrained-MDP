@@ -18,6 +18,6 @@ methods = ['myopic', 'batch', 'dompi']
 
 size = 3
 walls = 0
-numsOfCarpets = [4]
-numsOfSwitches = [2]
+numsOfCarpets = [2]
+numsOfSwitches = [4]
 costsOfQuery = [0.1]

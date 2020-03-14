@@ -354,6 +354,9 @@ def experiment(mdp, consStates, goalStates, k, rnd, consProbs, costOfQuery=0.0):
         for key in keys:
           batch_results[method][key] += weight * thisResult[method][key]
 
+        # print this info for debugging
+        if config.VERBOSE: print thisResult[method]
+
       for comparedMethod in ['myopic', 'dompi']:
         if thisResult['batch']['obj'] < thisResult[comparedMethod]['obj']:
           print trueRewardFuncIdx, trueFreeFeatures, {method: (thisResult[method]['obj'], thisResult[method]['queriesAsked']) for method in ['batch', comparedMethod]}
@@ -421,15 +424,15 @@ if __name__ == '__main__':
         spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=walls, numOfSwitches=numOfSwitches)
 
         # uniform prior over rewards
-        #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
+        rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
         # random prior over rewards (add 0.1 to reduce variance a little bit)
-        rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
+        #rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
 
         mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.99)
 
         numOfCons = len(consStates)
-        consProbs = [random.random() for _ in range(numOfCons)]
-        #consProbs = [0.5 for _ in range(numOfCons)]
+        #consProbs = [random.random() for _ in range(numOfCons)]
+        consProbs = [0.5 for _ in range(numOfCons)]
         print 'consProbs', zip(range(numOfCons), consProbs)
 
         domPiNum = None
