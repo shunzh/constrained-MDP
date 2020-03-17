@@ -424,15 +424,16 @@ if __name__ == '__main__':
         spec = squareWorld(size=size, numOfCarpets=numOfCarpets, numOfWalls=walls, numOfSwitches=numOfSwitches)
 
         # uniform prior over rewards
-        rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
+        #rewardProbs = [1.0 / numOfSwitches] * numOfSwitches
         # random prior over rewards (add 0.1 to reduce variance a little bit)
-        #rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
+        rewardProbs = normalize([random.random() for _ in range(numOfSwitches)]); print 'psi', rewardProbs
+        print 'rewardProbs', rewardProbs
 
         mdp, consStates, goalStates = officeNavigationTask(spec, rewardProbs=rewardProbs, gamma=0.99)
 
         numOfCons = len(consStates)
-        #consProbs = [random.random() for _ in range(numOfCons)]
-        consProbs = [0.5 for _ in range(numOfCons)]
+        consProbs = [random.random() for _ in range(numOfCons)]
+        #consProbs = [0.5 for _ in range(numOfCons)]
         print 'consProbs', zip(range(numOfCons), consProbs)
 
         domPiNum = None

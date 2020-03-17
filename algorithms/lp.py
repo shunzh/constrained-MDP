@@ -282,7 +282,7 @@ def jointUncertaintyMilp(mdp, oldPi, oldZC, unknownFeatStates, costOfQuery):
   for consIdx in range(len(unknownFeatStates)):
     # (c) unknown features can be changed
     m.addConstr(M * zC[consIdx] >= sum(x[S.index(s), A.index(a)] for s in unknownFeatStates[consIdx] for a in A))
-    # (d) constrain z^{new}_\phi
+    # (d) constrain z^{new}_\phi, note that lb of zCNew is 0
     m.addConstr(zCNew[consIdx] >= zC[consIdx] - oldZC[consIdx])
 
   # (e) constraints on y^0_r

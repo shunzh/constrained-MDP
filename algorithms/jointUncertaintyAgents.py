@@ -358,7 +358,6 @@ class JointUncertaintyQueryBySamplingDomPisAgent(JointUncertaintyQueryAgent):
 
         if weightedValue > 0:
           # only add dom pi info when it's beneficial to query about this
-          if config.VERBOSE: print 'weightedValue', rIndices, relFeats, weightedValue
           domPisData.append(self.DomPiData(pi=domPi, weightedValue=weightedValue, optimizedRewards=rIndices, violatedCons=relFeats))
 
     if self.domPiNum is None:
